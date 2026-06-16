@@ -1,0 +1,130 @@
+@model IEnumerable<WebApplication1.Models.User>
+
+@{
+    ViewData["Title"] = "Users";
+
+    string GetRoleClass(string role) => role switch
+    {
+        "Admin" => "bg-danger",
+        "Manager" => "bg-warning text-dark",
+        "User" => "bg-info",
+        _ => "bg-secondary"
+    };
+
+    string GetStatusClass(string status) => status switch
+    {
+        "Available" => "bg-success",
+        "Unavailable" => "bg-warning text-dark",
+        "Absent" => "bg-danger",
+        _ => "bg-secondary"
+    };
+}
+
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-5">Users</h1>
+            <p class="text-muted">All organization members</p>
+        </div>
+        <div class="col-auto">
+            <a asp-action="Create" class="btn btn-primary">Add New User</a>
+        </div>
+    </div>
+
+    @if (Model.Any())
+    {
+        <div class="row">
+            @foreach (var user in Model)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-center mb-3">
+                                <div class="avatar-circle">
+                                    @user.FirstName[0]@user.LastName[0]
+                                </div>
+                            </div>
+
+                            <h5 class="card-title text-center">@user.FirstName @user.LastName</h5>
+                            @if (!string.IsNullOrEmpty(user.NickName))
+                            {
+                                <p class="text-center text-muted">@user.NickName</p>
+                            }
+
+                            <div class="mb-3">
+                                <small><strong>Position:</strong></small>
+                                <br />
+                                <small>@(user.Position ?? "N/A")</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <small><strong>Role:</strong></small>
+                                <br />
+                                <small><span class="badge @GetRoleClass(user.Role)">@(user.Role ?? "User")</span></small>
+                            </div>
+
+                            <div class="mb-3">
+                                <small><strong>Status:</strong></small>
+                                <br />
+                                <small>
+                                    <span class="badge @GetStatusClass(user.Status)">
+                                        @(user.Status ?? "Available")
+                                    </span>
+                                </small>
+                            </div>
+
+                            <div class="mb-3">
+                                <small><strong>Location:</strong></small>
+                                <br />
+                                <small>@(user.WorkLocation ?? "N/A")</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <small><strong>Contact:</strong></small>
+                                <br />
+                                @if (!string.IsNullOrEmpty(user.Email))
+                                {
+                                    <small>📧 @user.Email</small><br />
+                                }
+                                @if (!string.IsNullOrEmpty(user.Phone))
+                                {
+                                    <small>📱 @user.Phone</small><br />
+                                }
+                                @if (!string.IsNullOrEmpty(user.Line))
+                                {
+                                    <small>💬 @user.Line</small>
+                                }
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light">
+                            <a asp-action="Details" asp-route-id="@user.Id" class="btn btn-sm btn-info">View Profile</a>
+                            <a asp-action="Edit" asp-route-id="@user.Id" class="btn btn-sm btn-warning">Edit</a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info" role="alert">
+            No users found. <a asp-action="Create" class="alert-link">Add one now</a>
+        </div>
+    }
+</div>
+
+<style>
+    .avatar-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        font-weight: bold;
+        margin: 0 auto;
+    }
+</style>

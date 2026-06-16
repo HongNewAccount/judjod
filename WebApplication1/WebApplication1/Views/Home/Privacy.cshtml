@@ -1,6 +1,32 @@
-﻿@{
+@{
     ViewData["Title"] = "Privacy Policy";
 }
-<h1>@ViewData["Title"]</h1>
 
-<p>Use this page to detail your site's privacy policy.</p>
+<div class="container mt-5">
+    <h1>Privacy Policy</h1>
+
+    <p>This is the privacy policy page for Organization Dashboard.</p>
+
+    <h4>Data Collection</h4>
+    <p>We collect information about users including:</p>
+    <ul>
+        <li>Personal information (name, email, phone)</li>
+        <li>Work-related information (position, work location)</li>
+        <li>Communication preferences (Line ID)</li>
+    </ul>
+
+    <h4>Data Usage</h4>
+    <p>The collected data is used to:</p>
+    <ul>
+        <li>Manage organization reports and events</li>
+        <li>Facilitate internal communication</li>
+        <li>Track project progress</li>
+    </ul>
+
+    <h4>Data Protection</h4>
+    <p>All user data is protected and stored securely in our database.</p>
+
+    <hr />
+
+    <a href="@Url.Action("Index", "Dashboard")" class="btn btn-secondary">Back to Dashboard</a>
+</div>

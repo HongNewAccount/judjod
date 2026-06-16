@@ -1,0 +1,67 @@
+﻿@model IEnumerable<WebApplication1.Models.OrganizationEvent>
+
+@{
+    ViewData["Title"] = "Events";
+}
+
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-5">Organization Events</h1>
+            <p class="text-muted">All company events and activities</p>
+        </div>
+        <div class="col-auto">
+            <a asp-action="Create" class="btn btn-primary">Create New Event</a>
+        </div>
+    </div>
+
+    @if (Model.Any())
+    {
+        <div class="row">
+            @foreach (var evt in Model.OrderBy(e => e.EventDate))
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">@evt.Title</h5>
+                            <p class="card-text text-muted">@evt.Description?.Substring(0, Math.Min(100, evt.Description?.Length ?? 0))...</p>
+
+                            <div class="mb-3">
+                                <small><strong>Date:</strong></small>
+                                <br />
+                                <small>@evt.EventDate.ToString("MMM dd, yyyy HH:mm")</small>
+                                @if (evt.EventEndDate.HasValue)
+                                {
+                                    <br />
+                                    <small>to @evt.EventEndDate.Value.ToString("HH:mm")</small>
+                                }
+                            </div>
+
+                            <div class="mb-3">
+                                <small><strong>Location:</strong></small>
+                                <br />
+                                <small>@evt.Location @(evt.IsOnSite ? "(On-site)" : "(Off-site)")</small>
+                            </div>
+
+                            <div>
+                                <small><strong>Attendees:</strong></small>
+                                <br />
+                                <small>@evt.Attendees.Count person(s)</small>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light">
+                            <a asp-action="Details" asp-route-id="@evt.Id" class="btn btn-sm btn-info">View Details</a>
+                            <a asp-action="Edit" asp-route-id="@evt.Id" class="btn btn-sm btn-warning">Edit</a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info" role="alert">
+            No events scheduled. <a asp-action="Create" class="alert-link">Create one now</a>
+        </div>
+    }
+</div>

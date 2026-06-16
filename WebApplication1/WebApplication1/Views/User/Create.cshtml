@@ -1,0 +1,114 @@
+@model WebApplication1.Models.User
+
+@{
+    ViewData["Title"] = "Create User";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Create New User Account</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" asp-action="Create" class="needs-validation" novalidate>
+                        <div asp-validation-summary="All" class="alert alert-danger"></div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="firstName" class="form-label">First Name *</label>
+                                <input type="text" class="form-control" id="firstName" asp-for="FirstName" required />
+                                <span asp-validation-for="FirstName" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="lastName" class="form-label">Last Name *</label>
+                                <input type="text" class="form-control" id="lastName" asp-for="LastName" required />
+                                <span asp-validation-for="LastName" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="nickName" class="form-label">Nickname</label>
+                            <input type="text" class="form-control" id="nickName" asp-for="NickName" />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="username" class="form-label">Username *</label>
+                                <input type="text" class="form-control" id="username" asp-for="Username" required />
+                                <span asp-validation-for="Username" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="passwordHash" class="form-label">Password *</label>
+                                <input type="password" class="form-control" id="passwordHash" asp-for="PasswordHash" required />
+                                <span asp-validation-for="PasswordHash" class="text-danger"></span>
+                                <small class="text-muted">Minimum 6 characters recommended</small>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" asp-for="Email" />
+                                <span asp-validation-for="Email" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="phone" class="form-label">Phone</label>
+                                <input type="tel" class="form-control" id="phone" asp-for="Phone" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="line" class="form-label">Line ID</label>
+                            <input type="text" class="form-control" id="line" asp-for="Line" />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="role" class="form-label">Role</label>
+                                <select class="form-control" id="role" asp-for="Role">
+                                    <option value="">Select Role</option>
+                                    <option value="Admin">Admin</option>
+                                    <option value="Manager">Manager</option>
+                                    <option value="User">User</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="position" class="form-label">Position</label>
+                                <input type="text" class="form-control" id="position" asp-for="Position" placeholder="e.g., Developer, Manager" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="workLocation" class="form-label">Work Location</label>
+                            <input type="text" class="form-control" id="workLocation" asp-for="WorkLocation" placeholder="e.g., Floor 2, Desk 5" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="status" class="form-label">Status</label>
+                            <select class="form-control" id="status" asp-for="Status">
+                                <option value="Available">Available</option>
+                                <option value="Unavailable">Unavailable</option>
+                                <option value="Absent">Absent</option>
+                            </select>
+                        </div>
+
+                        <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">
+                            <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Create User</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

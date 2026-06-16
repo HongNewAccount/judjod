@@ -1,0 +1,87 @@
+@model WebApplication1.Models.Report
+
+@{
+    ViewData["Title"] = "Edit Report";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <h1 class="mb-4">Edit Report</h1>
+
+            <form method="post" asp-action="Edit" class="needs-validation" novalidate>
+                <input type="hidden" asp-for="Id" />
+                <div asp-validation-summary="All" class="alert alert-danger"></div>
+
+                <div class="mb-3">
+                    <label for="title" class="form-label">Report Title *</label>
+                    <input type="text" class="form-control" id="title" asp-for="Title" required />
+                    <span asp-validation-for="Title" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description *</label>
+                    <textarea class="form-control" id="description" asp-for="Description" rows="4" required></textarea>
+                    <span asp-validation-for="Description" class="text-danger"></span>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="priority" class="form-label">Priority *</label>
+                        <select class="form-control" id="priority" asp-for="Priority" required>
+                            <option value="">Select Priority</option>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                            <option value="Urgent">Urgent</option>
+                        </select>
+                        <span asp-validation-for="Priority" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-control" id="status" asp-for="Status">
+                            <option value="Pending">Pending</option>
+                            <option value="InProgress">In Progress</option>
+                            <option value="Resolved">Resolved</option>
+                            <option value="Closed">Closed</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="scheduledDate" class="form-label">Scheduled Date</label>
+                        <input type="datetime-local" class="form-control" id="scheduledDate" asp-for="ScheduledDate" />
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="scheduledEndDate" class="form-label">Scheduled End Date</label>
+                        <input type="datetime-local" class="form-control" id="scheduledEndDate" asp-for="ScheduledEndDate" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="location" class="form-label">Location</label>
+                    <input type="text" class="form-control" id="location" asp-for="Location" />
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="isOnSite" asp-for="IsOnSite" />
+                    <label class="form-check-label" for="isOnSite">
+                        On-site location
+                    </label>
+                </div>
+
+                <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">
+                    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

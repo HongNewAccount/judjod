@@ -1,0 +1,20 @@
+@model WebApplication1.Models.ErrorViewModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<div class="container mt-5">
+    <div class="alert alert-danger" role="alert">
+        <h4 class="alert-heading">An error occurred!</h4>
+        <p>Sorry, something went wrong on the server. Please try again later.</p>
+        @if (Model?.ShowRequestId == true)
+        {
+            <hr>
+            <p class="text-muted">Request ID: <code>@Model.RequestId</code></p>
+        }
+    </div>
+
+    <div class="mt-4">
+        <a href="@Url.Action("Index", "Dashboard")" class="btn btn-primary">Back to Dashboard</a>
+    </div>
+</div>

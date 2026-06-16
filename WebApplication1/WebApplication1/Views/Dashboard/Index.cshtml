@@ -1,0 +1,186 @@
+@functions
+{
+    public string GetPriorityClass(string priority)
+    {
+        return priority switch
+        {
+            "High" => "bg-danger",
+            "Medium" => "bg-warning",
+            "Low" => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+}
+
+@{
+    ViewData["Title"] = "Dashboard";
+
+    var projects =
+        (List<WebApplication1.Models.Project>)ViewBag.Projects
+        ?? new List<WebApplication1.Models.Project>();
+
+    var recentReports =
+        (List<WebApplication1.Models.Report>)ViewBag.RecentReports
+        ?? new List<WebApplication1.Models.Report>();
+
+    var upcomingEvents =
+        (List<WebApplication1.Models.OrganizationEvent>)ViewBag.UpcomingEvents
+        ?? new List<WebApplication1.Models.OrganizationEvent>();
+}
+
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Active Projects</h5>
+                    <h2>@(projects?.Count(p => p.Status == "InProgress") ?? 0)</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Pending Reports</h5>
+                    <h2>@(recentReports?.Count(r => r.Status == "Pending") ?? 0)</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Upcoming Events</h5>
+                    <h2>@(upcomingEvents?.Count ?? 0)</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Resolved Reports</h5>
+                    <h2>@(recentReports?.Count(r => r.Status == "Resolved") ?? 0)</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Projects Section -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Projects</h5>
+                </div>
+                <div class="card-body p-0">
+                    @if (projects != null && projects.Any())
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var project in projects.Take(5))
+                            {
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-1">@project.Name</h6>
+                                            <small class="text-muted">@project.Owner</small>
+                                        </div>
+                                        <span class="badge bg-secondary">@project.Status</span>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">
+                                        @project.StartDate.ToString("MMM dd, yyyy") - @(project.EndDate?.ToString("MMM dd, yyyy") ?? "Ongoing")
+                                    </small>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="p-4 text-center text-muted">
+                            <p>No projects found</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Reports Section -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Reports</h5>
+                    <a asp-controller="Report" asp-action="Index" class="btn btn-sm btn-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    @if (recentReports != null && recentReports.Any())
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var report in recentReports.Take(5))
+                            {
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-1">@report.Title</h6>
+                                            <small class="text-muted">By @report.CreatedByUser?.FirstName @report.CreatedByUser?.LastName</small>
+                                        </div>
+                                        <span class="badge @GetPriorityClass(report.Priority)">@report.Priority</span>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">Status: <strong>@report.Status</strong></small>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="p-4 text-center text-muted">
+                            <p>No reports found</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Events -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Upcoming Events</h5>
+                    <a asp-controller="Event" asp-action="Index" class="btn btn-sm btn-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    @if (upcomingEvents != null && upcomingEvents.Any())
+                    {
+                        <div class="row">
+                            @foreach (var evt in upcomingEvents.Take(6))
+                            {
+                                <div class="col-md-4 mb-3">
+                                    <div class="card border-0 bg-light">
+                                        <div class="card-body">
+                                            <h6 class="card-title">@evt.Title</h6>
+                                            <p class="card-text small">
+                                                <i class="fas fa-calendar"></i> @evt.EventDate.ToString("MMM dd, HH:mm")
+                                            </p>
+                                            <p class="card-text small text-muted">
+                                                <i class="fas fa-map-marker-alt"></i> @evt.Location
+                                            </p>
+                                            <a asp-controller="Event" asp-action="Details" asp-route-id="@evt.Id" class="btn btn-sm btn-outline-primary">Details</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="p-4 text-center text-muted">
+                            <p>No upcoming events found</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
