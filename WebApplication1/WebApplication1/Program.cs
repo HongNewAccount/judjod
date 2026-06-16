@@ -1,5 +1,6 @@
 using WebApplication1.Data;
 using Microsoft.EntityFrameworkCore;
+using static WebApplication1.Data.SeedData;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,5 +47,13 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
+// Seed data
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var context = services.GetRequiredService<ApplicationDbContext>();
+    context.Database.EnsureCreated();
+    SeedData.Initialize(context);
+}
 
 app.Run();

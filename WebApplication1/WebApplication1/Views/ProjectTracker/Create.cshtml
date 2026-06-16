@@ -1,0 +1,78 @@
+@model WebApplication1.Models.Project
+
+@{
+    ViewData["Title"] = "Create Project";
+}
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Create New Project</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" asp-action="Create" class="needs-validation" novalidate>
+                        <div asp-validation-summary="All" class="alert alert-danger"></div>
+
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Project Name *</label>
+                            <input type="text" class="form-control" id="name" asp-for="Name" required />
+                            <span asp-validation-for="Name" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" asp-for="Description" rows="4"></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="owner" class="form-label">Project Owner</label>
+                                <input type="text" class="form-control" id="owner" asp-for="Owner" />
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="status" class="form-label">Status</label>
+                                <select class="form-control" id="status" asp-for="Status">
+                                    <option value="Planning">Planning</option>
+                                    <option value="InProgress">In Progress</option>
+                                    <option value="OnHold">On Hold</option>
+                                    <option value="Completed">Completed</option>
+                                    <option value="Closed">Closed</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="startDate" class="form-label">Start Date *</label>
+                                <input type="date" class="form-control" id="startDate" asp-for="StartDate" required />
+                                <span asp-validation-for="StartDate" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="endDate" class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="endDate" asp-for="EndDate" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="issues" class="form-label">Issues/Notes</label>
+                            <textarea class="form-control" id="issues" asp-for="Issues" rows="3" placeholder="Any issues or additional notes..."></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">
+                            <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Create Project</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
