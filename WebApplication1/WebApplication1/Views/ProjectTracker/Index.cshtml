@@ -180,7 +180,7 @@
                                     <td>
                                         <span class="badge @GetStatusClass(project.Status)">@project.Status</span>
                                     </td>
-                                    <td>Created By: @project.CreatedByUser?.FirstName @project.CreatedByUser?.LastName</td>
+                                    <td>@project.CreatedByUser?.FirstName @project.CreatedByUser?.LastName</td>
                                     <td>
                                         <div class="action-buttons">
                                             <a asp-action="Details" asp-route-id="@project.Id" class="btn btn-sm btn-info" title="View Details">
