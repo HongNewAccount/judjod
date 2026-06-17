@@ -1,33 +1,30 @@
-@functions
-{
-    public string GetPriorityClass(string priority)
-    {
-        return priority switch
-        {
-            "High" => "bg-danger",
-            "Medium" => "bg-warning",
-            "Low" => "bg-info",
-            _ => "bg-secondary"
-        };
-    }
-}
-
 @{
     ViewData["Title"] = "Dashboard";
+    var projects = (List<WebApplication1.Models.Project>?)ViewBag.Projects ?? new List<WebApplication1.Models.Project>();
+    var recentReports = (List<WebApplication1.Models.Report>?)ViewBag.RecentReports ?? new List<WebApplication1.Models.Report>();
+    var upcomingEvents = (List<WebApplication1.Models.OrganizationEvent>?)ViewBag.UpcomingEvents ?? new List<WebApplication1.Models.OrganizationEvent>();
 
-    var projects =
-        (List<WebApplication1.Models.Project>)ViewBag.Projects
-        ?? new List<WebApplication1.Models.Project>();
+    int activeProjects = projects.Where(p => p.Status == "InProgress").Count();
+    int pendingReports = recentReports.Where(r => r.Status == "Pending").Count();
+    int resolvedReports = recentReports.Where(r => r.Status == "Resolved").Count();
+    int upcomingEventCount = upcomingEvents.Count();
 
-    var recentReports =
-        (List<WebApplication1.Models.Report>)ViewBag.RecentReports
-        ?? new List<WebApplication1.Models.Report>();
-
-    var upcomingEvents =
-        (List<WebApplication1.Models.OrganizationEvent>)ViewBag.UpcomingEvents
-        ?? new List<WebApplication1.Models.OrganizationEvent>();
+    string GetPriorityClass(string priority) => priority switch
+    {
+        "High" => "bg-danger",
+        "Medium" => "bg-warning",
+        "Low" => "bg-info",
+        _ => "bg-secondary"
+    };
 }
 
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-4">Dashboard</h1>
+            <p class="text-muted">Welcome to Organization Dashboard</p>
+        </div>
+    </div>
 
     <!-- Quick Stats -->
     <div class="row mb-4">
@@ -35,7 +32,7 @@
             <div class="card bg-primary text-white">
                 <div class="card-body">
                     <h5 class="card-title">Active Projects</h5>
-                    <h2>@(projects?.Count(p => p.Status == "InProgress") ?? 0)</h2>
+                    <h2>@activeProjects</h2>
                 </div>
             </div>
         </div>
@@ -44,7 +41,7 @@
             <div class="card bg-warning text-white">
                 <div class="card-body">
                     <h5 class="card-title">Pending Reports</h5>
-                    <h2>@(recentReports?.Count(r => r.Status == "Pending") ?? 0)</h2>
+                    <h2>@pendingReports</h2>
                 </div>
             </div>
         </div>
@@ -53,7 +50,7 @@
             <div class="card bg-info text-white">
                 <div class="card-body">
                     <h5 class="card-title">Upcoming Events</h5>
-                    <h2>@(upcomingEvents?.Count ?? 0)</h2>
+                    <h2>@upcomingEventCount</h2>
                 </div>
             </div>
         </div>
@@ -62,7 +59,7 @@
             <div class="card bg-success text-white">
                 <div class="card-body">
                     <h5 class="card-title">Resolved Reports</h5>
-                    <h2>@(recentReports?.Count(r => r.Status == "Resolved") ?? 0)</h2>
+                    <h2>@resolvedReports</h2>
                 </div>
             </div>
         </div>
@@ -85,7 +82,14 @@
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div>
                                             <h6 class="mb-1">@project.Name</h6>
-                                            <small class="text-muted">@project.Owner</small>
+                                            @if (project.Owners.Any())
+                                            {
+                                                <small class="text-muted">@string.Join(", ", project.Owners.Select(o => $"{o.User?.FirstName} {o.User?.LastName}"))</small>
+                                            }
+                                            else
+                                            {
+                                                <small class="text-muted">No owners</small>
+                                            }
                                         </div>
                                         <span class="badge bg-secondary">@project.Status</span>
                                     </div>
@@ -176,11 +180,12 @@
                     }
                     else
                     {
-                        <div class="p-4 text-center text-muted">
-                            <p>No upcoming events found</p>
+                        <div class="text-center text-muted p-4">
+                            <p>No upcoming events</p>
                         </div>
                     }
                 </div>
             </div>
         </div>
     </div>
+</div>

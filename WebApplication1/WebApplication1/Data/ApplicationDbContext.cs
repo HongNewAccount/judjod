@@ -18,6 +18,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<OrganizationEvent> OrganizationEvents { get; set; }
     public DbSet<EventAttendee> EventAttendees { get; set; }
     public DbSet<Project> Projects { get; set; }
+    public DbSet<ProjectOwner> ProjectOwners { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -97,6 +98,20 @@ public class ApplicationDbContext : DbContext
             .HasOne(p => p.CreatedByUser)
             .WithMany()
             .HasForeignKey(p => p.CreatedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Configure ProjectOwner entity
+        modelBuilder.Entity<ProjectOwner>()
+            .HasKey(po => po.Id);
+        modelBuilder.Entity<ProjectOwner>()
+            .HasOne(po => po.Project)
+            .WithMany(p => p.Owners)
+            .HasForeignKey(po => po.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ProjectOwner>()
+            .HasOne(po => po.User)
+            .WithMany()
+            .HasForeignKey(po => po.UserId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -28,6 +28,64 @@
         </div>
     </div>
 
+    <!-- Sort & Filter Controls -->
+    <div class="card mb-4 border-0 bg-light">
+        <div class="card-body p-4">
+            <div class="row g-3">
+                <div class="col-12">
+                    <h6 class="text-dark fw-bold mb-3"><i class="fas fa-filter me-2"></i>Filter by Status</h6>
+                    <div class="btn-group flex-wrap" role="group">
+                        <a href="@Url.Action("Index", new { sortBy = ViewBag.CurrentSort, filter = "all" })"
+                           class="btn btn-sm @(ViewBag.CurrentFilter == "all" || ViewBag.CurrentFilter == null ? "btn-primary" : "btn-outline-secondary")">
+                            <i class="fas fa-list-ul me-1"></i> All Projects
+                        </a>
+                        <a href="@Url.Action("Index", new { sortBy = ViewBag.CurrentSort, filter = "inprogress" })"
+                           class="btn btn-sm @(ViewBag.CurrentFilter == "inprogress" ? "btn-primary" : "btn-outline-secondary")">
+                            <i class="fas fa-spinner me-1"></i> In Progress
+                        </a>
+                        <a href="@Url.Action("Index", new { sortBy = ViewBag.CurrentSort, filter = "notcompleted" })"
+                           class="btn btn-sm @(ViewBag.CurrentFilter == "notcompleted" ? "btn-primary" : "btn-outline-secondary")">
+                            <i class="fas fa-hourglass-half me-1"></i> Not Completed
+                        </a>
+                        <a href="@Url.Action("Index", new { sortBy = ViewBag.CurrentSort, filter = "completed" })"
+                           class="btn btn-sm @(ViewBag.CurrentFilter == "completed" ? "btn-primary" : "btn-outline-secondary")">
+                            <i class="fas fa-check-circle me-1"></i> Completed
+                        </a>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <h6 class="text-dark fw-bold mb-3"><i class="fas fa-sort me-2"></i>Sort by</h6>
+                    <div class="btn-group flex-wrap" role="group">
+                        <a href="@Url.Action("Index", new { sortBy = "latest", filter = ViewBag.CurrentFilter })"
+                           class="btn btn-sm @(ViewBag.CurrentSort == "latest" || ViewBag.CurrentSort == null ? "btn-primary" : "btn-outline-secondary")">
+                            <i class="fas fa-clock me-1"></i> Latest
+                        </a>
+                        <a href="@Url.Action("Index", new { sortBy = "date_asc", filter = ViewBag.CurrentFilter })"
+                           class="btn btn-sm @(ViewBag.CurrentSort == "date_asc" ? "btn-primary" : "btn-outline-secondary")">
+                            <i class="fas fa-arrow-up me-1"></i> Start Date (Old→New)
+                        </a>
+                        <a href="@Url.Action("Index", new { sortBy = "date_desc", filter = ViewBag.CurrentFilter })"
+                           class="btn btn-sm @(ViewBag.CurrentSort == "date_desc" ? "btn-primary" : "btn-outline-secondary")">
+                            <i class="fas fa-arrow-down me-1"></i> Start Date (New→Old)
+                        </a>
+                        <a href="@Url.Action("Index", new { sortBy = "enddate_asc", filter = ViewBag.CurrentFilter })"
+                           class="btn btn-sm @(ViewBag.CurrentSort == "enddate_asc" ? "btn-primary" : "btn-outline-secondary")">
+                            <i class="fas fa-arrow-up me-1"></i> End Date (Old→New)
+                        </a>
+                        <a href="@Url.Action("Index", new { sortBy = "enddate_desc", filter = ViewBag.CurrentFilter })"
+                           class="btn btn-sm @(ViewBag.CurrentSort == "enddate_desc" ? "btn-primary" : "btn-outline-secondary")">
+                            <i class="fas fa-arrow-down me-1"></i> End Date (New→Old)
+                        </a>
+                        <a href="@Url.Action("Index", new { sortBy = "name_asc", filter = ViewBag.CurrentFilter })"
+                           class="btn btn-sm @(ViewBag.CurrentSort == "name_asc" ? "btn-primary" : "btn-outline-secondary")">
+                            <i class="fas fa-sort-alpha-down me-1"></i> Name (A-Z)
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Quick Stats -->
     <div class="row mb-4">
         <div class="col-lg-3 mb-3">
@@ -80,7 +138,7 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Project Name</th>
-                                <th>Owner</th>
+                                <th>Owners</th>
                                 <th>Start Date</th>
                                 <th>End Date</th>
                                 <th>Status</th>
@@ -101,17 +159,23 @@
                                             <small class="text-muted">@project.Description.Substring(0, Math.Min(50, project.Description.Length))...</small>
                                         }
                                     </td>
-                                    <td>@(project.Owner ?? "N/A")</td>
+                                    <td>
+                                        @if (project.Owners.Any())
+                                        {
+                                            @foreach (var owner in project.Owners)
+                                            {
+                                                <span class="badge bg-secondary me-1">@owner.User?.FirstName @owner.User?.LastName</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No owners</span>
+                                        }
+                                    </td>
                                     <td>@project.StartDate.ToString("MMM dd, yyyy")</td>
                                     <td>@(project.EndDate?.ToString("MMM dd, yyyy") ?? "Ongoing")</td>
                                     <td>
                                         <span class="badge @GetStatusClass(project.Status)">@project.Status</span>
-                                    </td>
-                                    <td>
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar" role="progressbar" style="width: @(project.Status == "Completed" ? "100" : project.Status == "InProgress" ? "50" : "0")%">
-                                            </div>
-                                        </div>
                                     </td>
                                     <td>@project.CreatedByUser?.FirstName @project.CreatedByUser?.LastName</td>
                                     <td>
@@ -121,6 +185,11 @@
                                         <a asp-action="Edit" asp-route-id="@project.Id" class="btn btn-sm btn-warning" title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </a>
+                                        <form asp-action="Delete" asp-route-id="@project.Id" method="post" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this project?');">
+                                            <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             }

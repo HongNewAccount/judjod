@@ -1,5 +1,4 @@
 using WebApplication1.Models;
-// Use fully-qualified BCrypt calls to avoid alias resolution issues
 using BCryptNet = BCrypt.Net.BCrypt;
 
 namespace WebApplication1.Data;
@@ -38,7 +37,7 @@ public static class SeedData
                 LastName = "Developer",
                 NickName = "Som",
                 Username = "somchai",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
+                PasswordHash = BCryptNet.HashPassword("pass123"),
                 Email = "somchai@organization.com",
                 Phone = "081-111-1111",
                 Line = "som_dev",
@@ -55,7 +54,7 @@ public static class SeedData
                 LastName = "Engineer",
                 NickName = "Niran",
                 Username = "niran",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
+                PasswordHash = BCryptNet.HashPassword("pass123"),
                 Email = "niran@organization.com",
                 Phone = "081-222-2222",
                 Line = "niran_eng",
@@ -72,11 +71,10 @@ public static class SeedData
                 LastName = "Designer",
                 NickName = "Wilai",
                 Username = "wilai",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
-                
+                PasswordHash = BCryptNet.HashPassword("pass123"),
                 Email = "wilai@organization.com",
                 Phone = "081-333-3333",
-                Line = "wilai_design", 
+                Line = "wilai_design",
                 Role = "User",
                 Position = "UI/UX Designer",
                 WorkLocation = "Floor 3, Desk 2",
@@ -94,9 +92,8 @@ public static class SeedData
         {
             new Project
             {
-                Name = "Website Redesign 2025",
+                Name = "Website Redesign 2026",
                 Description = "Complete redesign of company website with new UI/UX",
-                Owner = "Somchai Developer",
                 StartDate = new DateTime(2026, 1, 15),
                 EndDate = new DateTime(2026, 6, 30),
                 Status = "InProgress",
@@ -108,7 +105,6 @@ public static class SeedData
             {
                 Name = "Mobile App Development",
                 Description = "Develop iOS and Android apps for customer portal",
-                Owner = "Niran Engineer",
                 StartDate = new DateTime(2026, 2, 1),
                 EndDate = new DateTime(2026, 8, 31),
                 Status = "InProgress",
@@ -120,9 +116,8 @@ public static class SeedData
             {
                 Name = "Database Migration",
                 Description = "Migrate legacy database to cloud infrastructure",
-                Owner = "Somchai Developer",
                 StartDate = new DateTime(2026, 3, 1),
-                EndDate = new DateTime(2026, 5, 31), 
+                EndDate = new DateTime(2026, 5, 31),
                 Status = "Planning",
                 Issues = null,
                 CreatedByUserId = users[0].Id,
@@ -132,7 +127,6 @@ public static class SeedData
             {
                 Name = "Security Audit",
                 Description = "Full security assessment and penetration testing",
-                Owner = "Admin User",
                 StartDate = new DateTime(2026, 1, 1),
                 EndDate = new DateTime(2026, 4, 15),
                 Status = "Completed",
@@ -144,7 +138,6 @@ public static class SeedData
             {
                 Name = "API Integration",
                 Description = "Integrate third-party payment and analytics APIs",
-                Owner = "Niran Engineer",
                 StartDate = new DateTime(2026, 4, 1),
                 EndDate = new DateTime(2026, 6, 15),
                 Status = "OnHold",
@@ -156,9 +149,8 @@ public static class SeedData
             {
                 Name = "Email Marketing System",
                 Description = "Build automated email marketing platform",
-                Owner = "Somchai Developer",
                 StartDate = new DateTime(2026, 5, 1),
-                EndDate =   new DateTime(2026, 7, 30),
+                EndDate = new DateTime(2026, 7, 30),
                 Status = "Planning",
                 Issues = null,
                 CreatedByUserId = users[0].Id,
@@ -191,7 +183,7 @@ public static class SeedData
                 Description = "Desktop computer in Dev Lab crashes randomly. May need hardware replacement.",
                 Priority = "Medium",
                 Status = "Pending",
-                ReportedDate  = DateTime.UtcNow.AddDays(-3),
+                ReportedDate = DateTime.UtcNow.AddDays(-3),
                 ScheduledDate = DateTime.UtcNow.AddDays(2),
                 Location = "Floor 2, Dev Lab",
                 IsOnSite = true,
@@ -236,7 +228,7 @@ public static class SeedData
             {
                 Title = "Team Lunch & Networking",
                 Description = "Monthly team gathering for lunch and casual networking. All staff welcome!",
-                EventDate =    new DateTime(2026, 6, 20, 12, 0, 0),
+                EventDate = new DateTime(2026, 6, 20, 12, 0, 0),
                 EventEndDate = new DateTime(2026, 6, 20, 13, 30, 0),
                 Location = "Main Cafeteria",
                 IsOnSite = true,
@@ -246,8 +238,8 @@ public static class SeedData
             new OrganizationEvent
             {
                 Title = "Quarterly All-Hands Meeting",
-                 Description = "CEO will present quarterly results and discuss company strategy for next quarter",
-                   EventDate = new DateTime(2026, 6, 25, 10, 0, 0),
+                Description = "CEO will present quarterly results and discuss company strategy for next quarter",
+                EventDate = new DateTime(2026, 6, 25, 10, 0, 0),
                 EventEndDate = new DateTime(2026, 6, 25, 11, 30, 0),
                 Location = "Auditorium",
                 IsOnSite = true,
@@ -258,7 +250,7 @@ public static class SeedData
             {
                 Title = "Training: ASP.NET Core Advanced",
                 Description = "Professional development workshop on advanced ASP.NET Core topics including performance optimization",
-                   EventDate = new DateTime(2026, 6, 27, 14, 0, 0),
+                EventDate = new DateTime(2026, 6, 27, 14, 0, 0),
                 EventEndDate = new DateTime(2026, 6, 27, 17, 0, 0),
                 Location = "Training Room B",
                 IsOnSite = true,
@@ -268,8 +260,8 @@ public static class SeedData
             new OrganizationEvent
             {
                 Title = "Company Anniversary Party",
-                 Description = "Celebrate company's 10th anniversary with food, entertainment, and awards ceremony",
-                   EventDate = new DateTime(2026, 7, 15, 18, 0, 0),
+                Description = "Celebrate company's 10th anniversary with food, entertainment, and awards ceremony",
+                EventDate = new DateTime(2026, 7, 15, 18, 0, 0),
                 EventEndDate = new DateTime(2026, 7, 15, 22, 0, 0),
                 Location = "Grand Ballroom Hotel",
                 IsOnSite = false,

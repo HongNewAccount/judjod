@@ -29,8 +29,16 @@
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="owner" class="form-label">Project Owner</label>
-                                <input type="text" class="form-control" id="owner" asp-for="Owner" />
+                                <label for="ownerIds" class="form-label">Project Owners (Select multiple)</label>
+                                <select class="form-control" id="ownerIds" name="ownerIds" multiple>
+                                    @foreach (var user in (List<WebApplication1.Models.User>)ViewBag.Users ?? new List<WebApplication1.Models.User>())
+                                    {
+                                        <option value="@user.Id" selected="@(Model?.Owners.Any(o => o.UserId == user.Id) == true)">
+                                            @user.FirstName @user.LastName (@user.Position)
+                                        </option>
+                                    }
+                                </select>
+                                <small class="text-muted">Hold Ctrl (or Cmd) to select multiple</small>
                             </div>
 
                             <div class="col-md-6 mb-3">

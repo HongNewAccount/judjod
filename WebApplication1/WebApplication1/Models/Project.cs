@@ -12,8 +12,6 @@ public class Project
 
     public string? Description { get; set; }
 
-    [StringLength(100)]
-    public string? Owner { get; set; }
 
     public DateTime StartDate { get; set; }
 
@@ -33,4 +31,5 @@ public class Project
 
     // Navigation properties
     public User? CreatedByUser { get; set; }
+    public ICollection<ProjectOwner> Owners { get; set; } = new List<ProjectOwner>();
 }
