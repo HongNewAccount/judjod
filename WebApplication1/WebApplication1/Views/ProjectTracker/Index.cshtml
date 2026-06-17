@@ -49,7 +49,7 @@
         </div>
 
         <div class="col-lg-3 mb-3">
-            <div class="card bg-warning text-dark border-0">
+            <div class="card bg-dark text-white border-0">
                 <div class="card-body text-center">
                     <h2 class="card-title">@(stats.ContainsKey("OnHoldProjects") ? stats["OnHoldProjects"] : 0)</h2>
                     <p class="card-text">On Hold Projects</p>
@@ -250,6 +250,8 @@
     .action-buttons .btn-info,
     .action-form .btn-info {
         border-color: #0dcaf0;
+        color: white;
+        background-color: #0dcaf0;
     }
 
     .action-buttons .btn-success,
@@ -260,12 +262,14 @@
     .action-buttons .btn-warning,
     .action-form .btn-warning {
         border-color: #ffc107;
+        color: white;
     }
 
     .action-buttons .btn-outline-warning,
     .action-form .btn-outline-warning {
         border-color: #ffc107;
-        color: #ffc107;
+        color: white;
+        background-color: #ffc107;
     }
 
     .action-buttons .btn-danger,
