@@ -16,12 +16,14 @@ public class ProjectTrackerController : Controller
     public async Task<IActionResult> Index(string sortBy = "latest", string filter = "all")
     {
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
-        var projects = await _context.Projects
+        var allProjects = await _context.Projects
             .Include(p => p.CreatedByUser)
             .Include(p => p.Owners)
                 .ThenInclude(po => po.User)
             .Include(p => p.Favorites.Where(f => f.UserId == userId))
             .ToListAsync();
+
+        var projects = allProjects;
 
         // Apply filter
         if (filter == "completed")
@@ -52,10 +54,10 @@ public class ProjectTrackerController : Controller
 
         var stats = new Dictionary<string, int>
         {
-            { "TotalProjects", projects.Count },
-            { "ActiveProjects", projects.Count(p => p.Status == "InProgress") },
-            { "CompletedProjects", projects.Count(p => p.Status == "Completed") },
-            { "OnHoldProjects", projects.Count(p => p.Status == "OnHold") }
+            { "TotalProjects", allProjects.Count },
+            { "ActiveProjects", allProjects.Count(p => p.Status == "InProgress") },
+            { "OnHoldProjects", allProjects.Count(p => p.Status == "OnHold") },
+            { "CompletedProjects", allProjects.Count(p => p.Status == "Completed") }
         };
 
         ViewBag.Stats = stats;

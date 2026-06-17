@@ -49,19 +49,19 @@
         </div>
 
         <div class="col-lg-3 mb-3">
-            <div class="card bg-success text-white border-0">
+            <div class="card bg-warning text-dark border-0">
                 <div class="card-body text-center">
-                    <h2 class="card-title">@(stats.ContainsKey("CompletedProjects") ? stats["CompletedProjects"] : 0)</h2>
-                    <p class="card-text">Completed Projects</p>
+                    <h2 class="card-title">@(stats.ContainsKey("OnHoldProjects") ? stats["OnHoldProjects"] : 0)</h2>
+                    <p class="card-text">On Hold Projects</p>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-3 mb-3">
-            <div class="card bg-warning text-dark border-0">
+            <div class="card bg-success text-white border-0">
                 <div class="card-body text-center">
-                    <h2 class="card-title">@(stats.ContainsKey("OnHoldProjects") ? stats["OnHoldProjects"] : 0)</h2>
-                    <p class="card-text">On Hold Projects</p>
+                    <h2 class="card-title">@(stats.ContainsKey("CompletedProjects") ? stats["CompletedProjects"] : 0)</h2>
+                    <p class="card-text">Completed Projects</p>
                 </div>
             </div>
         </div>
@@ -190,7 +190,7 @@
                                                 <i class="fas fa-edit"></i> Edit
                                             </a>
                                             <form asp-action="ToggleFavorite" asp-route-id="@project.Id" method="post" class="action-form">
-                                                <button type="submit" class="btn btn-sm @(project.Favorites.Any() ? "btn-warning" : "btn-outline-warning")" title="@(project.Favorites.Any() ? "Remove from Favorites" : "Add to Favorites")">
+                                                <button type="submit" class="btn btn-sm @(project.Favorites.Any() ? "btn-warning" : "btn-outline-warning")" title="@(project.Favorites.Any() ? "Remove Mark" : "Mark Project")">
                                                     <i class="fas fa-star"></i> @(project.Favorites.Any() ? "★" : "☆")
                                                 </button>
                                             </form>
