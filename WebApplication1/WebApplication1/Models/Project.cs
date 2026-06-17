@@ -32,4 +32,5 @@ public class Project
     // Navigation properties
     public User? CreatedByUser { get; set; }
     public ICollection<ProjectOwner> Owners { get; set; } = new List<ProjectOwner>();
+    public ICollection<ProjectFavorite> Favorites { get; set; } = new List<ProjectFavorite>();
 }

@@ -15,10 +15,12 @@ public class ProjectTrackerController : Controller
 
     public async Task<IActionResult> Index(string sortBy = "latest", string filter = "all")
     {
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var projects = await _context.Projects
             .Include(p => p.CreatedByUser)
             .Include(p => p.Owners)
                 .ThenInclude(po => po.User)
+            .Include(p => p.Favorites.Where(f => f.UserId == userId))
             .ToListAsync();
 
         // Apply filter
@@ -44,6 +46,7 @@ public class ProjectTrackerController : Controller
             "name_desc" => projects.OrderByDescending(p => p.Name).ToList(),
             "enddate_asc" => projects.OrderBy(p => p.EndDate ?? DateTime.MaxValue).ToList(),
             "enddate_desc" => projects.OrderByDescending(p => p.EndDate ?? DateTime.MinValue).ToList(),
+            "favorites" => projects.OrderByDescending(p => p.Favorites.Count).ToList(),
             _ => projects.OrderByDescending(p => p.CreatedAt).ToList()
         };
 
@@ -194,6 +197,30 @@ public class ProjectTrackerController : Controller
         await _context.SaveChangesAsync();
 
         TempData["SuccessMessage"] = $"Project '{project.Name}' has been deleted successfully.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ToggleFavorite(int id)
+    {
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1; // TODO: Get from session
+        var favorite = await _context.ProjectFavorites
+            .FirstOrDefaultAsync(pf => pf.ProjectId == id && pf.UserId == userId);
+
+        if (favorite != null)
+        {
+            _context.ProjectFavorites.Remove(favorite);
+        }
+        else
+        {
+            _context.ProjectFavorites.Add(new WebApplication1.Models.ProjectFavorite
+            {
+                ProjectId = id,
+                UserId = userId
+            });
+        }
+
+        await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
     }
 }

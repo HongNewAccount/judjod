@@ -19,6 +19,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<EventAttendee> EventAttendees { get; set; }
     public DbSet<Project> Projects { get; set; }
     public DbSet<ProjectOwner> ProjectOwners { get; set; }
+    public DbSet<ProjectFavorite> ProjectFavorites { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -112,6 +113,20 @@ public class ApplicationDbContext : DbContext
             .HasOne(po => po.User)
             .WithMany()
             .HasForeignKey(po => po.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Configure ProjectFavorite entity
+        modelBuilder.Entity<ProjectFavorite>()
+            .HasKey(pf => pf.Id);
+        modelBuilder.Entity<ProjectFavorite>()
+            .HasOne(pf => pf.Project)
+            .WithMany(p => p.Favorites)
+            .HasForeignKey(pf => pf.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ProjectFavorite>()
+            .HasOne(pf => pf.User)
+            .WithMany()
+            .HasForeignKey(pf => pf.UserId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
