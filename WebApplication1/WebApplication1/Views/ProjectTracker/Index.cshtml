@@ -180,7 +180,7 @@
                                     <td>
                                         <span class="badge @GetStatusClass(project.Status)">@project.Status</span>
                                     </td>
-                                    <td>@project.CreatedByUser?.FirstName @project.CreatedByUser?.LastName</td>
+                                    <td>Created By: @project.CreatedByUser?.FirstName @project.CreatedByUser?.LastName</td>
                                     <td>
                                         <div class="action-buttons">
                                             <a asp-action="Details" asp-route-id="@project.Id" class="btn btn-sm btn-info" title="View Details">
@@ -228,9 +228,10 @@
     }
 
     .action-buttons {
-        display: flex;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         gap: 6px;
-        flex-wrap: wrap;
+        width: 180px;
     }
 
     .action-buttons .btn,
@@ -243,7 +244,6 @@
         align-items: center;
         justify-content: center;
         white-space: nowrap;
-        min-width: 80px;
     }
 
     .action-buttons .btn-info,
