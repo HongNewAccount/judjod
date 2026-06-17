@@ -191,7 +191,7 @@
                                             </a>
                                             <form asp-action="ToggleFavorite" asp-route-id="@project.Id" method="post" class="action-form">
                                                 <button type="submit" class="btn btn-sm @(project.Favorites.Any() ? "btn-warning" : "btn-outline-warning")" title="@(project.Favorites.Any() ? "Remove Mark" : "Mark Project")">
-                                                    <i class="fas fa-star"></i>
+                                                    <i class="@(project.Favorites.Any() ? "fas fa-star" : "far fa-star")"></i>
                                                 </button>
                                             </form>
                                             <form asp-action="Delete" asp-route-id="@project.Id" method="post" class="action-form" onsubmit="return confirm('Are you sure you want to delete this project?');">
