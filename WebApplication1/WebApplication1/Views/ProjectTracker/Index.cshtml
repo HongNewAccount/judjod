@@ -439,7 +439,8 @@
         const rows = document.querySelectorAll('.project-row');
 
         rows.forEach(row => {
-            const projectName = row.querySelector('[data-project-name]')?.getAttribute('data-project-name') || '';
+            const projectNameElement = row.querySelector('[data-project-name]');
+            const projectName = projectNameElement?.textContent.toLowerCase() || '';
             const isFavorite = row.querySelector('strong .fa-star') !== null;
 
             // Get owner names from the Owners column
