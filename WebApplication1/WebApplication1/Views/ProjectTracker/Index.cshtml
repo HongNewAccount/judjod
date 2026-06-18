@@ -8,10 +8,18 @@
     {
         "Planning" => "bg-secondary",
         "InProgress" => "bg-primary",
-        "OnHold" => "bg-warning text-white",
+        "OnHold" => "bg-danger text-white",
         "Completed" => "bg-success",
-        "Closed" => "bg-dark",
         _ => "bg-secondary"
+    };
+
+    string GetStatusTextClass(string status) => status switch
+    {
+        "Planning" => "text-secondary",
+        "InProgress" => "text-primary",
+        "OnHold" => "text-danger",
+        "Completed" => "text-success",
+        _ => "text-secondary"
     };
 }
 
@@ -40,6 +48,15 @@
         </div>
 
         <div class="col-lg-3 mb-3">
+            <div class="card bg-secondary text-white border-0">
+                <div class="card-body text-center">
+                    <h2 class="card-title">@(stats.ContainsKey("PlanningProjects") ? stats["PlanningProjects"] : 0)</h2>
+                    <p class="card-text">Planning Projects</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 mb-3">
             <div class="card bg-primary text-white border-0">
                 <div class="card-body text-center">
                     <h2 class="card-title">@(stats.ContainsKey("ActiveProjects") ? stats["ActiveProjects"] : 0)</h2>
@@ -49,10 +66,19 @@
         </div>
 
         <div class="col-lg-3 mb-3">
-            <div class="card bg-warning text-white border-0">
+            <div class="card bg-danger text-white border-0">
                 <div class="card-body text-center">
                     <h2 class="card-title">@(stats.ContainsKey("OnHoldProjects") ? stats["OnHoldProjects"] : 0)</h2>
                     <p class="card-text">On Hold Projects</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 mb-3">
+            <div class="card bg-warning text-white border-0">
+                <div class="card-body text-center">
+                    <h2 class="card-title">@(stats.ContainsKey("FavoriteProjects") ? stats["FavoriteProjects"] : 0)</h2>
+                    <p class="card-text"><i class="fas fa-star me-1"></i>Favorite Projects</p>
                 </div>
             </div>
         </div>
@@ -72,56 +98,55 @@
         <div class="card-body p-4">
             <div class="row g-3">
                 <div class="col-12">
+                    <h6 class="text-dark fw-bold mb-3"><i class="fas fa-search me-2"></i>Search Projects</h6>
+                    <input type="text" id="searchInput" class="form-control mb-3" placeholder="Type project name..." />
+                </div>
+                <div class="col-12">
                     <h6 class="text-dark fw-bold mb-3"><i class="fas fa-filter me-2"></i>Filter by Status</h6>
                     <div class="btn-group flex-wrap" role="group">
-                        <a href="@Url.Action("Index", new { sortBy = ViewBag.CurrentSort, filter = "all" })"
-                           class="btn btn-sm @(ViewBag.CurrentFilter == "all" || ViewBag.CurrentFilter == null ? "btn-primary" : "btn-outline-secondary")">
-                            <i class="fas fa-list-ul me-1"></i> All Projects
-                        </a>
-                        <a href="@Url.Action("Index", new { sortBy = ViewBag.CurrentSort, filter = "inprogress" })"
-                           class="btn btn-sm @(ViewBag.CurrentFilter == "inprogress" ? "btn-primary" : "btn-outline-secondary")">
+                        <button type="button" class="btn btn-sm btn-outline-secondary status-btn" data-status="planning">
+                            <i class="fas fa-circle me-1"></i> Planning
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary status-btn" data-status="inprogress">
                             <i class="fas fa-spinner me-1"></i> In Progress
-                        </a>
-                        <a href="@Url.Action("Index", new { sortBy = ViewBag.CurrentSort, filter = "notcompleted" })"
-                           class="btn btn-sm @(ViewBag.CurrentFilter == "notcompleted" ? "btn-primary" : "btn-outline-secondary")">
-                            <i class="fas fa-hourglass-half me-1"></i> Not Completed
-                        </a>
-                        <a href="@Url.Action("Index", new { sortBy = ViewBag.CurrentSort, filter = "completed" })"
-                           class="btn btn-sm @(ViewBag.CurrentFilter == "completed" ? "btn-primary" : "btn-outline-secondary")">
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary status-btn" data-status="onhold">
+                            <i class="fas fa-pause-circle me-1"></i> On Hold
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary status-btn" data-status="completed">
                             <i class="fas fa-check-circle me-1"></i> Completed
-                        </a>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary status-btn" data-status="favorites">
+                            <i class="fas fa-star me-1"></i> Star
+                        </button>
                     </div>
                 </div>
                 <div class="col-12">
                     <h6 class="text-dark fw-bold mb-3"><i class="fas fa-sort me-2"></i>Sort by</h6>
                     <div class="btn-group flex-wrap" role="group">
                         <a href="@Url.Action("Index", new { sortBy = "latest", filter = ViewBag.CurrentFilter })"
-                           class="btn btn-sm @(ViewBag.CurrentSort == "latest" || ViewBag.CurrentSort == null ? "btn-primary" : "btn-outline-secondary")">
+                           class="btn btn-sm @(ViewBag.CurrentSort == "latest" || ViewBag.CurrentSort == null ? "btn-secondary" : "btn-outline-secondary")">
                             <i class="fas fa-clock me-1"></i> Latest
                         </a>
                         <a href="@Url.Action("Index", new { sortBy = "date_asc", filter = ViewBag.CurrentFilter })"
-                           class="btn btn-sm @(ViewBag.CurrentSort == "date_asc" ? "btn-primary" : "btn-outline-secondary")">
+                           class="btn btn-sm @(ViewBag.CurrentSort == "date_asc" ? "btn-secondary" : "btn-outline-secondary")">
                             <i class="fas fa-arrow-up me-1"></i> Start Date (Old→New)
                         </a>
                         <a href="@Url.Action("Index", new { sortBy = "date_desc", filter = ViewBag.CurrentFilter })"
-                           class="btn btn-sm @(ViewBag.CurrentSort == "date_desc" ? "btn-primary" : "btn-outline-secondary")">
+                           class="btn btn-sm @(ViewBag.CurrentSort == "date_desc" ? "btn-secondary" : "btn-outline-secondary")">
                             <i class="fas fa-arrow-down me-1"></i> Start Date (New→Old)
                         </a>
                         <a href="@Url.Action("Index", new { sortBy = "enddate_asc", filter = ViewBag.CurrentFilter })"
-                           class="btn btn-sm @(ViewBag.CurrentSort == "enddate_asc" ? "btn-primary" : "btn-outline-secondary")">
+                           class="btn btn-sm @(ViewBag.CurrentSort == "enddate_asc" ? "btn-secondary" : "btn-outline-secondary")">
                             <i class="fas fa-arrow-up me-1"></i> End Date (Old→New)
                         </a>
                         <a href="@Url.Action("Index", new { sortBy = "enddate_desc", filter = ViewBag.CurrentFilter })"
-                           class="btn btn-sm @(ViewBag.CurrentSort == "enddate_desc" ? "btn-primary" : "btn-outline-secondary")">
+                           class="btn btn-sm @(ViewBag.CurrentSort == "enddate_desc" ? "btn-secondary" : "btn-outline-secondary")">
                             <i class="fas fa-arrow-down me-1"></i> End Date (New→Old)
                         </a>
                         <a href="@Url.Action("Index", new { sortBy = "name_asc", filter = ViewBag.CurrentFilter })"
-                           class="btn btn-sm @(ViewBag.CurrentSort == "name_asc" ? "btn-primary" : "btn-outline-secondary")">
+                           class="btn btn-sm @(ViewBag.CurrentSort == "name_asc" ? "btn-secondary" : "btn-outline-secondary")">
                             <i class="fas fa-sort-alpha-down me-1"></i> Name (A-Z)
-                        </a>
-                        <a href="@Url.Action("Index", new { sortBy = "favorites", filter = ViewBag.CurrentFilter })"
-                           class="btn btn-sm @(ViewBag.CurrentSort == "favorites" ? "btn-primary" : "btn-outline-secondary")">
-                            <i class="fas fa-star me-1"></i> Star
                         </a>
                     </div>
                 </div>
@@ -153,9 +178,15 @@
                         <tbody>
                             @foreach (var project in Model)
                             {
-                                <tr>
+                                <tr class="project-row">
                                     <td>
-                                        <strong>@project.Name</strong>
+                                        <strong class="@GetStatusTextClass(project.Status)" data-project-name="@project.Name.ToLower()">
+                                            @project.Name
+                                            @if (project.Favorites.Any())
+                                            {
+                                                <i class="fas fa-star text-warning ms-1"></i>
+                                            }
+                                        </strong>
                                         @if (!string.IsNullOrEmpty(project.Description))
                                         {
                                             <br />
@@ -184,10 +215,10 @@
                                     <td>
                                         <div class="action-buttons">
                                             <a asp-action="Details" asp-route-id="@project.Id" class="btn btn-sm btn-info" title="View Details">
-                                                <i class="fas fa-eye"></i> View
+                                                View
                                             </a>
-                                            <a asp-action="Edit" asp-route-id="@project.Id" class="btn btn-sm btn-success" title="Edit">
-                                                <i class="fas fa-edit"></i> Edit
+                                            <a asp-action="Edit" asp-route-id="@project.Id" class="btn btn-sm btn-info" title="Edit">
+                                                Edit
                                             </a>
                                             <form asp-action="ToggleFavorite" asp-route-id="@project.Id" method="post" class="action-form">
                                                 <button type="submit" class="btn btn-sm @(project.Favorites.Any() ? "btn-warning" : "btn-outline-warning")" title="@(project.Favorites.Any() ? "Remove Mark" : "Mark Project")">
@@ -225,6 +256,26 @@
 
     .progress-bar {
         background-color: #0d6efd;
+    }
+
+    .text-secondary {
+        color: #6c757d;
+    }
+
+    .text-primary {
+        color: #0d6efd;
+    }
+
+    .text-danger {
+        color: #dc3545;
+    }
+
+    .text-success {
+        color: #198754;
+    }
+
+    .text-dark {
+        color: #212529;
     }
 
     .action-buttons {
@@ -285,3 +336,90 @@
         white-space: nowrap;
     }
 </style>
+
+<script>
+    let selectedStatus = null;
+    let includeFavorites = false;
+    const searchInput = document.getElementById('searchInput');
+    const statusButtons = document.querySelectorAll('.status-btn');
+
+    statusButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const status = this.getAttribute('data-status');
+
+            if (status === 'favorites') {
+                // Star can be toggled with other statuses
+                if (includeFavorites) {
+                    includeFavorites = false;
+                    this.classList.remove('btn-secondary');
+                    this.classList.add('btn-outline-secondary');
+                } else {
+                    includeFavorites = true;
+                    this.classList.add('btn-secondary');
+                    this.classList.remove('btn-outline-secondary');
+                }
+            } else {
+                // Other statuses are single-select
+                statusButtons.forEach(b => {
+                    if (b.getAttribute('data-status') !== 'favorites') {
+                        if (b === this) {
+                            if (selectedStatus === status) {
+                                selectedStatus = null;
+                                b.classList.remove('btn-secondary');
+                                b.classList.add('btn-outline-secondary');
+                            } else {
+                                selectedStatus = status;
+                                b.classList.add('btn-secondary');
+                                b.classList.remove('btn-outline-secondary');
+                            }
+                        } else {
+                            b.classList.remove('btn-secondary');
+                            b.classList.add('btn-outline-secondary');
+                        }
+                    }
+                });
+            }
+            applyFilters();
+        });
+    });
+
+    function applyFilters() {
+        const searchValue = searchInput.value.toLowerCase();
+        const rows = document.querySelectorAll('.project-row');
+
+        rows.forEach(row => {
+            const projectName = row.querySelector('[data-project-name]')?.getAttribute('data-project-name') || '';
+            const isFavorite = row.querySelector('strong .fa-star') !== null;
+
+            // Get status badge (it's in the Status column, after owners column)
+            const statusCell = row.querySelectorAll('td')[4]; // Status is 5th column (0-indexed: 4)
+            const statusBadgeElement = statusCell?.querySelector('.badge');
+            const statusText = statusBadgeElement?.textContent.trim() || '';
+
+            // Check if project matches search
+            const matchesSearch = projectName.includes(searchValue);
+
+            // Check if status matches
+            let matchesStatus = true;
+            if (selectedStatus) {
+                const statusMap = {
+                    'planning': 'Planning',
+                    'inprogress': 'InProgress',
+                    'onhold': 'OnHold',
+                    'completed': 'Completed'
+                };
+                matchesStatus = statusText === statusMap[selectedStatus];
+            }
+
+            // Check if must include favorites
+            let matchesFavorite = true;
+            if (includeFavorites) {
+                matchesFavorite = isFavorite;
+            }
+
+            row.style.display = (matchesSearch && matchesStatus && matchesFavorite) ? '' : 'none';
+        });
+    }
+
+    searchInput.addEventListener('keyup', applyFilters);
+</script>

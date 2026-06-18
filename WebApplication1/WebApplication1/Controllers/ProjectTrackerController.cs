@@ -30,14 +30,25 @@ public class ProjectTrackerController : Controller
         {
             projects = projects.Where(p => p.Status == "Completed").ToList();
         }
+        else if (filter == "onhold")
+        {
+            projects = projects.Where(p => p.Status == "OnHold").ToList();
+        }
         else if (filter == "notcompleted")
         {
-            projects = projects.Where(p => p.Status != "Completed").ToList();
+            projects = projects.Where(p => p.Status != "Completed" && p.Status != "Closed").ToList();
         }
         else if (filter == "inprogress")
         {
             projects = projects.Where(p => p.Status == "InProgress").ToList();
         }
+        else if (filter == "favorites")
+        {
+            projects = projects.Where(p => p.Favorites.Any()).ToList();
+        }
+
+        // Remove Closed projects from view
+        projects = projects.Where(p => p.Status != "Closed").ToList();
 
         // Apply sorting
         projects = sortBy switch
@@ -56,8 +67,10 @@ public class ProjectTrackerController : Controller
         {
             { "TotalProjects", allProjects.Count },
             { "ActiveProjects", allProjects.Count(p => p.Status == "InProgress") },
+            { "PlanningProjects", allProjects.Count(p => p.Status == "Planning") },
             { "OnHoldProjects", allProjects.Count(p => p.Status == "OnHold") },
-            { "CompletedProjects", allProjects.Count(p => p.Status == "Completed") }
+            { "CompletedProjects", allProjects.Count(p => p.Status == "Completed") },
+            { "FavoriteProjects", allProjects.Count(p => p.Favorites.Any()) }
         };
 
         ViewBag.Stats = stats;
