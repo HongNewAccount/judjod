@@ -30,7 +30,7 @@
             <p class="text-muted">Track and manage all organization projects</p>
         </div>
         <div class="col-auto">
-            <a asp-action="Create" class="btn btn-primary btn-lg">
+            <a asp-action="Create" class="btn btn-info btn-lg text-white">
                 <i class="fas fa-plus me-2"></i>Create New Project
             </a>
         </div>
@@ -104,19 +104,22 @@
                 <div class="col-12">
                     <h6 class="text-dark fw-bold mb-3"><i class="fas fa-filter me-2"></i>Filter by Status</h6>
                     <div class="btn-group flex-wrap" role="group">
-                        <button type="button" class="btn btn-sm btn-outline-secondary status-btn" data-status="planning">
+                        <button type="button" class="btn btn-sm btn-info text-white status-btn" data-status="all">
+                            <i class="fas fa-list-ul me-1"></i> All
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-dark status-btn" data-status="planning">
                             <i class="fas fa-circle me-1"></i> Planning
                         </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary status-btn" data-status="inprogress">
+                        <button type="button" class="btn btn-sm btn-outline-dark status-btn" data-status="inprogress">
                             <i class="fas fa-spinner me-1"></i> In Progress
                         </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary status-btn" data-status="onhold">
+                        <button type="button" class="btn btn-sm btn-outline-dark status-btn" data-status="onhold">
                             <i class="fas fa-pause-circle me-1"></i> On Hold
                         </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary status-btn" data-status="completed">
+                        <button type="button" class="btn btn-sm btn-outline-dark status-btn" data-status="completed">
                             <i class="fas fa-check-circle me-1"></i> Completed
                         </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary status-btn" data-status="favorites">
+                        <button type="button" class="btn btn-sm btn-outline-dark status-btn" data-status="favorites">
                             <i class="fas fa-star me-1"></i> Star
                         </button>
                     </div>
@@ -124,30 +127,24 @@
                 <div class="col-12">
                     <h6 class="text-dark fw-bold mb-3"><i class="fas fa-sort me-2"></i>Sort by</h6>
                     <div class="btn-group flex-wrap" role="group">
-                        <a href="@Url.Action("Index", new { sortBy = "latest", filter = ViewBag.CurrentFilter })"
-                           class="btn btn-sm @(ViewBag.CurrentSort == "latest" || ViewBag.CurrentSort == null ? "btn-secondary" : "btn-outline-secondary")">
+                        <button type="button" class="btn btn-sm btn-outline-dark sort-btn" data-sort="latest">
                             <i class="fas fa-clock me-1"></i> Latest
-                        </a>
-                        <a href="@Url.Action("Index", new { sortBy = "date_asc", filter = ViewBag.CurrentFilter })"
-                           class="btn btn-sm @(ViewBag.CurrentSort == "date_asc" ? "btn-secondary" : "btn-outline-secondary")">
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-dark sort-btn" data-sort="date_asc">
                             <i class="fas fa-arrow-up me-1"></i> Start Date (Old→New)
-                        </a>
-                        <a href="@Url.Action("Index", new { sortBy = "date_desc", filter = ViewBag.CurrentFilter })"
-                           class="btn btn-sm @(ViewBag.CurrentSort == "date_desc" ? "btn-secondary" : "btn-outline-secondary")">
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-dark sort-btn" data-sort="date_desc">
                             <i class="fas fa-arrow-down me-1"></i> Start Date (New→Old)
-                        </a>
-                        <a href="@Url.Action("Index", new { sortBy = "enddate_asc", filter = ViewBag.CurrentFilter })"
-                           class="btn btn-sm @(ViewBag.CurrentSort == "enddate_asc" ? "btn-secondary" : "btn-outline-secondary")">
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-dark sort-btn" data-sort="enddate_asc">
                             <i class="fas fa-arrow-up me-1"></i> End Date (Old→New)
-                        </a>
-                        <a href="@Url.Action("Index", new { sortBy = "enddate_desc", filter = ViewBag.CurrentFilter })"
-                           class="btn btn-sm @(ViewBag.CurrentSort == "enddate_desc" ? "btn-secondary" : "btn-outline-secondary")">
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-dark sort-btn" data-sort="enddate_desc">
                             <i class="fas fa-arrow-down me-1"></i> End Date (New→Old)
-                        </a>
-                        <a href="@Url.Action("Index", new { sortBy = "name_asc", filter = ViewBag.CurrentFilter })"
-                           class="btn btn-sm @(ViewBag.CurrentSort == "name_asc" ? "btn-secondary" : "btn-outline-secondary")">
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-dark sort-btn" data-sort="name_asc">
                             <i class="fas fa-sort-alpha-down me-1"></i> Name (A-Z)
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -178,7 +175,7 @@
                         <tbody>
                             @foreach (var project in Model)
                             {
-                                <tr class="project-row">
+                                <tr class="project-row" data-created-at="@project.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")">
                                     <td>
                                         <strong class="@GetStatusTextClass(project.Status)" data-project-name="@project.Name.ToLower()">
                                             @project.Name
@@ -227,7 +224,7 @@
                                             </form>
                                             <form asp-action="Delete" asp-route-id="@project.Id" method="post" class="action-form" onsubmit="return confirm('Are you sure you want to delete this project?');">
                                                 <button type="submit" class="btn btn-sm btn-danger" title="Delete">
-                                                    <i class="fas fa-trash"></i> Delete
+                                                    <i class="fas fa-trash"></i>
                                                 </button>
                                             </form>
                                         </div>
@@ -340,23 +337,50 @@
 <script>
     let selectedStatus = null;
     let includeFavorites = false;
+    let currentSort = 'latest';
     const searchInput = document.getElementById('searchInput');
     const statusButtons = document.querySelectorAll('.status-btn');
+    const sortButtons = document.querySelectorAll('.sort-btn');
 
     statusButtons.forEach(btn => {
         btn.addEventListener('click', function() {
             const status = this.getAttribute('data-status');
 
-            if (status === 'favorites') {
+            if (status === 'all') {
+                // Reset all status filters
+                selectedStatus = null;
+                statusButtons.forEach(b => {
+                    if (b.getAttribute('data-status') === 'all') {
+                        b.classList.remove('btn-outline-dark');
+                        b.classList.add('btn-info', 'text-white');
+                    } else if (b.getAttribute('data-status') === 'favorites') {
+                        if (includeFavorites) {
+                            b.classList.add('btn-info', 'text-white');
+                        } else {
+                            b.classList.remove('btn-info', 'text-white');
+                            b.classList.add('btn-outline-dark');
+                        }
+                    } else {
+                        b.classList.remove('btn-info', 'text-white');
+                        b.classList.add('btn-outline-dark');
+                    }
+                });
+            } else if (status === 'favorites') {
                 // Star can be toggled with other statuses
                 if (includeFavorites) {
                     includeFavorites = false;
-                    this.classList.remove('btn-secondary');
-                    this.classList.add('btn-outline-secondary');
+                    this.classList.remove('btn-info');
+                    this.classList.remove('text-white');
+                    this.classList.add('btn-outline-dark');
                 } else {
                     includeFavorites = true;
-                    this.classList.add('btn-secondary');
-                    this.classList.remove('btn-outline-secondary');
+                    this.classList.remove('btn-outline-dark');
+                    this.classList.add('btn-info');
+                    this.classList.add('text-white');
+                    // When adding favorites filter, deselect all
+                    if (selectedStatus === 'all') {
+                        selectedStatus = null;
+                    }
                 }
             } else {
                 // Other statuses are single-select
@@ -365,16 +389,28 @@
                         if (b === this) {
                             if (selectedStatus === status) {
                                 selectedStatus = null;
-                                b.classList.remove('btn-secondary');
-                                b.classList.add('btn-outline-secondary');
+                                b.classList.remove('btn-info', 'text-white');
+                                b.classList.add('btn-outline-dark');
+                                statusButtons.forEach(allBtn => {
+                                    if (allBtn.getAttribute('data-status') === 'all') {
+                                        allBtn.classList.remove('btn-outline-dark');
+                                        allBtn.classList.add('btn-info', 'text-white');
+                                    }
+                                });
                             } else {
                                 selectedStatus = status;
-                                b.classList.add('btn-secondary');
-                                b.classList.remove('btn-outline-secondary');
+                                b.classList.remove('btn-outline-dark');
+                                b.classList.add('btn-info', 'text-white');
+                                statusButtons.forEach(allBtn => {
+                                    if (allBtn.getAttribute('data-status') === 'all') {
+                                        allBtn.classList.remove('btn-info', 'text-white');
+                                        allBtn.classList.add('btn-outline-dark');
+                                    }
+                                });
                             }
                         } else {
-                            b.classList.remove('btn-secondary');
-                            b.classList.add('btn-outline-secondary');
+                            b.classList.remove('btn-info', 'text-white');
+                            b.classList.add('btn-outline-dark');
                         }
                     }
                 });
@@ -419,6 +455,76 @@
 
             row.style.display = (matchesSearch && matchesStatus && matchesFavorite) ? '' : 'none';
         });
+    }
+
+    sortButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const sortType = this.getAttribute('data-sort');
+            currentSort = sortType;
+
+            // Update button styles
+            sortButtons.forEach(b => {
+                b.classList.remove('btn-info', 'text-white');
+                b.classList.add('btn-outline-dark');
+            });
+            this.classList.remove('btn-outline-dark');
+            this.classList.add('btn-info', 'text-white');
+
+            applySorting();
+        });
+    });
+
+    function applySorting() {
+        const rows = Array.from(document.querySelectorAll('.project-row')).filter(row => row.style.display !== 'none');
+        const tbody = document.querySelector('tbody');
+
+        rows.sort((a, b) => {
+            let compareA, compareB;
+
+            switch(currentSort) {
+                case 'latest':
+                    // Sort by creation date descending
+                    compareA = new Date(a.getAttribute('data-created-at') || 0);
+                    compareB = new Date(b.getAttribute('data-created-at') || 0);
+                    return compareB - compareA;
+
+                case 'date_asc':
+                    // Sort by start date ascending
+                    compareA = new Date(a.querySelectorAll('td')[2].textContent.trim());
+                    compareB = new Date(b.querySelectorAll('td')[2].textContent.trim());
+                    return compareA - compareB;
+
+                case 'date_desc':
+                    // Sort by start date descending
+                    compareA = new Date(a.querySelectorAll('td')[2].textContent.trim());
+                    compareB = new Date(b.querySelectorAll('td')[2].textContent.trim());
+                    return compareB - compareA;
+
+                case 'enddate_asc':
+                    // Sort by end date ascending
+                    compareA = new Date(a.querySelectorAll('td')[3].textContent.trim());
+                    compareB = new Date(b.querySelectorAll('td')[3].textContent.trim());
+                    return compareA - compareB;
+
+                case 'enddate_desc':
+                    // Sort by end date descending
+                    compareA = new Date(a.querySelectorAll('td')[3].textContent.trim());
+                    compareB = new Date(b.querySelectorAll('td')[3].textContent.trim());
+                    return compareB - compareA;
+
+                case 'name_asc':
+                    // Sort by name ascending
+                    compareA = a.querySelector('[data-project-name]')?.getAttribute('data-project-name') || '';
+                    compareB = b.querySelector('[data-project-name]')?.getAttribute('data-project-name') || '';
+                    return compareA.localeCompare(compareB);
+
+                default:
+                    return 0;
+            }
+        });
+
+        // Re-append sorted rows
+        rows.forEach(row => tbody.appendChild(row));
     }
 
     searchInput.addEventListener('keyup', applyFilters);
