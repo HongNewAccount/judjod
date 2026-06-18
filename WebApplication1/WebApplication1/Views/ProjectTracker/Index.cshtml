@@ -38,7 +38,7 @@
 
     <!-- Quick Stats -->
     <div class="row mb-4">
-        <div class="col-lg-3 mb-3">
+        <div class="col-lg-3 mb-3 stats-card" data-card="total">
             <div class="card bg-light border-0">
                 <div class="card-body text-center">
                     <h2 class="card-title text-dark">@(stats.ContainsKey("TotalProjects") ? stats["TotalProjects"] : 0)</h2>
@@ -47,7 +47,7 @@
             </div>
         </div>
 
-        <div class="col-lg-3 mb-3">
+        <div class="col-lg-3 mb-3 stats-card" data-card="planning">
             <div class="card bg-secondary text-white border-0">
                 <div class="card-body text-center">
                     <h2 class="card-title">@(stats.ContainsKey("PlanningProjects") ? stats["PlanningProjects"] : 0)</h2>
@@ -56,7 +56,7 @@
             </div>
         </div>
 
-        <div class="col-lg-3 mb-3">
+        <div class="col-lg-3 mb-3 stats-card" data-card="active">
             <div class="card bg-primary text-white border-0">
                 <div class="card-body text-center">
                     <h2 class="card-title">@(stats.ContainsKey("ActiveProjects") ? stats["ActiveProjects"] : 0)</h2>
@@ -65,7 +65,7 @@
             </div>
         </div>
 
-        <div class="col-lg-3 mb-3">
+        <div class="col-lg-3 mb-3 stats-card" data-card="onhold">
             <div class="card bg-danger text-white border-0">
                 <div class="card-body text-center">
                     <h2 class="card-title">@(stats.ContainsKey("OnHoldProjects") ? stats["OnHoldProjects"] : 0)</h2>
@@ -74,7 +74,7 @@
             </div>
         </div>
 
-        <div class="col-lg-3 mb-3">
+        <div class="col-lg-3 mb-3 stats-card" data-card="favorite">
             <div class="card bg-warning text-white border-0">
                 <div class="card-body text-center">
                     <h2 class="card-title">@(stats.ContainsKey("FavoriteProjects") ? stats["FavoriteProjects"] : 0)</h2>
@@ -83,7 +83,7 @@
             </div>
         </div>
 
-        <div class="col-lg-3 mb-3">
+        <div class="col-lg-3 mb-3 stats-card" data-card="completed">
             <div class="card bg-success text-white border-0">
                 <div class="card-body text-center">
                     <h2 class="card-title">@(stats.ContainsKey("CompletedProjects") ? stats["CompletedProjects"] : 0)</h2>
@@ -98,8 +98,8 @@
         <div class="card-body p-4">
             <div class="row g-3">
                 <div class="col-12">
-                    <h6 class="text-dark fw-bold mb-3"><i class="fas fa-search me-2"></i>Search Projects</h6>
-                    <input type="text" id="searchInput" class="form-control mb-3" placeholder="Type project name..." />
+                    <h6 class="text-dark fw-bold mb-3"><i class="fas fa-search me-2"></i>Search</h6>
+                    <input type="text" id="searchInput" class="form-control mb-3" placeholder="Type project name or owner name" />
                 </div>
                 <div class="col-12">
                     <h6 class="text-dark fw-bold mb-3"><i class="fas fa-filter me-2"></i>Filter by Status</h6>
@@ -203,8 +203,8 @@
                                             <span class="text-muted">No owners</span>
                                         }
                                     </td>
-                                    <td>@project.StartDate.ToString("MMM dd, yyyy")</td>
-                                    <td>@(project.EndDate?.ToString("MMM dd, yyyy") ?? "Ongoing")</td>
+                                    <td>@project.StartDate.ToString("dd MMM yyyy")</td>
+                                    <td>@(project.EndDate?.ToString("dd MMM yyyy") ?? "Ongoing")</td>
                                     <td>
                                         <span class="badge @GetStatusClass(project.Status)">@project.Status</span>
                                     </td>
@@ -335,6 +335,21 @@
 </style>
 
 <script>
+    // Show top 3 and bottom 3 KPI cards
+    function showTopAndBottomStatsCards() {
+        const allCards = Array.from(document.querySelectorAll('.stats-card'));
+        allCards.forEach((card, index) => {
+            if (index < 3 || index >= allCards.length - 3) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
+    // Initial call to show top 3 and bottom 3
+    showTopAndBottomStatsCards();
+
     let selectedStatus = null;
     let includeFavorites = false;
     let currentSort = 'latest';
@@ -427,13 +442,17 @@
             const projectName = row.querySelector('[data-project-name]')?.getAttribute('data-project-name') || '';
             const isFavorite = row.querySelector('strong .fa-star') !== null;
 
+            // Get owner names from the Owners column
+            const ownerCell = row.querySelectorAll('td')[1]; // Owners is 2nd column (0-indexed: 1)
+            const ownerText = ownerCell?.textContent.toLowerCase() || '';
+
             // Get status badge (it's in the Status column, after owners column)
             const statusCell = row.querySelectorAll('td')[4]; // Status is 5th column (0-indexed: 4)
             const statusBadgeElement = statusCell?.querySelector('.badge');
             const statusText = statusBadgeElement?.textContent.trim() || '';
 
-            // Check if project matches search
-            const matchesSearch = projectName.includes(searchValue);
+            // Check if project matches search (by name or owner)
+            const matchesSearch = projectName.includes(searchValue) || ownerText.includes(searchValue);
 
             // Check if status matches
             let matchesStatus = true;
@@ -527,5 +546,14 @@
         rows.forEach(row => tbody.appendChild(row));
     }
 
-    searchInput.addEventListener('keyup', applyFilters);
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+        }
+    });
+
+    searchInput.addEventListener('keyup', function() {
+        applyFilters();
+        showTopAndBottomStatsCards();
+    });
 </script>
