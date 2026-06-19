@@ -40,11 +40,42 @@ app.UseSession();
 
 app.UseAuthorization();
 
+// Middleware to require login for all pages except Auth and static files
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.ToString().ToLower();
+    var userId = context.Session.GetInt32("UserId");
+
+    // Allow Auth, static files, and home without login
+    if (path.StartsWith("/auth") ||
+        path.StartsWith("/css") || path.StartsWith("/js") ||
+        path.StartsWith("/lib") || path.StartsWith("/images") ||
+        path == "/" || path == "")
+    {
+        await next.Invoke();
+        return;
+    }
+
+    // Redirect to login if not authenticated
+    if (userId == null)
+    {
+        context.Response.Redirect("/Auth/Login");
+        return;
+    }
+
+    await next.Invoke();
+});
+
 app.MapStaticAssets();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}")
+    pattern: "{controller=Auth}/{action=Login}/{id?}")
+    .WithStaticAssets();
+
+app.MapControllerRoute(
+    name: "catch-all",
+    pattern: "{controller}/{action}/{id?}")
     .WithStaticAssets();
 
 // Seed data

@@ -8,27 +8,12 @@
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card">
-                <div class="card-header bg-info text-white">
+                <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">Create New User Account (Admin Only)</h5>
                 </div>
                 <div class="card-body p-4">
-                    @if (ViewBag.ErrorMessage != null)
-                    {
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            @ViewBag.ErrorMessage
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    }
-
-                    @if (TempData["SuccessMessage"] != null)
-                    {
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            @TempData["SuccessMessage"]
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    }
-
                     <form method="post" asp-action="Register">
+                        @Html.AntiForgeryToken()
                         <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
                         <div class="row">
@@ -88,9 +73,19 @@
                             </div>
                         </div>
 
+                        <div class="mb-3">
+                            <label for="workLocation" class="form-label">Work Location</label>
+                            <input type="text" class="form-control" id="workLocation" asp-for="WorkLocation" placeholder="e.g., Floor 2, Desk 5" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="line" class="form-label">Line ID</label>
+                            <input type="text" class="form-control" id="line" asp-for="Line" />
+                        </div>
+
                         <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">
-                            <a href="@Url.Action("Index", "ProjectTracker")" class="btn btn-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-info text-white">Create User</button>
+                            <a href="@Url.Action("Index", "User")" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Create User</button>
                         </div>
                     </form>
                 </div>

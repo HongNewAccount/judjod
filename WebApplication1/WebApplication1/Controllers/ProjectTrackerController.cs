@@ -47,6 +47,17 @@ public class ProjectTrackerController : Controller
             projects = projects.Where(p => p.Favorites.Any()).ToList();
         }
 
+        // Count stats before removing Closed projects
+        var stats = new Dictionary<string, int>
+        {
+            { "TotalProjects", allProjects.Where(p => p.Status != "Closed").Count() },
+            { "ActiveProjects", allProjects.Count(p => p.Status == "InProgress") },
+            { "PlanningProjects", allProjects.Count(p => p.Status == "Planning") },
+            { "OnHoldProjects", allProjects.Count(p => p.Status == "OnHold") },
+            { "CompletedProjects", allProjects.Count(p => p.Status == "Completed") },
+            { "FavoriteProjects", allProjects.Count(p => p.Favorites.Any()) }
+        };
+
         // Remove Closed projects from view
         projects = projects.Where(p => p.Status != "Closed").ToList();
 
@@ -61,16 +72,6 @@ public class ProjectTrackerController : Controller
             "enddate_desc" => projects.OrderByDescending(p => p.EndDate ?? DateTime.MinValue).ToList(),
             "favorites" => projects.OrderByDescending(p => p.Favorites.Count).ToList(),
             _ => projects.OrderByDescending(p => p.CreatedAt).ToList()
-        };
-
-        var stats = new Dictionary<string, int>
-        {
-            { "TotalProjects", allProjects.Count },
-            { "ActiveProjects", allProjects.Count(p => p.Status == "InProgress") },
-            { "PlanningProjects", allProjects.Count(p => p.Status == "Planning") },
-            { "OnHoldProjects", allProjects.Count(p => p.Status == "OnHold") },
-            { "CompletedProjects", allProjects.Count(p => p.Status == "Completed") },
-            { "FavoriteProjects", allProjects.Count(p => p.Favorites.Any()) }
         };
 
         ViewBag.Stats = stats;

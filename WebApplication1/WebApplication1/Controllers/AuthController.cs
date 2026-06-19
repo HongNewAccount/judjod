@@ -38,7 +38,7 @@ public class AuthController : Controller
         HttpContext.Session.SetString("UserName", $"{user.FirstName} {user.LastName}");
         HttpContext.Session.SetString("UserRole", user.Role ?? "User");
 
-        return RedirectToAction("Index", "Dashboard");
+        return RedirectToAction("Index", "ProjectTracker");
     }
 
     public IActionResult Logout()
@@ -49,6 +49,15 @@ public class AuthController : Controller
 
     public IActionResult Register()
     {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            ViewBag.ErrorMessage = "Only Admin can register new users";
+            return View();
+        }
+
+        var users = _context.Users.ToList();
+        ViewBag.Users = users;
         return View();
     }
 
@@ -56,9 +65,17 @@ public class AuthController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(User user)
     {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            return RedirectToAction(nameof(Login));
+        }
+
         if (await _context.Users.AnyAsync(u => u.Username == user.Username))
         {
             ModelState.AddModelError("Username", "Username already exists");
+            var users = _context.Users.ToList();
+            ViewBag.Users = users;
             return View(user);
         }
 
@@ -66,12 +83,17 @@ public class AuthController : Controller
         {
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
             user.CreatedAt = DateTime.UtcNow;
+            user.IsActive = true;
+            user.Status = "Active";
             _context.Add(user);
             await _context.SaveChangesAsync();
 
-            return RedirectToAction(nameof(Login));
+            TempData["SuccessMessage"] = $"User '{user.Username}' has been registered successfully.";
+            return RedirectToAction(nameof(Register));
         }
 
+        var usersList = _context.Users.ToList();
+        ViewBag.Users = usersList;
         return View(user);
     }
 }

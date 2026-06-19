@@ -7,10 +7,22 @@
         <div class="col-md-6">
             <div class="card">
                 <div class="card-body p-5">
-                    <h2 class="card-title text-center mb-4">Organization Dashboard</h2>
-                    <h5 class="card-subtitle text-muted text-center mb-4">Login to Your Account</h5>
+                    <h2 class="card-title text-center mb-4">Judjod Dashboard</h2>
+                    <h5 class="card-subtitle text-muted text-center mb-4">Login to your Judjod account</h5>
+                    @if (!ViewData.ModelState.IsValid && ViewData.ModelState.Count > 0)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <strong>Login Failed!</strong>
+                            @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                            {
+                                <p>@error.ErrorMessage</p>
+                            }
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
 
-                    <form method="post" asp-action="Login">
+                    <form method="post" asp-controller="Auth" asp-action="Login">
+                        @Html.AntiForgeryToken()
                         <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
                         <div class="mb-3">
@@ -23,13 +35,13 @@
                             <input type="password" class="form-control" id="password" name="password" required />
                         </div>
 
-                        <button type="submit" class="btn btn-primary w-100">Login</button>
+                        <button type="submit" class="btn btn-info text-white w-100">Login</button>
                     </form>
 
                     <hr />
 
-                    <p class="text-center text-muted mt-3">
-                        Don't have an account? Contact your administrator to create one.
+                    <p class="text-center text-muted small mt-3">
+                        For account access, please contact your administrator
                     </p>
                 </div>
             </div>
