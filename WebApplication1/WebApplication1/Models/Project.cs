@@ -33,4 +33,5 @@ public class Project
     public User? CreatedByUser { get; set; }
     public ICollection<ProjectOwner> Owners { get; set; } = new List<ProjectOwner>();
     public ICollection<ProjectFavorite> Favorites { get; set; } = new List<ProjectFavorite>();
+    public ICollection<ActivityLog> ActivityLogs { get; set; } = new List<ActivityLog>();
 }

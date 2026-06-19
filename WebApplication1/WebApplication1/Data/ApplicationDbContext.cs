@@ -20,6 +20,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Project> Projects { get; set; }
     public DbSet<ProjectOwner> ProjectOwners { get; set; }
     public DbSet<ProjectFavorite> ProjectFavorites { get; set; }
+    public DbSet<ActivityLog> ActivityLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -127,6 +128,20 @@ public class ApplicationDbContext : DbContext
             .HasOne(pf => pf.User)
             .WithMany()
             .HasForeignKey(pf => pf.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Configure ActivityLog entity
+        modelBuilder.Entity<ActivityLog>()
+            .HasKey(al => al.Id);
+        modelBuilder.Entity<ActivityLog>()
+            .HasOne(al => al.Project)
+            .WithMany(p => p.ActivityLogs)
+            .HasForeignKey(al => al.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ActivityLog>()
+            .HasOne(al => al.User)
+            .WithMany()
+            .HasForeignKey(al => al.UserId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

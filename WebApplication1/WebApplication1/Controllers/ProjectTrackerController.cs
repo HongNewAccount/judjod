@@ -85,6 +85,8 @@ public class ProjectTrackerController : Controller
             .Include(p => p.CreatedByUser)
             .Include(p => p.Owners)
                 .ThenInclude(po => po.User)
+            .Include(p => p.ActivityLogs)
+                .ThenInclude(al => al.User)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (project == null)
@@ -122,6 +124,18 @@ public class ProjectTrackerController : Controller
 
             _context.Add(project);
             await _context.SaveChangesAsync();
+
+            // Log activity
+            _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+            {
+                ProjectId = project.Id,
+                UserId = project.CreatedByUserId,
+                ActionType = "Created",
+                Description = $"Project '{project.Name}' was created",
+                CreatedAt = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
             return RedirectToAction(nameof(Index));
         }
 
@@ -161,6 +175,77 @@ public class ProjectTrackerController : Controller
 
                 if (existingProject != null)
                 {
+                    int userId = 1; // TODO: Get from session
+
+                    // Track changes
+                    if (existingProject.Status != project.Status)
+                    {
+                        _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+                        {
+                            ProjectId = id,
+                            UserId = userId,
+                            ActionType = "StatusChanged",
+                            Description = $"Project status changed from '{existingProject.Status}' to '{project.Status}'",
+                            OldValue = existingProject.Status,
+                            NewValue = project.Status,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+
+                    if (existingProject.Name != project.Name)
+                    {
+                        _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+                        {
+                            ProjectId = id,
+                            UserId = userId,
+                            ActionType = "NameChanged",
+                            Description = $"Project name changed from '{existingProject.Name}' to '{project.Name}'",
+                            OldValue = existingProject.Name,
+                            NewValue = project.Name,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+
+                    if (existingProject.Description != project.Description)
+                    {
+                        _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+                        {
+                            ProjectId = id,
+                            UserId = userId,
+                            ActionType = "DescriptionChanged",
+                            Description = "Project description was updated",
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+
+                    if (existingProject.StartDate != project.StartDate)
+                    {
+                        _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+                        {
+                            ProjectId = id,
+                            UserId = userId,
+                            ActionType = "StartDateChanged",
+                            Description = $"Project start date changed to {project.StartDate:MMM dd, yyyy}",
+                            OldValue = existingProject.StartDate.ToString("MMM dd, yyyy"),
+                            NewValue = project.StartDate.ToString("MMM dd, yyyy"),
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+
+                    if (existingProject.EndDate != project.EndDate)
+                    {
+                        _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+                        {
+                            ProjectId = id,
+                            UserId = userId,
+                            ActionType = "EndDateChanged",
+                            Description = $"Project end date changed to {project.EndDate?.ToString("MMM dd, yyyy") ?? "Ongoing"}",
+                            OldValue = existingProject.EndDate?.ToString("MMM dd, yyyy") ?? "Ongoing",
+                            NewValue = project.EndDate?.ToString("MMM dd, yyyy") ?? "Ongoing",
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+
                     existingProject.Name = project.Name;
                     existingProject.Description = project.Description;
                     existingProject.StartDate = project.StartDate;
@@ -170,15 +255,54 @@ public class ProjectTrackerController : Controller
                     existingProject.UpdatedAt = DateTime.UtcNow;
 
                     // Update owners
-                    _context.ProjectOwners.RemoveRange(existingProject.Owners);
-                    if (ownerIds != null && ownerIds.Length > 0)
+                    var oldOwnerIds = existingProject.Owners.Select(o => o.UserId).ToList();
+                    var newOwnerIds = ownerIds ?? Array.Empty<int>();
+
+                    var addedOwners = newOwnerIds.Except(oldOwnerIds).ToList();
+                    var removedOwners = oldOwnerIds.Except(newOwnerIds).ToList();
+
+                    if (addedOwners.Any() || removedOwners.Any())
                     {
-                        foreach (var ownerId in ownerIds.Distinct())
+                        _context.ProjectOwners.RemoveRange(existingProject.Owners);
+                        if (newOwnerIds.Length > 0)
                         {
-                            existingProject.Owners.Add(new WebApplication1.Models.ProjectOwner
+                            foreach (var ownerId in newOwnerIds.Distinct())
+                            {
+                                existingProject.Owners.Add(new WebApplication1.Models.ProjectOwner
+                                {
+                                    ProjectId = id,
+                                    UserId = ownerId
+                                });
+                            }
+                        }
+
+                        var ownerNames = await _context.Users
+                            .Where(u => addedOwners.Contains(u.Id) || removedOwners.Contains(u.Id))
+                            .ToListAsync();
+
+                        if (addedOwners.Any())
+                        {
+                            var addedNames = ownerNames.Where(u => addedOwners.Contains(u.Id)).Select(u => $"{u.FirstName} {u.LastName}").ToList();
+                            _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
                             {
                                 ProjectId = id,
-                                UserId = ownerId
+                                UserId = userId,
+                                ActionType = "OwnerAdded",
+                                Description = $"Owners added: {string.Join(", ", addedNames)}",
+                                CreatedAt = DateTime.UtcNow
+                            });
+                        }
+
+                        if (removedOwners.Any())
+                        {
+                            var removedNames = ownerNames.Where(u => removedOwners.Contains(u.Id)).Select(u => $"{u.FirstName} {u.LastName}").ToList();
+                            _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+                            {
+                                ProjectId = id,
+                                UserId = userId,
+                                ActionType = "OwnerRemoved",
+                                Description = $"Owners removed: {string.Join(", ", removedNames)}",
+                                CreatedAt = DateTime.UtcNow
                             });
                         }
                     }
@@ -208,10 +332,12 @@ public class ProjectTrackerController : Controller
         if (project == null)
             return NotFound();
 
+        var projectName = project.Name;
+
         _context.Projects.Remove(project);
         await _context.SaveChangesAsync();
 
-        TempData["SuccessMessage"] = $"Project '{project.Name}' has been deleted successfully.";
+        TempData["SuccessMessage"] = $"Project '{projectName}' has been deleted successfully.";
         return RedirectToAction(nameof(Index));
     }
 

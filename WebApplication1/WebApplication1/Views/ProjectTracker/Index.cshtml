@@ -211,7 +211,7 @@
                                     <td>@project.CreatedByUser?.FirstName @project.CreatedByUser?.LastName</td>
                                     <td>
                                         <div class="action-buttons">
-                                            <a asp-action="Details" asp-route-id="@project.Id" class="btn btn-sm btn-info" title="View Details">
+                                            <a asp-action="Details" asp-route-id="@project.Id" class="btn btn-sm btn-success" title="View Details">
                                                 View
                                             </a>
                                             <a asp-action="Edit" asp-route-id="@project.Id" class="btn btn-sm btn-info" title="Edit">
@@ -304,7 +304,9 @@
 
     .action-buttons .btn-success,
     .action-form .btn-success {
-        border-color: #198754;
+        border-color: #6ec96e;
+        color: white;
+        background-color: #6ec96e;
     }
 
     .action-buttons .btn-warning,
@@ -494,6 +496,28 @@
         });
     });
 
+    function parseThaiDate(dateString) {
+        const thaiMonths = {
+            'ม.ค.': '01', 'ก.พ.': '02', 'มี.ค.': '03', 'เม.ย.': '04',
+            'พ.ค.': '05', 'มิ.ย.': '06', 'ก.ค.': '07', 'ส.ค.': '08',
+            'ก.ย.': '09', 'ต.ค.': '10', 'พ.ย.': '11', 'ธ.ค.': '12'
+        };
+
+        const parts = dateString.trim().split(/\s+/);
+        if (parts.length < 3) return new Date(0);
+
+        const day = parts[0].padStart(2, '0');
+        const month = thaiMonths[parts[1]] || '01';
+        let year = parts[2];
+
+        // Convert Thai Buddhist Era year to Gregorian
+        if (year > 2500) {
+            year = year - 543;
+        }
+
+        return new Date(`${year}-${month}-${day}`);
+    }
+
     function applySorting() {
         const rows = Array.from(document.querySelectorAll('.project-row')).filter(row => row.style.display !== 'none');
         const tbody = document.querySelector('tbody');
@@ -510,26 +534,26 @@
 
                 case 'date_asc':
                     // Sort by start date ascending
-                    compareA = new Date(a.querySelectorAll('td')[2].textContent.trim());
-                    compareB = new Date(b.querySelectorAll('td')[2].textContent.trim());
+                    compareA = parseThaiDate(a.querySelectorAll('td')[2].textContent);
+                    compareB = parseThaiDate(b.querySelectorAll('td')[2].textContent);
                     return compareA - compareB;
 
                 case 'date_desc':
                     // Sort by start date descending
-                    compareA = new Date(a.querySelectorAll('td')[2].textContent.trim());
-                    compareB = new Date(b.querySelectorAll('td')[2].textContent.trim());
+                    compareA = parseThaiDate(a.querySelectorAll('td')[2].textContent);
+                    compareB = parseThaiDate(b.querySelectorAll('td')[2].textContent);
                     return compareB - compareA;
 
                 case 'enddate_asc':
                     // Sort by end date ascending
-                    compareA = new Date(a.querySelectorAll('td')[3].textContent.trim());
-                    compareB = new Date(b.querySelectorAll('td')[3].textContent.trim());
+                    compareA = parseThaiDate(a.querySelectorAll('td')[3].textContent);
+                    compareB = parseThaiDate(b.querySelectorAll('td')[3].textContent);
                     return compareA - compareB;
 
                 case 'enddate_desc':
                     // Sort by end date descending
-                    compareA = new Date(a.querySelectorAll('td')[3].textContent.trim());
-                    compareB = new Date(b.querySelectorAll('td')[3].textContent.trim());
+                    compareA = parseThaiDate(a.querySelectorAll('td')[3].textContent);
+                    compareB = parseThaiDate(b.querySelectorAll('td')[3].textContent);
                     return compareB - compareA;
 
                 case 'name_asc':
