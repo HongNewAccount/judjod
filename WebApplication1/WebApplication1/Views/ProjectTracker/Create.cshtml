@@ -16,6 +16,17 @@
 </style>
 
 <div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3">Create New Project</h1>
+        </div>
+        <div class="col-auto detail-actions">
+            <a asp-action="Index" class="btn btn-sm btn-secondary" title="Back to List">
+                <i class="fas fa-arrow-left me-1"></i>Back
+            </a>
+        </div>
+    </div>
+
     <div class="row justify-content-center">
         <div class="col-lg-8">
             <div class="card">
@@ -81,7 +92,6 @@
                         </div>
 
                         <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">
-                            <a asp-action="Index" class="btn btn-secondary">Cancel</a>
                             <button type="submit" class="btn btn-info text-white">Create Project</button>
                         </div>
                     </form>

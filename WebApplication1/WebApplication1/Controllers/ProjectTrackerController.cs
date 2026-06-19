@@ -373,6 +373,16 @@ public class ProjectTrackerController : Controller
 
         var projectName = project.Name;
 
+        // Log the deletion before removing
+        _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+        {
+            ProjectId = id,
+            UserId = userId,
+            ActionType = "Deleted",
+            Description = $"Project '{projectName}' was deleted",
+            CreatedAt = DateTime.UtcNow
+        });
+
         _context.Projects.Remove(project);
         await _context.SaveChangesAsync();
 
@@ -395,9 +405,19 @@ public class ProjectTrackerController : Controller
         var favorite = await _context.ProjectFavorites
             .FirstOrDefaultAsync(pf => pf.ProjectId == id && pf.UserId == userId);
 
+        var isFavorited = false;
+
         if (favorite != null)
         {
             _context.ProjectFavorites.Remove(favorite);
+            _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+            {
+                ProjectId = id,
+                UserId = userId,
+                ActionType = "FavoriteRemoved",
+                Description = "Project removed from favorites",
+                CreatedAt = DateTime.UtcNow
+            });
         }
         else
         {
@@ -407,6 +427,15 @@ public class ProjectTrackerController : Controller
                 UserId = userId,
                 CreatedAt = DateTime.UtcNow
             });
+            _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+            {
+                ProjectId = id,
+                UserId = userId,
+                ActionType = "FavoriteAdded",
+                Description = "Project added to favorites",
+                CreatedAt = DateTime.UtcNow
+            });
+            isFavorited = true;
         }
 
         await _context.SaveChangesAsync();
@@ -414,9 +443,26 @@ public class ProjectTrackerController : Controller
         // Return JSON for AJAX request
         if (HttpContext.Request.Headers["X-Requested-With"] == "XMLHttpRequest")
         {
-            return Ok(new { success = true });
+            return Ok(new { success = true, isFavorited });
         }
 
         return RedirectToAction(nameof(Index));
+    }
+
+    public async Task<IActionResult> ActivityLog(string filter = "all")
+    {
+        var logs = await _context.ActivityLogs
+            .Include(al => al.Project)
+            .Include(al => al.User)
+            .OrderByDescending(al => al.CreatedAt)
+            .ToListAsync();
+
+        if (filter != "all")
+        {
+            logs = logs.Where(al => al.ActionType == filter).ToList();
+        }
+
+        ViewBag.FilterType = filter;
+        return View(logs);
     }
 }

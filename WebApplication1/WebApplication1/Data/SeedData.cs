@@ -7,21 +7,10 @@ public static class SeedData
 {
     public static void Initialize(ApplicationDbContext context)
     {
-        // Clear existing data and reinitialize
-        if (context.Users.Any() || context.Projects.Any())
+        // Only initialize if database is empty
+        if (context.Users.Any())
         {
-            // Clear all data
-            context.Reports.RemoveRange(context.Reports);
-            context.ReportAssignments.RemoveRange(context.ReportAssignments);
-            context.ReportComments.RemoveRange(context.ReportComments);
-            context.OrganizationEvents.RemoveRange(context.OrganizationEvents);
-            context.EventAttendees.RemoveRange(context.EventAttendees);
-            context.Projects.RemoveRange(context.Projects);
-            context.ActivityLogs.RemoveRange(context.ActivityLogs);
-            context.ProjectFavorites.RemoveRange(context.ProjectFavorites);
-            context.ProjectOwners.RemoveRange(context.ProjectOwners);
-            context.Users.RemoveRange(context.Users);
-            context.SaveChanges();
+            return;
         }
 
         // Create test users
@@ -228,6 +217,47 @@ public static class SeedData
         };
 
         context.ProjectFavorites.AddRange(projectFavorites);
+        context.SaveChanges();
+
+        // Add activity logs for each project
+        var activityLogs = new List<ActivityLog>();
+
+        for (int i = 0; i < projects.Count; i++)
+        {
+            activityLogs.Add(new ActivityLog
+            {
+                ProjectId = projects[i].Id,
+                UserId = projects[i].CreatedByUserId,
+                ActionType = "Created",
+                Description = $"Project '{projects[i].Name}' was created",
+                CreatedAt = projects[i].CreatedAt
+            });
+        }
+
+        // Add status change logs
+        activityLogs.Add(new ActivityLog
+        {
+            ProjectId = projects[0].Id,
+            UserId = users[0].Id,
+            ActionType = "StatusChanged",
+            Description = "Project status changed from 'Planning' to 'InProgress'",
+            OldValue = "Planning",
+            NewValue = "InProgress",
+            CreatedAt = DateTime.UtcNow.AddDays(-20)
+        });
+
+        activityLogs.Add(new ActivityLog
+        {
+            ProjectId = projects[3].Id,
+            UserId = users[0].Id,
+            ActionType = "StatusChanged",
+            Description = "Project status changed from 'InProgress' to 'Completed'",
+            OldValue = "InProgress",
+            NewValue = "Completed",
+            CreatedAt = DateTime.UtcNow.AddDays(-5)
+        });
+
+        context.ActivityLogs.AddRange(activityLogs);
         context.SaveChanges();
 
         // Create test reports
