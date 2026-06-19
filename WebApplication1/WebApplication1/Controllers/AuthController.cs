@@ -47,7 +47,7 @@ public class AuthController : Controller
         return RedirectToAction(nameof(Login));
     }
 
-    public IActionResult Register()
+    public async Task<IActionResult> Register()
     {
         var userRole = HttpContext.Session.GetString("UserRole");
         if (userRole != "Admin")
@@ -56,7 +56,7 @@ public class AuthController : Controller
             return View();
         }
 
-        var users = _context.Users.ToList();
+        var users = await _context.Users.Where(u => u.IsActive).ToListAsync();
         ViewBag.Users = users;
         return View();
     }

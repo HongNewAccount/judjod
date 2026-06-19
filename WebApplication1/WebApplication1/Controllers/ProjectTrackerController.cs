@@ -23,6 +23,18 @@ public class ProjectTrackerController : Controller
             .Include(p => p.Favorites.Where(f => f.UserId == userId))
             .ToListAsync();
 
+        // Auto-convert to Late if past end date and not completed
+        foreach (var project in allProjects)
+        {
+            if (project.EndDate.HasValue &&
+                DateTime.UtcNow.Date > project.EndDate.Value.Date &&
+                project.Status != "Completed")
+            {
+                project.Status = "Late";
+            }
+        }
+        await _context.SaveChangesAsync();
+
         var projects = allProjects;
 
         // Apply filter
@@ -30,9 +42,9 @@ public class ProjectTrackerController : Controller
         {
             projects = projects.Where(p => p.Status == "Completed").ToList();
         }
-        else if (filter == "onhold")
+        else if (filter == "late")
         {
-            projects = projects.Where(p => p.Status == "OnHold").ToList();
+            projects = projects.Where(p => p.Status == "Late").ToList();
         }
         else if (filter == "notcompleted")
         {
@@ -53,7 +65,7 @@ public class ProjectTrackerController : Controller
             { "TotalProjects", allProjects.Where(p => p.Status != "Closed").Count() },
             { "ActiveProjects", allProjects.Count(p => p.Status == "InProgress") },
             { "PlanningProjects", allProjects.Count(p => p.Status == "Planning") },
-            { "OnHoldProjects", allProjects.Count(p => p.Status == "OnHold") },
+            { "LateProjects", allProjects.Count(p => p.Status == "Late") },
             { "CompletedProjects", allProjects.Count(p => p.Status == "Completed") },
             { "FavoriteProjects", allProjects.Count(p => p.Favorites.Any()) }
         };
@@ -109,7 +121,7 @@ public class ProjectTrackerController : Controller
     {
         if (ModelState.IsValid)
         {
-            project.CreatedByUserId = 1; // TODO: Get from session/user context
+            project.CreatedByUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
 
             // Add owners
             if (ownerIds != null && ownerIds.Length > 0)
@@ -147,12 +159,24 @@ public class ProjectTrackerController : Controller
 
     public async Task<IActionResult> Edit(int id)
     {
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var userRole = HttpContext.Session.GetString("UserRole");
+
         var project = await _context.Projects
             .Include(p => p.Owners)
                 .ThenInclude(po => po.User)
             .FirstOrDefaultAsync(p => p.Id == id);
+
         if (project == null)
             return NotFound();
+
+        // Check permission: Admin or Owner only
+        bool isOwner = project.Owners.Any(o => o.UserId == userId);
+        if (userRole != "Admin" && !isOwner)
+        {
+            TempData["ErrorMessage"] = "You can only edit projects where you are an owner";
+            return RedirectToAction(nameof(Index));
+        }
 
         var users = await _context.Users.Where(u => u.IsActive).ToListAsync();
         ViewBag.Users = users;
@@ -176,7 +200,7 @@ public class ProjectTrackerController : Controller
 
                 if (existingProject != null)
                 {
-                    int userId = 1; // TODO: Get from session
+                    int userId = HttpContext.Session.GetInt32("UserId") ?? 1;
 
                     // Track changes
                     if (existingProject.Status != project.Status)
@@ -259,52 +283,52 @@ public class ProjectTrackerController : Controller
                     var oldOwnerIds = existingProject.Owners.Select(o => o.UserId).ToList();
                     var newOwnerIds = ownerIds ?? Array.Empty<int>();
 
-                    var addedOwners = newOwnerIds.Except(oldOwnerIds).ToList();
-                    var removedOwners = oldOwnerIds.Except(newOwnerIds).ToList();
-
-                    if (addedOwners.Any() || removedOwners.Any())
+                    if (!oldOwnerIds.SequenceEqual(newOwnerIds))
                     {
+                        var addedOwners = newOwnerIds.Except(oldOwnerIds).ToList();
+                        var removedOwners = oldOwnerIds.Except(newOwnerIds).ToList();
+
                         _context.ProjectOwners.RemoveRange(existingProject.Owners);
-                        if (newOwnerIds.Length > 0)
+                        foreach (var ownerId in newOwnerIds.Distinct())
                         {
-                            foreach (var ownerId in newOwnerIds.Distinct())
+                            existingProject.Owners.Add(new WebApplication1.Models.ProjectOwner
                             {
-                                existingProject.Owners.Add(new WebApplication1.Models.ProjectOwner
+                                ProjectId = id,
+                                UserId = ownerId
+                            });
+                        }
+
+                        if (addedOwners.Any() || removedOwners.Any())
+                        {
+                            var ownerNames = await _context.Users
+                                .Where(u => addedOwners.Contains(u.Id) || removedOwners.Contains(u.Id))
+                                .ToListAsync();
+
+                            if (addedOwners.Any())
+                            {
+                                var addedNames = ownerNames.Where(u => addedOwners.Contains(u.Id)).Select(u => $"{u.FirstName} {u.LastName}").ToList();
+                                _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
                                 {
                                     ProjectId = id,
-                                    UserId = ownerId
+                                    UserId = userId,
+                                    ActionType = "OwnerAdded",
+                                    Description = $"Owners added: {string.Join(", ", addedNames)}",
+                                    CreatedAt = DateTime.UtcNow
                                 });
                             }
-                        }
 
-                        var ownerNames = await _context.Users
-                            .Where(u => addedOwners.Contains(u.Id) || removedOwners.Contains(u.Id))
-                            .ToListAsync();
-
-                        if (addedOwners.Any())
-                        {
-                            var addedNames = ownerNames.Where(u => addedOwners.Contains(u.Id)).Select(u => $"{u.FirstName} {u.LastName}").ToList();
-                            _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+                            if (removedOwners.Any())
                             {
-                                ProjectId = id,
-                                UserId = userId,
-                                ActionType = "OwnerAdded",
-                                Description = $"Owners added: {string.Join(", ", addedNames)}",
-                                CreatedAt = DateTime.UtcNow
-                            });
-                        }
-
-                        if (removedOwners.Any())
-                        {
-                            var removedNames = ownerNames.Where(u => removedOwners.Contains(u.Id)).Select(u => $"{u.FirstName} {u.LastName}").ToList();
-                            _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
-                            {
-                                ProjectId = id,
-                                UserId = userId,
-                                ActionType = "OwnerRemoved",
-                                Description = $"Owners removed: {string.Join(", ", removedNames)}",
-                                CreatedAt = DateTime.UtcNow
-                            });
+                                var removedNames = ownerNames.Where(u => removedOwners.Contains(u.Id)).Select(u => $"{u.FirstName} {u.LastName}").ToList();
+                                _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+                                {
+                                    ProjectId = id,
+                                    UserId = userId,
+                                    ActionType = "OwnerRemoved",
+                                    Description = $"Owners removed: {string.Join(", ", removedNames)}",
+                                    CreatedAt = DateTime.UtcNow
+                                });
+                            }
                         }
                     }
 
@@ -329,9 +353,23 @@ public class ProjectTrackerController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
     {
-        var project = await _context.Projects.FindAsync(id);
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var userRole = HttpContext.Session.GetString("UserRole");
+
+        var project = await _context.Projects
+            .Include(p => p.Owners)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
         if (project == null)
             return NotFound();
+
+        // Check permission: Admin or Owner only
+        bool isOwner = project.Owners.Any(o => o.UserId == userId);
+        if (userRole != "Admin" && !isOwner)
+        {
+            TempData["ErrorMessage"] = "You can only delete projects where you are an owner";
+            return RedirectToAction(nameof(Index));
+        }
 
         var projectName = project.Name;
 
@@ -345,7 +383,15 @@ public class ProjectTrackerController : Controller
     [HttpPost]
     public async Task<IActionResult> ToggleFavorite(int id)
     {
-        var userId = HttpContext.Session.GetInt32("UserId") ?? 1; // TODO: Get from session
+        var userRole = HttpContext.Session.GetString("UserRole");
+
+        // Only Admin can toggle favorites
+        if (userRole != "Admin")
+        {
+            return Forbid();
+        }
+
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var favorite = await _context.ProjectFavorites
             .FirstOrDefaultAsync(pf => pf.ProjectId == id && pf.UserId == userId);
 
@@ -358,11 +404,19 @@ public class ProjectTrackerController : Controller
             _context.ProjectFavorites.Add(new WebApplication1.Models.ProjectFavorite
             {
                 ProjectId = id,
-                UserId = userId
+                UserId = userId,
+                CreatedAt = DateTime.UtcNow
             });
         }
 
         await _context.SaveChangesAsync();
+
+        // Return JSON for AJAX request
+        if (HttpContext.Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+        {
+            return Ok(new { success = true });
+        }
+
         return RedirectToAction(nameof(Index));
     }
 }

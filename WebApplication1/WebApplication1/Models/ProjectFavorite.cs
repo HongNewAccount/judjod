@@ -5,7 +5,7 @@ public class ProjectFavorite
     public int Id { get; set; }
     public int ProjectId { get; set; }
     public int UserId { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 
     // Navigation properties
     public Project? Project { get; set; }
