@@ -20,7 +20,7 @@ public class ProjectTrackerController : Controller
             .Include(p => p.CreatedByUser)
             .Include(p => p.Owners)
                 .ThenInclude(po => po.User)
-            .Include(p => p.Favorites.Where(f => f.UserId == userId))
+            .Include(p => p.Favorites)
             .ToListAsync();
 
         // Auto-convert to Late if past end date and not completed
