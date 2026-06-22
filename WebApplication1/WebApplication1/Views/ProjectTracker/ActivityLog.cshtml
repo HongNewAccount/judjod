@@ -26,7 +26,12 @@
 
     <div class="card">
         <div class="card-header bg-light">
-            <h5 class="mb-0">All Project Changes</h5>
+            <div class="row align-items-center">
+                <div class="col">
+                    <h5 class="mb-0">All Project Changes</h5>
+                    <small class="text-muted">Total: @ViewBag.TotalCount entries</small>
+                </div>
+            </div>
         </div>
         <div class="card-body p-0">
             @if (Model.Count == 0)
@@ -104,6 +109,73 @@
                 </div>
             }
         </div>
+        @if (ViewBag.TotalPages > 1)
+        {
+            <div class="card-footer bg-light">
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center mb-0">
+                        @if (ViewBag.CurrentPage > 1)
+                        {
+                            <li class="page-item">
+                                <a class="page-link" asp-action="ActivityLog" asp-route-filter="@ViewBag.FilterType" asp-route-page="1" title="First page">
+                                    <i class="fas fa-chevron-double-left"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" asp-action="ActivityLog" asp-route-filter="@ViewBag.FilterType" asp-route-page="@(ViewBag.CurrentPage - 1)" title="Previous page">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                        }
+
+                        @{
+                            int startPage = Math.Max(1, ViewBag.CurrentPage - 2);
+                            int endPage = Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2);
+                        }
+
+                        @if (startPage > 1)
+                        {
+                            <li class="page-item"><span class="page-link">...</span></li>
+                        }
+
+                        @for (int i = startPage; i <= endPage; i++)
+                        {
+                            if (i == ViewBag.CurrentPage)
+                            {
+                                <li class="page-item active">
+                                    <span class="page-link">@i</span>
+                                </li>
+                            }
+                            else
+                            {
+                                <li class="page-item">
+                                    <a class="page-link" asp-action="ActivityLog" asp-route-filter="@ViewBag.FilterType" asp-route-page="@i">@i</a>
+                                </li>
+                            }
+                        }
+
+                        @if (endPage < ViewBag.TotalPages)
+                        {
+                            <li class="page-item"><span class="page-link">...</span></li>
+                        }
+
+                        @if (ViewBag.CurrentPage < ViewBag.TotalPages)
+                        {
+                            <li class="page-item">
+                                <a class="page-link" asp-action="ActivityLog" asp-route-filter="@ViewBag.FilterType" asp-route-page="@(ViewBag.CurrentPage + 1)" title="Next page">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" asp-action="ActivityLog" asp-route-filter="@ViewBag.FilterType" asp-route-page="@ViewBag.TotalPages" title="Last page">
+                                    <i class="fas fa-chevron-double-right"></i>
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            </div>
+        }
     </div>
 </div>
 

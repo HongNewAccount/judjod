@@ -449,20 +449,35 @@ public class ProjectTrackerController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    public async Task<IActionResult> ActivityLog(string filter = "all")
+    public async Task<IActionResult> ActivityLog(string filter = "all", int page = 1)
     {
-        var logs = await _context.ActivityLogs
-            .Include(al => al.Project)
-            .Include(al => al.User)
-            .OrderByDescending(al => al.CreatedAt)
-            .ToListAsync();
+        const int pageSize = 20;
+
+        var query = _context.ActivityLogs as IQueryable<WebApplication1.Models.ActivityLog>;
 
         if (filter != "all")
         {
-            logs = logs.Where(al => al.ActionType == filter).ToList();
+            query = query.Where(al => al.ActionType == filter);
         }
 
+        var queryWithIncludes = query
+            .Include(al => al.Project)
+            .Include(al => al.User)
+            .OrderByDescending(al => al.CreatedAt);
+
+        var totalCount = await queryWithIncludes.CountAsync();
+        var logs = await queryWithIncludes
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
         ViewBag.FilterType = filter;
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+
         return View(logs);
     }
 }
