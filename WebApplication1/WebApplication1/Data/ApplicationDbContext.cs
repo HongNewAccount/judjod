@@ -137,7 +137,7 @@ public class ApplicationDbContext : DbContext
             .HasOne(al => al.Project)
             .WithMany(p => p.ActivityLogs)
             .HasForeignKey(al => al.ProjectId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<ActivityLog>()
             .HasOne(al => al.User)
             .WithMany()

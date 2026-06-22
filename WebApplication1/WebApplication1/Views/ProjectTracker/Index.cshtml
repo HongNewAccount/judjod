@@ -252,6 +252,7 @@
                                             @if (canEdit)
                                             {
                                                 <form asp-action="Delete" asp-route-id="@project.Id" method="post" class="action-form" onsubmit="return confirm('Are you sure you want to delete this project?');">
+                                                    @Html.AntiForgeryToken()
                                                     <button type="submit" class="btn btn-sm btn-danger" title="Delete">
                                                         <i class="fas fa-trash"></i>
                                                     </button>

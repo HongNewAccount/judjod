@@ -118,17 +118,17 @@
     {
         return actionType switch
         {
-            "Created" => "bg-success",
-            "StatusChanged" => "bg-info",
-            "NameChanged" => "bg-warning",
-            "DescriptionChanged" => "bg-warning",
-            "StartDateChanged" => "bg-secondary",
-            "EndDateChanged" => "bg-secondary",
-            "OwnerAdded" => "bg-primary",
+            "Created" => "bg-secondary",
+            "StatusChanged" => "bg-primary",
+            "NameChanged" => "bg-primary",
+            "DescriptionChanged" => "bg-primary",
+            "StartDateChanged" => "bg-primary",
+            "EndDateChanged" => "bg-primary",
+            "OwnerAdded" => "bg-warning",
             "OwnerRemoved" => "bg-danger",
-            "Deleted" => "bg-dark",
+            "Deleted" => "bg-danger",
             "FavoriteAdded" => "bg-warning",
-            "FavoriteRemoved" => "bg-warning",
+            "FavoriteRemoved" => "bg-danger",
             _ => "bg-secondary"
         };
     }

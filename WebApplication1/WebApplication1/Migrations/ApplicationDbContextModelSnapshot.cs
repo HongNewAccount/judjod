@@ -42,7 +42,7 @@ namespace WebApplication1.Migrations
                     b.Property<string>("OldValue")
                         .HasColumnType("longtext");
 
-                    b.Property<int>("ProjectId")
+                    b.Property<int?>("ProjectId")
                         .HasColumnType("int");
 
                     b.Property<int?>("UserId")
@@ -417,8 +417,7 @@ namespace WebApplication1.Migrations
                     b.HasOne("WebApplication1.Models.Project", "Project")
                         .WithMany("ActivityLogs")
                         .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("WebApplication1.Models.User", "User")
                         .WithMany()
