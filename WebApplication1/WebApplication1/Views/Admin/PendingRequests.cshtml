@@ -1,0 +1,233 @@
+@model IEnumerable<WebApplication1.Models.ProjectApprovalRequest>
+@{
+    ViewData["Title"] = "Pending Approvals";
+    var users = ViewBag.Users as IEnumerable<WebApplication1.Models.User> ?? new List<WebApplication1.Models.User>();
+
+    string GetUserNames(string? idsString)
+    {
+        if (string.IsNullOrEmpty(idsString)) return "None";
+        var ids = idsString.Split(',')
+                           .Select(s => int.TryParse(s, out var id) ? id : 0)
+                           .Where(x => x > 0)
+                           .ToList();
+        var names = users.Where(u => ids.Contains(u.Id)).Select(u => $"{u.FirstName} {u.LastName}");
+        return names.Any() ? string.Join(", ", names) : "None";
+    }
+
+    string GetProjectOwnerNames(WebApplication1.Models.Project? project)
+    {
+        if (project == null || project.Owners == null || !project.Owners.Any()) return "None";
+        var names = project.Owners.Select(o => o.User != null ? $"{o.User.FirstName} {o.User.LastName}" : $"User ID {o.UserId}");
+        return string.Join(", ", names);
+    }
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 mb-1 text-gray-800">
+                <i class="fas fa-clipboard-check text-primary me-2"></i>Pending Approvals
+            </h2>
+            <p class="text-muted mb-0">Review and approve project creations and updates requested by team members.</p>
+        </div>
+        <span class="badge bg-primary px-3 py-2 fs-6">@Model.Count() Requests Pending</span>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="card shadow-sm border-0 text-center py-5">
+            <div class="card-body">
+                <div class="mb-3 text-muted">
+                    <i class="fas fa-check-circle fa-4x text-success"></i>
+                </div>
+                <h4 class="text-gray-800">All caught up!</h4>
+                <p class="text-muted mb-0">There are no pending project creation or edit requests at this time.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @foreach (var request in Model)
+            {
+                <div class="col-12 mb-4">
+                    <div class="card shadow-sm border-0 border-start border-4 @(request.RequestType == "Create" ? "border-success" : "border-warning")">
+                        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="badge @(request.RequestType == "Create" ? "bg-success" : "bg-warning") text-uppercase px-2 py-1 me-2">
+                                    <i class="fas @(request.RequestType == "Create" ? "fa-plus-circle" : "fa-edit") me-1"></i>
+                                    @request.RequestType Project
+                                </span>
+                                <span class="text-muted small">
+                                    Requested by <strong>@request.RequestedByUser?.FirstName @request.RequestedByUser?.LastName</strong>
+                                    on @request.RequestedAt.ToString("MMM dd, yyyy HH:mm")
+                                </span>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <form asp-action="ApproveRequest" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@request.Id" />
+                                    <button type="submit" class="btn btn-sm btn-success px-3">
+                                        <i class="fas fa-check me-1"></i> Approve
+                                    </button>
+                                </form>
+                                <button type="button" class="btn btn-sm btn-outline-danger px-3" data-bs-toggle="modal" data-bs-target="#rejectModal-@request.Id">
+                                    <i class="fas fa-times me-1"></i> Reject
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body bg-light-subtle pt-0">
+                            <hr class="mt-0 mb-3 text-muted opacity-25" />
+
+                            @if (request.RequestType == "Create")
+                            {
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="text-muted small d-block mb-1">Project Name</label>
+                                        <h5 class="text-dark">@request.Name</h5>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="text-muted small d-block mb-1">Timeline</label>
+                                        <span class="text-dark">
+                                            <i class="far fa-calendar-alt text-secondary me-1"></i>
+                                            @request.StartDate.ToString("MMM dd, yyyy") - @(request.EndDate?.ToString("MMM dd, yyyy") ?? "Ongoing")
+                                        </span>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="text-muted small d-block mb-1">Initial Status</label>
+                                        <span class="badge bg-secondary">@request.Status</span>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="text-muted small d-block mb-1">Description</label>
+                                        <p class="text-dark mb-0 bg-white p-3 rounded border">@(request.Description ?? "No description provided.")</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="text-muted small d-block mb-1">Project Owners</label>
+                                        <span class="text-dark"><i class="fas fa-users text-secondary me-1"></i> @GetUserNames(request.OwnerIds)</span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="text-muted small d-block mb-1">Issues / Notes</label>
+                                        <span class="text-dark">@(request.Issues ?? "None")</span>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <!-- UPDATE REQUEST DIFF VIEW -->
+                                <div class="table-responsive bg-white rounded border">
+                                    <table class="table table-bordered align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width: 20%;">Field</th>
+                                                <th style="width: 40%;">Current Version</th>
+                                                <th style="width: 40%;">Proposed Version</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Name -->
+                                            <tr class="@(request.Project?.Name != request.Name ? "table-warning-diff" : "")">
+                                                <th>Project Name</th>
+                                                <td class="text-muted">@request.Project?.Name</td>
+                                                <td class="@(request.Project?.Name != request.Name ? "text-success fw-bold bg-success-subtle" : "")">
+                                                    @request.Name
+                                                </td>
+                                            </tr>
+                                            <!-- Description -->
+                                            <tr class="@(request.Project?.Description != request.Description ? "table-warning-diff" : "")">
+                                                <th>Description</th>
+                                                <td class="text-muted small text-truncate" style="max-width: 300px;">@request.Project?.Description</td>
+                                                <td class="@(request.Project?.Description != request.Description ? "text-success bg-success-subtle small" : "")">
+                                                    @request.Description
+                                                </td>
+                                            </tr>
+                                            <!-- Start Date -->
+                                            <tr class="@(request.Project?.StartDate != request.StartDate ? "table-warning-diff" : "")">
+                                                <th>Start Date</th>
+                                                <td class="text-muted">@request.Project?.StartDate.ToString("MMM dd, yyyy")</td>
+                                                <td class="@(request.Project?.StartDate != request.StartDate ? "text-success fw-bold bg-success-subtle" : "")">
+                                                    @request.StartDate.ToString("MMM dd, yyyy")
+                                                </td>
+                                            </tr>
+                                            <!-- End Date -->
+                                            <tr class="@(request.Project?.EndDate != request.EndDate ? "table-warning-diff" : "")">
+                                                <th>End Date</th>
+                                                <td class="text-muted">@(request.Project?.EndDate?.ToString("MMM dd, yyyy") ?? "Ongoing")</td>
+                                                <td class="@(request.Project?.EndDate != request.EndDate ? "text-success fw-bold bg-success-subtle" : "")">
+                                                    @(request.EndDate?.ToString("MMM dd, yyyy") ?? "Ongoing")
+                                                </td>
+                                            </tr>
+                                            <!-- Status -->
+                                            <tr class="@(request.Project?.Status != request.Status ? "table-warning-diff" : "")">
+                                                <th>Status</th>
+                                                <td class="text-muted">@request.Project?.Status</td>
+                                                <td class="@(request.Project?.Status != request.Status ? "text-success fw-bold bg-success-subtle" : "")">
+                                                    @request.Status
+                                                </td>
+                                            </tr>
+                                            <!-- Owners -->
+                                            @{
+                                                var currentOwners = GetProjectOwnerNames(request.Project);
+                                                var proposedOwners = GetUserNames(request.OwnerIds);
+                                            }
+                                            <tr class="@(currentOwners != proposedOwners ? "table-warning-diff" : "")">
+                                                <th>Owners</th>
+                                                <td class="text-muted small">@currentOwners</td>
+                                                <td class="@(currentOwners != proposedOwners ? "text-success bg-success-subtle small" : "")">
+                                                    @proposedOwners
+                                                </td>
+                                            </tr>
+                                            <!-- Issues -->
+                                            <tr class="@(request.Project?.Issues != request.Issues ? "table-warning-diff" : "")">
+                                                <th>Issues / Notes</th>
+                                                <td class="text-muted small">@request.Project?.Issues</td>
+                                                <td class="@(request.Project?.Issues != request.Issues ? "text-success bg-success-subtle small" : "")">
+                                                    @request.Issues
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reject Modal -->
+                <div class="modal fade" id="rejectModal-@request.Id" tabindex="-1" aria-labelledby="rejectModalLabel-@request.Id" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form asp-action="RejectRequest" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@request.Id" />
+                                <div class="modal-header bg-danger text-white">
+                                    <h5 class="modal-title" id="rejectModalLabel-@request.Id">Reject Request</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Are you sure you want to reject the request to <strong>@request.RequestType.ToLower()</strong> project <strong>@request.Name</strong>?</p>
+                                    <div class="mb-3">
+                                        <label for="rejectionReason-@request.Id" class="form-label">Rejection Reason <span class="text-danger">*</span></label>
+                                        <textarea class="form-control" id="rejectionReason-@request.Id" name="rejectionReason" rows="3" required placeholder="Please explain why the request is rejected..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-danger">Reject Request</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .bg-success-subtle {
+        background-color: rgba(25, 135, 84, 0.1) !important;
+    }
+    .table-warning-diff {
+        border-left: 3px solid #ffc107;
+    }
+</style>

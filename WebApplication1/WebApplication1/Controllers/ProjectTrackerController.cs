@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApplication1.Data;
+using WebApplication1.Models;
 
 namespace WebApplication1.Controllers;
 
@@ -22,6 +23,21 @@ public class ProjectTrackerController : Controller
                 .ThenInclude(po => po.User)
             .Include(p => p.Favorites)
             .ToListAsync();
+
+        var pendingCreations = await _context.ProjectApprovalRequests
+            .Include(r => r.RequestedByUser)
+            .Where(r => r.RequestType == "Create" && r.ApprovalStatus == "Pending" && r.RequestedByUserId == userId)
+            .ToListAsync();
+
+        var pendingUpdates = await _context.ProjectApprovalRequests
+            .Where(r => r.RequestType == "Update" && r.ApprovalStatus == "Pending")
+            .Select(r => r.ProjectId)
+            .ToListAsync();
+
+        var pendingUpdateIds = new HashSet<int>(pendingUpdates.Where(id => id.HasValue).Select(id => id!.Value));
+
+        ViewBag.PendingCreations = pendingCreations;
+        ViewBag.PendingUpdates = pendingUpdateIds;
 
         // Auto-convert to Late if past end date and not completed
         foreach (var project in allProjects)
@@ -105,6 +121,12 @@ public class ProjectTrackerController : Controller
         if (project == null)
             return NotFound();
 
+        var pendingUpdate = await _context.ProjectApprovalRequests
+            .Include(r => r.RequestedByUser)
+            .FirstOrDefaultAsync(r => r.ProjectId == id && r.RequestType == "Update" && r.ApprovalStatus == "Pending");
+
+        ViewBag.PendingUpdate = pendingUpdate;
+
         return View(project);
     }
 
@@ -121,33 +143,63 @@ public class ProjectTrackerController : Controller
     {
         if (ModelState.IsValid)
         {
-            project.CreatedByUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
+            var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+            var userRole = HttpContext.Session.GetString("UserRole");
 
-            // Add owners
-            if (ownerIds != null && ownerIds.Length > 0)
+            if (userRole == "Admin")
             {
-                foreach (var ownerId in ownerIds.Distinct())
+                project.CreatedByUserId = userId;
+
+                // Add owners
+                if (ownerIds != null && ownerIds.Length > 0)
                 {
-                    project.Owners.Add(new WebApplication1.Models.ProjectOwner
+                    foreach (var ownerId in ownerIds.Distinct())
                     {
-                        UserId = ownerId
-                    });
+                        project.Owners.Add(new WebApplication1.Models.ProjectOwner
+                        {
+                            UserId = ownerId
+                        });
+                    }
                 }
+
+                _context.Add(project);
+                await _context.SaveChangesAsync();
+
+                // Log activity
+                _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+                {
+                    ProjectId = project.Id,
+                    UserId = userId,
+                    ActionType = "Created",
+                    Description = $"Project '{project.Name}' was created",
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = $"Project '{project.Name}' has been created successfully.";
             }
-
-            _context.Add(project);
-            await _context.SaveChangesAsync();
-
-            // Log activity
-            _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+            else
             {
-                ProjectId = project.Id,
-                UserId = project.CreatedByUserId,
-                ActionType = "Created",
-                Description = $"Project '{project.Name}' was created",
-                CreatedAt = DateTime.UtcNow
-            });
-            await _context.SaveChangesAsync();
+                var approvalRequest = new WebApplication1.Models.ProjectApprovalRequest
+                {
+                    RequestType = "Create",
+                    Name = project.Name,
+                    Description = project.Description,
+                    StartDate = project.StartDate,
+                    EndDate = project.EndDate,
+                    Status = project.Status ?? "Planning",
+                    Issues = project.Issues,
+                    OwnerIds = ownerIds != null ? string.Join(",", ownerIds.Distinct()) : null,
+                    RequestedByUserId = userId,
+                    RequestedAt = DateTime.UtcNow,
+                    ApprovalStatus = "Pending"
+                };
+
+                _context.ProjectApprovalRequests.Add(approvalRequest);
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = $"Your request to create project '{project.Name}' has been submitted for Admin approval.";
+            }
 
             return RedirectToAction(nameof(Index));
         }
@@ -194,14 +246,26 @@ public class ProjectTrackerController : Controller
         {
             try
             {
+                var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+                var userRole = HttpContext.Session.GetString("UserRole");
+
                 var existingProject = await _context.Projects
                     .Include(p => p.Owners)
                     .FirstOrDefaultAsync(p => p.Id == id);
 
-                if (existingProject != null)
-                {
-                    int userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+                if (existingProject == null)
+                    return NotFound();
 
+                // Check permission: Admin or Owner only
+                bool isOwner = existingProject.Owners.Any(o => o.UserId == userId);
+                if (userRole != "Admin" && !isOwner)
+                {
+                    TempData["ErrorMessage"] = "You can only edit projects where you are an owner";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                if (userRole == "Admin")
+                {
                     // Track changes
                     if (existingProject.Status != project.Status)
                     {
@@ -334,6 +398,53 @@ public class ProjectTrackerController : Controller
 
                     _context.Update(existingProject);
                     await _context.SaveChangesAsync();
+
+                    TempData["SuccessMessage"] = $"Project '{project.Name}' updated successfully.";
+                }
+                else
+                {
+                    // Create update request for non-admin
+                    var existingPendingRequest = await _context.ProjectApprovalRequests
+                        .FirstOrDefaultAsync(r => r.ProjectId == id && r.RequestType == "Update" && r.ApprovalStatus == "Pending");
+
+                    if (existingPendingRequest != null)
+                    {
+                        existingPendingRequest.Name = project.Name;
+                        existingPendingRequest.Description = project.Description;
+                        existingPendingRequest.StartDate = project.StartDate;
+                        existingPendingRequest.EndDate = project.EndDate;
+                        existingPendingRequest.Status = project.Status;
+                        existingPendingRequest.Issues = project.Issues;
+                        existingPendingRequest.OwnerIds = ownerIds != null ? string.Join(",", ownerIds.Distinct()) : null;
+                        existingPendingRequest.RequestedAt = DateTime.UtcNow;
+                        existingPendingRequest.RequestedByUserId = userId;
+
+                        _context.Update(existingPendingRequest);
+                        TempData["SuccessMessage"] = $"Your pending edit request for project '{project.Name}' has been updated and is awaiting Admin approval.";
+                    }
+                    else
+                    {
+                        var approvalRequest = new WebApplication1.Models.ProjectApprovalRequest
+                        {
+                            ProjectId = id,
+                            RequestType = "Update",
+                            Name = project.Name,
+                            Description = project.Description,
+                            StartDate = project.StartDate,
+                            EndDate = project.EndDate,
+                            Status = project.Status,
+                            Issues = project.Issues,
+                            OwnerIds = ownerIds != null ? string.Join(",", ownerIds.Distinct()) : null,
+                            RequestedByUserId = userId,
+                            RequestedAt = DateTime.UtcNow,
+                            ApprovalStatus = "Pending"
+                        };
+
+                        _context.ProjectApprovalRequests.Add(approvalRequest);
+                        TempData["SuccessMessage"] = $"Your edit request for project '{project.Name}' has been submitted for Admin approval.";
+                    }
+
+                    await _context.SaveChangesAsync();
                 }
             }
             catch (DbUpdateConcurrencyException)
@@ -347,6 +458,40 @@ public class ProjectTrackerController : Controller
         var users = await _context.Users.Where(u => u.IsActive).ToListAsync();
         ViewBag.Users = users;
         return View(project);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CancelRequest(int id)
+    {
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var userRole = HttpContext.Session.GetString("UserRole");
+
+        var request = await _context.ProjectApprovalRequests
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (request == null)
+            return NotFound();
+
+        // Check permission: Request creator or Admin
+        if (request.RequestedByUserId != userId && userRole != "Admin")
+        {
+            TempData["ErrorMessage"] = "You do not have permission to cancel this request.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (request.ApprovalStatus != "Pending")
+        {
+            TempData["ErrorMessage"] = "Only pending requests can be cancelled.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var projectName = request.Name;
+        _context.ProjectApprovalRequests.Remove(request);
+        await _context.SaveChangesAsync();
+
+        TempData["SuccessMessage"] = $"Approval request for '{projectName}' has been cancelled successfully.";
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpPost]
@@ -391,6 +536,7 @@ public class ProjectTrackerController : Controller
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> ToggleFavorite(int id)
     {
         var userRole = HttpContext.Session.GetString("UserRole");

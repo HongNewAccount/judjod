@@ -1,9 +1,10 @@
 @model IEnumerable<WebApplication1.Models.Project>
-
+@inject WebApplication1.Data.ApplicationDbContext DbContext
 @{
     ViewData["Title"] = "Project Tracker";
     var stats = (Dictionary<string, int>)ViewBag.Stats ?? new Dictionary<string, int>();
     var userRole = Context.Session.GetString("UserRole") ?? "User";
+    var allUsers = DbContext.Users.Where(u => u.IsActive).ToList();
     
     string GetStatusClass(string status) => status switch
     {
@@ -174,6 +175,57 @@
                             </tr>
                         </thead>
                         <tbody>
+                            @if (ViewBag.PendingCreations != null)
+                            {
+                                @foreach (var req in (IEnumerable<WebApplication1.Models.ProjectApprovalRequest>)ViewBag.PendingCreations)
+                                {
+                                    <tr class="table-warning border-start border-4 border-warning align-middle">
+                                        <td>
+                                            <strong class="text-warning">
+                                                @req.Name
+                                            </strong>
+                                            <span class="badge bg-warning text-dark ms-1">
+                                                <i class="fas fa-hourglass-start me-1"></i>Pending Creation
+                                            </span>
+                                            @if (!string.IsNullOrEmpty(req.Description))
+                                            {
+                                                <br />
+                                                <small class="text-muted">@req.Description.Substring(0, Math.Min(50, req.Description.Length))...</small>
+                                            }
+                                        </td>
+                                        <td>
+                                            @{
+                                                var ownerNames = "None";
+                                                if (!string.IsNullOrEmpty(req.OwnerIds))
+                                                {
+                                                    var ids = req.OwnerIds.Split(',').Select(s => int.TryParse(s, out var id) ? id : 0).Where(x => x > 0).ToList();
+                                                    var names = allUsers.Where(u => ids.Contains(u.Id)).Select(u => $"{u.FirstName} {u.LastName}");
+                                                    if (names.Any())
+                                                    {
+                                                        ownerNames = string.Join(", ", names);
+                                                    }
+                                                }
+                                            }
+                                            @ownerNames
+                                        </td>
+                                        <td>@req.StartDate.ToString("dd MMM yyyy")</td>
+                                        <td>@(req.EndDate?.ToString("dd MMM yyyy") ?? "Ongoing")</td>
+                                        <td>
+                                            <span class="badge bg-secondary">@req.Status</span>
+                                        </td>
+                                        <td>@req.RequestedByUser?.FirstName @req.RequestedByUser?.LastName</td>
+                                        <td>
+                                            <form asp-action="CancelRequest" asp-route-id="@req.Id" method="post" onsubmit="return confirm('Are you sure you want to cancel this creation request?');" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-sm btn-danger">
+                                                    <i class="fas fa-times me-1"></i> Cancel
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+
                             @foreach (var project in Model)
                             {
                                 <tr class="project-row" data-created-at="@project.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")">
@@ -185,6 +237,12 @@
                                                 <i class="fas fa-star text-warning ms-1"></i>
                                             }
                                         </strong>
+                                        @if (ViewBag.PendingUpdates != null && ((HashSet<int>)ViewBag.PendingUpdates).Contains(project.Id))
+                                        {
+                                            <span class="badge bg-warning text-dark ms-1" title="Proposed updates are awaiting Admin approval.">
+                                                <i class="fas fa-hourglass-half me-1"></i>Pending Edits
+                                            </span>
+                                        }
                                         @if (!string.IsNullOrEmpty(project.Description))
                                         {
                                             <br />

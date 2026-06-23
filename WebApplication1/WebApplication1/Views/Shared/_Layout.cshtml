@@ -1,3 +1,4 @@
+@inject WebApplication1.Data.ApplicationDbContext DbContext
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -57,6 +58,17 @@
                 </li>
                 @if (Context.Session.GetString("UserRole") == "Admin")
                 {
+                    var pendingCount = DbContext.ProjectApprovalRequests.Count(r => r.ApprovalStatus == "Pending");
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" asp-controller="Admin" asp-action="PendingRequests">
+                            <i class="fas fa-clipboard-check"></i>
+                            <span>Pending Approvals</span>
+                            @if (pendingCount > 0)
+                            {
+                                <span class="badge bg-danger ms-auto rounded-pill">@pendingCount</span>
+                            }
+                        </a>
+                    </li>
                     <li class="sidebar-item">
                         <a class="sidebar-link" asp-controller="Auth" asp-action="Register">
                             <i class="fas fa-user-plus"></i>

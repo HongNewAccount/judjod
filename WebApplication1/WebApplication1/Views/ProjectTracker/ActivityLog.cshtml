@@ -4,6 +4,26 @@
     ViewData["Title"] = "Activity Log";
 }
 
+<style>
+    .pagination .page-link {
+        color: #0dcaf0;
+        border-color: #0dcaf0;
+    }
+
+    .pagination .page-link:hover {
+        color: #fff;
+        background-color: #0dcaf0;
+        border-color: #0dcaf0;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: #0dcaf0;
+        border-color: #0dcaf0;
+        color: #fff;
+        font-weight: bold;
+    }
+</style>
+
 <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col">
@@ -99,7 +119,7 @@
                                     </td>
                                     <td>
                                         <small class="text-muted">
-                                            @log.CreatedAt.ToString("MMM dd, yyyy HH:mm")
+                                            @log.CreatedAt.ToString("dddd, dd MMMM yyyy HH:mm:ss")
                                         </small>
                                     </td>
                                 </tr>
@@ -114,20 +134,6 @@
             <div class="card-footer bg-light">
                 <nav aria-label="Page navigation">
                     <ul class="pagination justify-content-center mb-0">
-                        @if (ViewBag.CurrentPage > 1)
-                        {
-                            <li class="page-item">
-                                <a class="page-link" asp-action="ActivityLog" asp-route-filter="@ViewBag.FilterType" asp-route-page="1" title="First page">
-                                    <i class="fas fa-chevron-double-left"></i>
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" asp-action="ActivityLog" asp-route-filter="@ViewBag.FilterType" asp-route-page="@(ViewBag.CurrentPage - 1)" title="Previous page">
-                                    <i class="fas fa-chevron-left"></i>
-                                </a>
-                            </li>
-                        }
-
                         @{
                             int startPage = Math.Max(1, ViewBag.CurrentPage - 2);
                             int endPage = Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2);
@@ -157,20 +163,6 @@
                         @if (endPage < ViewBag.TotalPages)
                         {
                             <li class="page-item"><span class="page-link">...</span></li>
-                        }
-
-                        @if (ViewBag.CurrentPage < ViewBag.TotalPages)
-                        {
-                            <li class="page-item">
-                                <a class="page-link" asp-action="ActivityLog" asp-route-filter="@ViewBag.FilterType" asp-route-page="@(ViewBag.CurrentPage + 1)" title="Next page">
-                                    <i class="fas fa-chevron-right"></i>
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" asp-action="ActivityLog" asp-route-filter="@ViewBag.FilterType" asp-route-page="@ViewBag.TotalPages" title="Last page">
-                                    <i class="fas fa-chevron-double-right"></i>
-                                </a>
-                            </li>
                         }
                     </ul>
                 </nav>

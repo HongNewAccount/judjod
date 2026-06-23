@@ -21,6 +21,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ProjectOwner> ProjectOwners { get; set; }
     public DbSet<ProjectFavorite> ProjectFavorites { get; set; }
     public DbSet<ActivityLog> ActivityLogs { get; set; }
+    public DbSet<ProjectApprovalRequest> ProjectApprovalRequests { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -142,6 +143,25 @@ public class ApplicationDbContext : DbContext
             .HasOne(al => al.User)
             .WithMany()
             .HasForeignKey(al => al.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Configure ProjectApprovalRequest entity
+        modelBuilder.Entity<ProjectApprovalRequest>()
+            .HasKey(par => par.Id);
+        modelBuilder.Entity<ProjectApprovalRequest>()
+            .HasOne(par => par.Project)
+            .WithMany()
+            .HasForeignKey(par => par.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ProjectApprovalRequest>()
+            .HasOne(par => par.RequestedByUser)
+            .WithMany()
+            .HasForeignKey(par => par.RequestedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ProjectApprovalRequest>()
+            .HasOne(par => par.ApprovedByUser)
+            .WithMany()
+            .HasForeignKey(par => par.ApprovedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

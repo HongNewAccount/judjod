@@ -29,6 +29,42 @@
 }
 
 <div class="container-fluid">
+    @if (ViewBag.PendingUpdate != null)
+    {
+        var req = (WebApplication1.Models.ProjectApprovalRequest)ViewBag.PendingUpdate;
+        var currentUserId = Context.Session.GetInt32("UserId") ?? 1;
+        var userRole = Context.Session.GetString("UserRole") ?? "User";
+        
+        <div class="alert alert-warning border-start border-4 border-warning shadow-sm mb-4 d-flex justify-content-between align-items-center" role="alert">
+            <div>
+                <h5 class="alert-heading mb-1"><i class="fas fa-hourglass-half me-2"></i>Pending Edits Awaiting Approval</h5>
+                <p class="mb-0 small text-dark">
+                    Proposed updates were submitted by <strong>@req.RequestedByUser?.FirstName @req.RequestedByUser?.LastName</strong> on @req.RequestedAt.ToString("MMM dd, yyyy HH:mm").
+                    These changes will not be visible here until an Administrator approves them.
+                </p>
+            </div>
+            <div>
+                @if (req.RequestedByUserId == currentUserId || userRole == "Admin")
+                {
+                    <div class="d-flex gap-2">
+                        @if (userRole == "Admin")
+                        {
+                            <a asp-controller="Admin" asp-action="PendingRequests" class="btn btn-sm btn-warning">
+                                <i class="fas fa-gavel me-1"></i> Review Request
+                            </a>
+                        }
+                        <form asp-action="CancelRequest" asp-route-id="@req.Id" method="post" onsubmit="return confirm('Are you sure you want to cancel this edit request?');" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-times me-1"></i> Cancel Request
+                            </button>
+                        </form>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
     <div class="row mb-4">
         <div class="col">
             <h1>@Model.Name</h1>
