@@ -5,20 +5,20 @@
 
     string GetPriorityClass(string priority) => priority switch
     {
-        "High" => "bg-danger",
-        "Medium" => "bg-warning text-dark",
-        "Low" => "bg-info",
-        "Urgent" => "bg-danger",
-        _ => "bg-secondary"
+        "High" => "bg-danger text-white",
+        "Medium" => "bg-warning text-white",
+        "Low" => "bg-success text-white",
+        "Urgent" => "bg-danger text-white",
+        _ => "bg-secondary text-white"
     };
 
     string GetStatusClass(string status) => status switch
     {
-        "Pending" => "bg-warning text-dark",
-        "InProgress" => "bg-primary",
-        "Resolved" => "bg-success",
-        "Closed" => "bg-secondary",
-        _ => "bg-secondary"
+        "Pending" => "bg-secondary text-white",
+        "InProgress" => "bg-primary text-white",
+        "Resolved" => "bg-success text-white",
+        "Closed" => "bg-secondary text-white",
+        _ => "bg-secondary text-white"
     };
 }
 
@@ -29,7 +29,7 @@
             <p class="text-muted">All problem reports and service requests</p>
         </div>
         <div class="col-auto">
-            <a asp-action="Create" class="btn btn-primary">Create New Report</a>
+            <a asp-action="Create" class="btn btn-info text-white">Create New Report</a>
         </div>
     </div>
 
@@ -40,10 +40,10 @@
                 <thead class="table-dark">
                     <tr>
                         <th>Title</th>
+                        <th>Date</th>
                         <th>Priority</th>
                         <th>Status</th>
                         <th>Reported By</th>
-                        <th>Date</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -57,6 +57,9 @@
                                 <small class="text-muted">@report.Description?.Substring(0, Math.Min(50, report.Description.Length))...</small>
                             </td>
                             <td>
+                                <small>@report.ReportedDate.ToString("dd MMM yyyy HH:mm")</small>
+                            </td>
+                            <td>
                                 <span class="badge @GetPriorityClass(report.Priority)">@report.Priority</span>
                             </td>
                             <td>
@@ -66,11 +69,8 @@
                                 @report.CreatedByUser?.FirstName @report.CreatedByUser?.LastName
                             </td>
                             <td>
-                                <small>@report.ReportedDate.ToString("MMM dd, yyyy HH:mm")</small>
-                            </td>
-                            <td>
-                                <a asp-action="Details" asp-route-id="@report.Id" class="btn btn-sm btn-info">View</a>
-                                <a asp-action="Edit" asp-route-id="@report.Id" class="btn btn-sm btn-warning">Edit</a>
+                                <a asp-action="Details" asp-route-id="@report.Id" class="btn btn-sm text-white" style="background-color: #28a745;">View</a>
+                                <a asp-action="Edit" asp-route-id="@report.Id" class="btn btn-sm btn-info text-white">Edit</a>
                             </td>
                         </tr>
                     }

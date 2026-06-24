@@ -10,6 +10,7 @@
             <h1 class="mb-4">Create New Report</h1>
 
             <form method="post" asp-action="Create" class="needs-validation" novalidate>
+                @Html.AntiForgeryToken()
                 <div asp-validation-summary="All" class="alert alert-danger"></div>
 
                 <div class="mb-3">

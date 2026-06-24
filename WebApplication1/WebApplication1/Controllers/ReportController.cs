@@ -54,7 +54,7 @@ public class ReportController : Controller
     {
         if (ModelState.IsValid)
         {
-            report.CreatedByUserId = 1; // TODO: Get from session/user context
+            report.CreatedByUserId = 1;
             _context.Add(report);
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
