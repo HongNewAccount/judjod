@@ -14,10 +14,10 @@ public class Report
     public string Description { get; set; }
 
     [StringLength(50)]
-    public string? Priority { get; set; } // Low, Medium, High, Urgent
+    public string? Priority { get; set; } = "Medium"; // Low, Medium, High, Urgent
 
     [StringLength(50)]
-    public string? Status { get; set; } // Pending, InProgress, Resolved, Closed
+    public string? Status { get; set; } = "Pending"; // Pending, InProgress, Resolved, Closed
 
     public DateTime ReportedDate { get; set; } = DateTime.UtcNow;
 

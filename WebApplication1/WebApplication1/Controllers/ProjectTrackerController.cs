@@ -108,14 +108,12 @@ public class ProjectTrackerController : Controller
         return View(projects);
     }
 
-    public async Task<IActionResult> Details(int id)
+    public async Task<IActionResult> Details(int id, int page = 1)
     {
         var project = await _context.Projects
             .Include(p => p.CreatedByUser)
             .Include(p => p.Owners)
                 .ThenInclude(po => po.User)
-            .Include(p => p.ActivityLogs)
-                .ThenInclude(al => al.User)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (project == null)
@@ -126,6 +124,25 @@ public class ProjectTrackerController : Controller
             .FirstOrDefaultAsync(r => r.ProjectId == id && r.RequestType == "Update" && r.ApprovalStatus == "Pending");
 
         ViewBag.PendingUpdate = pendingUpdate;
+
+        const int pageSize = 10;
+        var activityLogsQuery = _context.ActivityLogs
+            .Where(al => al.ProjectId == id)
+            .Include(al => al.User)
+            .OrderByDescending(al => al.CreatedAt);
+
+        var totalLogs = await activityLogsQuery.CountAsync();
+        var paginatedLogs = await activityLogsQuery
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var totalPages = (int)Math.Ceiling((double)totalLogs / pageSize);
+
+        ViewBag.TotalLogs = totalLogs;
+        ViewBag.PaginatedLogs = paginatedLogs;
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
 
         return View(project);
     }

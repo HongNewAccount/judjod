@@ -55,11 +55,15 @@ public class ReportController : Controller
         if (ModelState.IsValid)
         {
             report.CreatedByUserId = 1;
+            report.ReportedDate = DateTime.UtcNow;
+            report.CreatedAt = DateTime.UtcNow;
             _context.Add(report);
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
 
+        var users = await _context.Users.Where(u => u.IsActive).ToListAsync();
+        ViewBag.Users = users;
         return View(report);
     }
 

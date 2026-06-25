@@ -294,6 +294,7 @@
                                                 </span>
                                             }
                                             <form asp-action="ToggleFavorite" asp-route-id="@project.Id" method="post" class="action-form">
+                                                @Html.AntiForgeryToken()
                                                 @if (userRole == "Admin")
                                                 {
                                                     <button type="submit" class="btn btn-sm @(project.Favorites.Any() ? "btn-warning" : "btn-outline-warning")" title="@(project.Favorites.Any() ? "Remove Mark" : "Mark Project")">
@@ -678,19 +679,19 @@
     });
 
     // Handle favorite button with AJAX
-    document.querySelectorAll('.action-buttons form[action*="ToggleFavorite"]').forEach(form => {
+    document.querySelectorAll('form[action*="ToggleFavorite"]').forEach(form => {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const projectId = new URLSearchParams(new FormData(form)).get('') || form.action.split('/').pop();
-            const button = form.querySelector('button');
+            const button = form.querySelector('button[type="submit"]');
+            if (!button) return;
+
             const isFilled = button.classList.contains('btn-warning');
 
             try {
                 const response = await fetch(form.action, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
                         'X-Requested-With': 'XMLHttpRequest'
                     },
                     body: new FormData(form)
@@ -706,16 +707,19 @@
                     icon.classList.toggle('far');
 
                     // Toggle star icon in project name
-                    const row = form.closest('.project-row');
-                    const projectNameElement = row.querySelector('[data-project-name]');
-                    const starIcon = projectNameElement.querySelector('.fa-star');
-
-                    if (isFilled && starIcon) {
-                        starIcon.remove();
-                    } else if (!isFilled && !starIcon) {
-                        const newStar = document.createElement('i');
-                        newStar.className = 'fas fa-star text-warning ms-1';
-                        projectNameElement.appendChild(newStar);
+                    const row = form.closest('tr');
+                    if (row) {
+                        const projectNameElement = row.querySelector('[data-project-name]');
+                        if (projectNameElement) {
+                            const starIcon = projectNameElement.querySelector('.fa-star');
+                            if (isFilled && starIcon) {
+                                starIcon.remove();
+                            } else if (!isFilled && !starIcon) {
+                                const newStar = document.createElement('i');
+                                newStar.className = 'fas fa-star text-warning ms-1';
+                                projectNameElement.appendChild(newStar);
+                            }
+                        }
                     }
                 }
             } catch (error) {
