@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = "Users";
+    var userRole = Context.Session.GetString("UserRole");
 
     string GetRoleClass(string role) => role switch
     {
@@ -26,9 +27,14 @@
             <h1 class="display-5">Users</h1>
             <p class="text-muted">All organization members</p>
         </div>
-        <div class="col-auto">
-            <a asp-action="Create" class="btn btn-primary">Add New User</a>
-        </div>
+        @if (userRole == "Admin")
+        {
+            <div class="col-auto">
+                <a asp-controller="Auth" asp-action="Register" class="btn btn-primary">
+                    <i class="fas fa-user-plus me-2"></i>Register User
+                </a>
+            </div>
+        }
     </div>
 
     @if (Model.Any())

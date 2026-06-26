@@ -53,6 +53,12 @@
                             <input type="text" class="form-control" id="line" asp-for="Line" />
                         </div>
 
+                        <div class="mb-3">
+                            <label for="passwordHash" class="form-label">Password (Optional)</label>
+                            <input type="password" class="form-control" id="passwordHash" asp-for="PasswordHash" placeholder="Leave blank to keep current password" />
+                            <small class="text-muted">Only fill this field if you want to change the password</small>
+                        </div>
+
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="role" class="form-label">Role</label>

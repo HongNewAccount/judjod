@@ -61,6 +61,13 @@ public class UserController : Controller
 
     public async Task<IActionResult> Edit(int id)
     {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            TempData["ErrorMessage"] = "Only Admin can edit users";
+            return RedirectToAction(nameof(Index));
+        }
+
         var user = await _context.Users.FindAsync(id);
         if (user == null)
             return NotFound();
@@ -72,6 +79,12 @@ public class UserController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id, User user)
     {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            return Forbid();
+        }
+
         if (id != user.Id)
             return NotFound();
 
@@ -94,6 +107,11 @@ public class UserController : Controller
                     existingUser.Status = user.Status;
                     existingUser.Links = user.Links;
                     existingUser.UpdatedAt = DateTime.UtcNow;
+
+                    if (!string.IsNullOrEmpty(user.PasswordHash))
+                    {
+                        existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
+                    }
 
                     _context.Update(existingUser);
                     await _context.SaveChangesAsync();

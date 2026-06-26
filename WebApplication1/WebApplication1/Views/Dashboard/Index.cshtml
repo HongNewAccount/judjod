@@ -17,8 +17,8 @@
     var nextMonth = selectedMonth == 12 ? 1 : selectedMonth + 1;
     var nextYear = selectedMonth == 12 ? selectedYear + 1 : selectedYear;
 
-    var eventsByDay = new Dictionary<int, List<string>>();
-    var projectsByDay = new Dictionary<int, List<string>>();
+    var eventsByDay = new Dictionary<int, List<(int Id, string Title)>>();
+    var projectsByDay = new Dictionary<int, List<(int Id, string Name)>>();
 
     // Map events to days
     foreach (var evt in events)
@@ -30,8 +30,8 @@
                  (evt.EventEndDate.HasValue && evt.EventEndDate.Value.Date >= dateToCheck && evt.EventDate.Date <= dateToCheck)))
             {
                 if (!eventsByDay.ContainsKey(d))
-                    eventsByDay[d] = new List<string>();
-                eventsByDay[d].Add($"📅 {evt.Title}");
+                    eventsByDay[d] = new List<(int, string)>();
+                eventsByDay[d].Add((evt.Id, evt.Title));
             }
         }
     }
@@ -45,8 +45,8 @@
             if (projDay >= 1 && projDay <= daysInMonth && proj.EndDate.Value.Month == selectedMonth && proj.EndDate.Value.Year == selectedYear)
             {
                 if (!projectsByDay.ContainsKey(projDay))
-                    projectsByDay[projDay] = new List<string>();
-                projectsByDay[projDay].Add($"📌 {proj.Name}");
+                    projectsByDay[projDay] = new List<(int, string)>();
+                projectsByDay[projDay].Add((proj.Id, proj.Name));
             }
         }
     }
@@ -143,22 +143,27 @@
                                     {
                                         var currentDate = new DateTime(selectedYear, selectedMonth, dayCounter);
                                         var isToday = currentDate.Date == DateTime.UtcNow.Date;
-                                        var dayItemEvents = eventsByDay.ContainsKey(dayCounter) ? eventsByDay[dayCounter] : new List<string>();
-                                        var dayItemProjects = projectsByDay.ContainsKey(dayCounter) ? projectsByDay[dayCounter] : new List<string>();
-                                        var allItems = new List<string>();
-                                        allItems.AddRange(dayItemEvents);
-                                        allItems.AddRange(dayItemProjects);
+                                        var dayItemEvents = eventsByDay.ContainsKey(dayCounter) ? eventsByDay[dayCounter] : new List<(int, string)>();
+                                        var dayItemProjects = projectsByDay.ContainsKey(dayCounter) ? projectsByDay[dayCounter] : new List<(int, string)>();
 
                                         <td class="calendar-day @(isToday ? "calendar-day-today" : "")">
                                             <div class="calendar-day-number @(isToday ? "today-badge" : "")">@dayCounter</div>
                                             <div class="calendar-day-items">
-                                                @foreach (var item in allItems.Take(3))
+                                                @foreach (var evt in dayItemEvents.Take(2))
                                                 {
-                                                    <div class="calendar-item" title="@item">@item</div>
+                                                    <a href="@Url.Action("Details", "Event", new { id = evt.Item1 })" class="calendar-item calendar-event-link" title="@evt.Item2">
+                                                        <i class="fas fa-calendar-day"></i> @evt.Item2
+                                                    </a>
                                                 }
-                                                @if (allItems.Count > 3)
+                                                @foreach (var proj in dayItemProjects.Take(2 - dayItemEvents.Count))
                                                 {
-                                                    <div class="calendar-item-more">+@(allItems.Count - 3) more</div>
+                                                    <a href="@Url.Action("Details", "ProjectTracker", new { id = proj.Item1 })" class="calendar-item calendar-project-link" title="@proj.Item2">
+                                                        <i class="fas fa-flag"></i> @proj.Item2
+                                                    </a>
+                                                }
+                                                @if (dayItemEvents.Count + dayItemProjects.Count > 2)
+                                                {
+                                                    <div class="calendar-item-more">+@(dayItemEvents.Count + dayItemProjects.Count - 2) more</div>
                                                 }
                                             </div>
                                         </td>
@@ -290,7 +295,7 @@
 
     .calendar-item {
         display: block;
-        padding: 2px 6px;
+        padding: 3px 6px;
         background-color: #e3f2fd;
         color: #1976d2;
         border-radius: 3px;
@@ -300,10 +305,33 @@
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s;
+        text-decoration: none;
+        font-size: 0.75rem;
     }
 
     .calendar-item:hover {
         background-color: #1976d2;
+        color: white;
+        text-decoration: none;
+    }
+
+    .calendar-event-link {
+        background-color: #e3f2fd;
+        color: #1976d2;
+    }
+
+    .calendar-event-link:hover {
+        background-color: #1976d2;
+        color: white;
+    }
+
+    .calendar-project-link {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .calendar-project-link:hover {
+        background-color: #856404;
         color: white;
     }
 

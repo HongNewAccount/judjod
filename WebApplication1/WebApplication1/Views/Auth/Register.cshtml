@@ -4,51 +4,19 @@
     ViewData["Title"] = "Register New User";
 }
 
-<style>
-    .form-label {
-        font-weight: 500;
-        color: #333;
-    }
-
-    .form-control:focus {
-        border-color: #0dcaf0;
-        box-shadow: 0 0 0 0.2rem rgba(13, 202, 240, 0.25);
-    }
-
-    .card {
-        border: none;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    .card-header {
-        background: linear-gradient(135deg, #0dcaf0 0%, #0099cc 100%);
-        border-bottom: 2px solid #0099cc;
-    }
-
-    .btn-info {
-        background-color: #0dcaf0;
-        border-color: #0dcaf0;
-    }
-
-    .btn-info:hover {
-        background-color: #0099cc;
-        border-color: #0099cc;
-    }
-</style>
-
 <div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-lg-7">
-            <div class="card border-0">
-                <div class="card-header">
-                    <h5 class="mb-0">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-gradient py-4">
+                    <h5 class="mb-0 text-white">
                         <i class="fas fa-user-plus me-2"></i>Create New User Account
                     </h5>
                 </div>
                 <div class="card-body p-5">
                     @if (ViewBag.ErrorMessage != null)
                     {
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <div class="alert alert-danger alert-dismissible fade show border-0" role="alert">
                             <i class="fas fa-exclamation-circle me-2"></i>@ViewBag.ErrorMessage
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
@@ -56,77 +24,86 @@
 
                     @if (TempData["SuccessMessage"] != null)
                     {
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <div class="alert alert-success alert-dismissible fade show border-0" role="alert">
                             <i class="fas fa-check-circle me-2"></i>@TempData["SuccessMessage"]
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     }
 
-                    <form method="post" asp-action="Register">
+                    <form method="post" asp-action="Register" class="needs-validation" novalidate>
                         @Html.AntiForgeryToken()
                         <div asp-validation-summary="All" class="alert alert-danger d-none"></div>
 
-                        <div class="row">
-                            <div class="col-md-6 mb-4">
-                                <label for="firstName" class="form-label">First Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-lg" id="firstName" asp-for="FirstName" required />
-                                <span asp-validation-for="FirstName" class="text-danger small"></span>
+                        <!-- Name Fields -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="firstName" class="form-label fw-bold">First Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-lg border-2" id="firstName" asp-for="FirstName" placeholder="Enter first name" required />
+                                <span asp-validation-for="FirstName" class="text-danger small d-block mt-1"></span>
                             </div>
 
-                            <div class="col-md-6 mb-4">
-                                <label for="lastName" class="form-label">Last Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-lg" id="lastName" asp-for="LastName" required />
-                                <span asp-validation-for="LastName" class="text-danger small"></span>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-4">
-                                <label for="username" class="form-label">Username <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-lg" id="username" asp-for="Username" required />
-                                <span asp-validation-for="Username" class="text-danger small"></span>
-                            </div>
-
-                            <div class="col-md-6 mb-4">
-                                <label for="passwordHash" class="form-label">Password <span class="text-danger">*</span></label>
-                                <input type="password" class="form-control form-control-lg" id="passwordHash" asp-for="PasswordHash" required />
-                                <span asp-validation-for="PasswordHash" class="text-danger small"></span>
+                            <div class="col-md-6">
+                                <label for="lastName" class="form-label fw-bold">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-lg border-2" id="lastName" asp-for="LastName" placeholder="Enter last name" required />
+                                <span asp-validation-for="LastName" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6 mb-4">
-                                <label for="email" class="form-label">Email</label>
-                                <input type="email" class="form-control form-control-lg" id="email" asp-for="Email" />
+                        <!-- Credentials -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="username" class="form-label fw-bold">Username <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-lg border-2" id="username" asp-for="Username" placeholder="Enter username" required />
+                                <span asp-validation-for="Username" class="text-danger small d-block mt-1"></span>
                             </div>
 
-                            <div class="col-md-6 mb-4">
-                                <label for="phone" class="form-label">Phone</label>
-                                <input type="tel" class="form-control form-control-lg" id="phone" asp-for="Phone" />
+                            <div class="col-md-6">
+                                <label for="passwordHash" class="form-label fw-bold">Password <span class="text-danger">*</span></label>
+                                <input type="password" class="form-control form-control-lg border-2" id="passwordHash" asp-for="PasswordHash" placeholder="Enter password" required />
+                                <span asp-validation-for="PasswordHash" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6 mb-4">
-                                <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
-                                <select class="form-control form-control-lg" id="role" asp-for="Role" required>
-                                    <option value="">Select Role</option>
+                        <!-- Contact Info -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="email" class="form-label fw-bold">Email</label>
+                                <input type="email" class="form-control form-control-lg border-2" id="email" asp-for="Email" placeholder="user@example.com" />
+                                <span asp-validation-for="Email" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label fw-bold">Phone</label>
+                                <input type="tel" class="form-control form-control-lg border-2" id="phone" asp-for="Phone" placeholder="(+66) XXXX XXXX" />
+                            </div>
+                        </div>
+
+                        <!-- Role & Position -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="role" class="form-label fw-bold">Role <span class="text-danger">*</span></label>
+                                <select class="form-control form-control-lg border-2" id="role" asp-for="Role" required>
+                                    <option value="">-- Select Role --</option>
                                     <option value="Admin">Admin</option>
                                     <option value="Manager">Manager</option>
                                     <option value="User">User</option>
                                 </select>
-                                <span asp-validation-for="Role" class="text-danger small"></span>
+                                <span asp-validation-for="Role" class="text-danger small d-block mt-1"></span>
                             </div>
 
-                            <div class="col-md-6 mb-4">
-                                <label for="position" class="form-label">Position</label>
-                                <input type="text" class="form-control form-control-lg" id="position" asp-for="Position" />
+                            <div class="col-md-6">
+                                <label for="position" class="form-label fw-bold">Position</label>
+                                <input type="text" class="form-control form-control-lg border-2" id="position" asp-for="Position" placeholder="e.g., Project Manager" />
                             </div>
                         </div>
 
-                        <div class="d-flex gap-2 justify-content-end mt-4">
-                            <button type="submit" class="btn btn-info text-white px-4 py-2">
-                                <i class="fas fa-user-check me-2"></i>Create User
+                        <!-- Buttons -->
+                        <div class="d-flex gap-3 justify-content-between mt-5">
+                            <a href="@Url.Action("Index", "User")" class="btn btn-lg btn-outline-secondary px-5">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-lg btn-primary px-5">
+                                <i class="fas fa-user-check me-2"></i>Create User Account
                             </button>
                         </div>
                     </form>
@@ -135,6 +112,62 @@
         </div>
     </div>
 </div>
+
+<style>
+    .bg-gradient {
+        background: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%);
+    }
+
+    .form-label {
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control-lg {
+        border-radius: 0.5rem;
+        padding: 0.875rem 1rem;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control-lg:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    .form-control-lg.border-2 {
+        border-width: 2px;
+    }
+
+    .form-control-lg.border-2:focus {
+        border-width: 2px;
+    }
+
+    .btn-lg {
+        font-weight: 600;
+        border-radius: 0.5rem;
+        padding: 0.875rem 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+    }
+
+    .btn-outline-secondary:hover {
+        transform: translateY(-2px);
+    }
+
+    .card {
+        border: none;
+        border-radius: 1rem;
+    }
+
+    .card-header {
+        border-bottom: 3px solid rgba(255, 255, 255, 0.2);
+    }
+</style>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
