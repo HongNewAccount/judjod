@@ -535,20 +535,47 @@ public class ProjectTrackerController : Controller
 
         var projectName = project.Name;
 
-        // Log the deletion before removing
-        _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+        if (userRole == "Admin")
         {
-            ProjectId = id,
-            UserId = userId,
-            ActionType = "Deleted",
-            Description = $"Project '{projectName}' was deleted",
-            CreatedAt = DateTime.UtcNow
-        });
+            // Admin can delete immediately
+            _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
+            {
+                ProjectId = id,
+                UserId = userId,
+                ActionType = "Deleted",
+                Description = $"Project '{projectName}' was deleted",
+                CreatedAt = DateTime.UtcNow
+            });
 
-        _context.Projects.Remove(project);
-        await _context.SaveChangesAsync();
+            _context.Projects.Remove(project);
+            await _context.SaveChangesAsync();
 
-        TempData["SuccessMessage"] = $"Project '{projectName}' has been deleted successfully.";
+            TempData["SuccessMessage"] = $"Project '{projectName}' has been deleted successfully.";
+        }
+        else
+        {
+            // Non-admin owner must request approval
+            var approvalRequest = new WebApplication1.Models.ProjectApprovalRequest
+            {
+                ProjectId = id,
+                RequestType = "Delete",
+                Name = projectName,
+                Description = project.Description,
+                StartDate = project.StartDate,
+                EndDate = project.EndDate,
+                Status = project.Status,
+                Issues = project.Issues,
+                RequestedByUserId = userId,
+                RequestedAt = DateTime.UtcNow,
+                ApprovalStatus = "Pending"
+            };
+
+            _context.ProjectApprovalRequests.Add(approvalRequest);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = $"Your request to delete project '{projectName}' has been submitted for Admin approval.";
+        }
+
         return RedirectToAction(nameof(Index));
     }
 

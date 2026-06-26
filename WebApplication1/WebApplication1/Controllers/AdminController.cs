@@ -114,6 +114,40 @@ public class AdminController : Controller
                     request.ApprovedByUserId = userId;
                     request.ApprovedAt = DateTime.UtcNow;
                 }
+                else if (request.RequestType == "Delete" && request.ProjectId.HasValue)
+                {
+                    var project = await _context.Projects
+                        .FirstOrDefaultAsync(p => p.Id == request.ProjectId.Value);
+
+                    if (project == null)
+                    {
+                        TempData["ErrorMessage"] = "The target project no longer exists.";
+                        request.ApprovalStatus = "Rejected";
+                        request.RejectionReason = "Target project no longer exists.";
+                        await _context.SaveChangesAsync();
+                        await transaction.CommitAsync();
+                        return RedirectToAction(nameof(PendingRequests));
+                    }
+
+                    var projectName = project.Name;
+
+                    // Log the deletion
+                    _context.ActivityLogs.Add(new ActivityLog
+                    {
+                        ProjectId = project.Id,
+                        UserId = userId,
+                        ActionType = "Deleted",
+                        Description = $"Project '{projectName}' was deleted (Approved by Admin)",
+                        CreatedAt = DateTime.UtcNow
+                    });
+
+                    // Delete the project
+                    _context.Projects.Remove(project);
+
+                    request.ApprovalStatus = "Approved";
+                    request.ApprovedByUserId = userId;
+                    request.ApprovedAt = DateTime.UtcNow;
+                }
                 else if (request.RequestType == "Update" && request.ProjectId.HasValue)
                 {
                     var project = await _context.Projects

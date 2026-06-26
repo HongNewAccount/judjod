@@ -1,191 +1,333 @@
 @{
-    ViewData["Title"] = "Dashboard";
-    var projects = (List<WebApplication1.Models.Project>?)ViewBag.Projects ?? new List<WebApplication1.Models.Project>();
-    var recentReports = (List<WebApplication1.Models.Report>?)ViewBag.RecentReports ?? new List<WebApplication1.Models.Report>();
-    var upcomingEvents = (List<WebApplication1.Models.OrganizationEvent>?)ViewBag.UpcomingEvents ?? new List<WebApplication1.Models.OrganizationEvent>();
+    ViewData["Title"] = "Calendar";
+    var monthProjects = (List<WebApplication1.Models.Project>?)ViewBag.MonthProjects ?? new List<WebApplication1.Models.Project>();
+    var selectedYear = (int)ViewBag.SelectedYear;
+    var selectedMonth = (int)ViewBag.SelectedMonth;
+    var monthName = (string)ViewBag.MonthName;
+    var startDate = (DateTime)ViewBag.StartDate;
+    var endDate = (DateTime)ViewBag.EndDate;
+    var events = (List<WebApplication1.Models.OrganizationEvent>)ViewBag.Events;
 
-    int activeProjects = projects.Where(p => p.Status == "InProgress").Count();
-    int pendingReports = recentReports.Where(r => r.Status == "Pending").Count();
-    int resolvedReports = recentReports.Where(r => r.Status == "Resolved").Count();
-    int upcomingEventCount = upcomingEvents.Count();
+    var daysInMonth = DateTime.DaysInMonth(selectedYear, selectedMonth);
+    var firstDayOfMonth = new DateTime(selectedYear, selectedMonth, 1);
+    var firstDayOfWeek = (int)firstDayOfMonth.DayOfWeek;
 
-    string GetPriorityClass(string priority) => priority switch
+    var previousMonth = selectedMonth == 1 ? 12 : selectedMonth - 1;
+    var previousYear = selectedMonth == 1 ? selectedYear - 1 : selectedYear;
+    var nextMonth = selectedMonth == 12 ? 1 : selectedMonth + 1;
+    var nextYear = selectedMonth == 12 ? selectedYear + 1 : selectedYear;
+
+    var eventsByDay = new Dictionary<int, List<string>>();
+    var projectsByDay = new Dictionary<int, List<string>>();
+
+    // Map events to days
+    foreach (var evt in events)
     {
-        "High" => "bg-danger",
-        "Medium" => "bg-warning",
-        "Low" => "bg-info",
-        _ => "bg-secondary"
-    };
+        for (var d = 1; d <= daysInMonth; d++)
+        {
+            var dateToCheck = new DateTime(selectedYear, selectedMonth, d);
+            if ((evt.EventDate.Date == dateToCheck ||
+                 (evt.EventEndDate.HasValue && evt.EventEndDate.Value.Date >= dateToCheck && evt.EventDate.Date <= dateToCheck)))
+            {
+                if (!eventsByDay.ContainsKey(d))
+                    eventsByDay[d] = new List<string>();
+                eventsByDay[d].Add($"📅 {evt.Title}");
+            }
+        }
+    }
+
+    // Map projects (end dates) to days
+    foreach (var proj in monthProjects)
+    {
+        if (proj.EndDate.HasValue)
+        {
+            var projDay = proj.EndDate.Value.Day;
+            if (projDay >= 1 && projDay <= daysInMonth && proj.EndDate.Value.Month == selectedMonth && proj.EndDate.Value.Year == selectedYear)
+            {
+                if (!projectsByDay.ContainsKey(projDay))
+                    projectsByDay[projDay] = new List<string>();
+                projectsByDay[projDay].Add($"📌 {proj.Name}");
+            }
+        }
+    }
 }
 
-<div class="container mt-5">
-    <div class="row mb-4">
-        <div class="col">
-            <h1 class="display-4">Dashboard</h1>
-            <p class="text-muted">Welcome to Organization Dashboard</p>
-        </div>
+<div class="container-fluid py-4">
+    <div class="mb-4">
+        <h2 class="h3 mb-1 text-gray-800">
+            <i class="fas fa-calendar-alt text-primary me-2"></i>Calendar
+        </h2>
+        <p class="text-muted mb-0">View events and project deadlines</p>
     </div>
 
-    <!-- Quick Stats -->
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="card bg-primary text-white">
+    <!-- Dashboard Summary -->
+    <div class="row mb-4 g-3">
+        @{
+            var monthProjectCount = monthProjects.Count;
+            var monthEventCount = events.Count;
+        }
+
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
                 <div class="card-body">
-                    <h5 class="card-title">Active Projects</h5>
-                    <h2>@activeProjects</h2>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted small mb-1">Project Deadlines</p>
+                            <h3 class="mb-0 text-primary">@monthProjectCount</h3>
+                        </div>
+                        <i class="fas fa-project-diagram fa-2x text-primary opacity-25"></i>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3 mb-3">
-            <div class="card bg-warning text-white">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
                 <div class="card-body">
-                    <h5 class="card-title">Pending Reports</h5>
-                    <h2>@pendingReports</h2>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3 mb-3">
-            <div class="card bg-info text-white">
-                <div class="card-body">
-                    <h5 class="card-title">Upcoming Events</h5>
-                    <h2>@upcomingEventCount</h2>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3 mb-3">
-            <div class="card bg-success text-white">
-                <div class="card-body">
-                    <h5 class="card-title">Resolved Reports</h5>
-                    <h2>@resolvedReports</h2>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted small mb-1">Events</p>
+                            <h3 class="mb-0 text-info">@monthEventCount</h3>
+                        </div>
+                        <i class="fas fa-calendar fa-2x text-info opacity-25"></i>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row">
-        <!-- Projects Section -->
-        <div class="col-lg-6 mb-4">
-            <div class="card">
-                <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Recent Projects</h5>
-                </div>
-                <div class="card-body p-0">
-                    @if (projects != null && projects.Any())
-                    {
-                        <div class="list-group list-group-flush">
-                            @foreach (var project in projects.Take(5))
-                            {
-                                <div class="list-group-item">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h6 class="mb-1">@project.Name</h6>
-                                            @if (project.Owners.Any())
-                                            {
-                                                <small class="text-muted">@string.Join(", ", project.Owners.Select(o => $"{o.User?.FirstName} {o.User?.LastName}"))</small>
-                                            }
-                                            else
-                                            {
-                                                <small class="text-muted">No owners</small>
-                                            }
-                                        </div>
-                                        <span class="badge bg-secondary">@project.Status</span>
-                                    </div>
-                                    <small class="text-muted d-block mt-1">
-                                        @project.StartDate.ToString("MMM dd, yyyy") - @(project.EndDate?.ToString("MMM dd, yyyy") ?? "Ongoing")
-                                    </small>
-                                </div>
-                            }
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="p-4 text-center text-muted">
-                            <p>No projects found</p>
-                        </div>
-                    }
+    <!-- Event Calendar -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white border-bottom py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex gap-2">
+                    <a href="@Url.Action("Index", "Dashboard", new { year = previousYear, month = previousMonth })" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-chevron-left me-1"></i>Previous
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#datePickerModal">
+                        <i class="fas fa-calendar me-1"></i>@monthName
+                    </button>
+                    <a href="@Url.Action("Index", "Dashboard", new { year = nextYear, month = nextMonth })" class="btn btn-outline-secondary btn-sm">
+                        Next<i class="fas fa-chevron-right ms-1"></i>
+                    </a>
                 </div>
             </div>
         </div>
 
-        <!-- Recent Reports Section -->
-        <div class="col-lg-6 mb-4">
-            <div class="card">
-                <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Recent Reports</h5>
-                    <a asp-controller="Report" asp-action="Index" class="btn btn-sm btn-primary">View All</a>
-                </div>
-                <div class="card-body p-0">
-                    @if (recentReports != null && recentReports.Any())
-                    {
-                        <div class="list-group list-group-flush">
-                            @foreach (var report in recentReports.Take(5))
-                            {
-                                <div class="list-group-item">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h6 class="mb-1">@report.Title</h6>
-                                            <small class="text-muted">By @report.CreatedByUser?.FirstName @report.CreatedByUser?.LastName</small>
-                                        </div>
-                                        <span class="badge @GetPriorityClass(report.Priority)">@report.Priority</span>
-                                    </div>
-                                    <small class="text-muted d-block mt-1">Status: <strong>@report.Status</strong></small>
-                                </div>
-                            }
-                        </div>
+        <div class="card-body p-4">
+            <table class="table table-bordered calendar-table">
+                <thead>
+                    <tr class="table-light">
+                        <th class="calendar-header">Sun</th>
+                        <th class="calendar-header">Mon</th>
+                        <th class="calendar-header">Tue</th>
+                        <th class="calendar-header">Wed</th>
+                        <th class="calendar-header">Thu</th>
+                        <th class="calendar-header">Fri</th>
+                        <th class="calendar-header">Sat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int dayCounter = 1;
+                        for (int week = 0; week < 6; week++)
+                        {
+                            <tr>
+                                @for (int dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++)
+                                {
+                                    if (week == 0 && dayOfWeek < firstDayOfWeek)
+                                    {
+                                        <td class="calendar-day calendar-day-empty"></td>
+                                    }
+                                    else if (dayCounter <= daysInMonth)
+                                    {
+                                        var currentDate = new DateTime(selectedYear, selectedMonth, dayCounter);
+                                        var isToday = currentDate.Date == DateTime.UtcNow.Date;
+                                        var dayItemEvents = eventsByDay.ContainsKey(dayCounter) ? eventsByDay[dayCounter] : new List<string>();
+                                        var dayItemProjects = projectsByDay.ContainsKey(dayCounter) ? projectsByDay[dayCounter] : new List<string>();
+                                        var allItems = new List<string>();
+                                        allItems.AddRange(dayItemEvents);
+                                        allItems.AddRange(dayItemProjects);
+
+                                        <td class="calendar-day @(isToday ? "calendar-day-today" : "")">
+                                            <div class="calendar-day-number @(isToday ? "today-badge" : "")">@dayCounter</div>
+                                            <div class="calendar-day-items">
+                                                @foreach (var item in allItems.Take(3))
+                                                {
+                                                    <div class="calendar-item" title="@item">@item</div>
+                                                }
+                                                @if (allItems.Count > 3)
+                                                {
+                                                    <div class="calendar-item-more">+@(allItems.Count - 3) more</div>
+                                                }
+                                            </div>
+                                        </td>
+                                        dayCounter++;
+                                    }
+                                    else
+                                    {
+                                        <td class="calendar-day calendar-day-empty"></td>
+                                    }
+                                }
+                            </tr>
+                        }
                     }
-                    else
-                    {
-                        <div class="p-4 text-center text-muted">
-                            <p>No reports found</p>
-                        </div>
-                    }
-                </div>
-            </div>
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 
-    <!-- Upcoming Events -->
-    <div class="row">
-        <div class="col-12 mb-4">
-            <div class="card">
-                <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Upcoming Events</h5>
-                    <a asp-controller="Event" asp-action="Index" class="btn btn-sm btn-primary">View All</a>
-                </div>
-                <div class="card-body">
-                    @if (upcomingEvents != null && upcomingEvents.Any())
-                    {
-                        <div class="row">
-                            @foreach (var evt in upcomingEvents.Take(6))
-                            {
-                                <div class="col-md-4 mb-3">
-                                    <div class="card border-0 bg-light">
-                                        <div class="card-body">
-                                            <h6 class="card-title">@evt.Title</h6>
-                                            <p class="card-text small">
-                                                <i class="fas fa-calendar"></i> @evt.EventDate.ToString("MMM dd, HH:mm")
-                                            </p>
-                                            <p class="card-text small text-muted">
-                                                <i class="fas fa-map-marker-alt"></i> @evt.Location
-                                            </p>
-                                            <a asp-controller="Event" asp-action="Details" asp-route-id="@evt.Id" class="btn btn-sm btn-outline-primary">Details</a>
-                                        </div>
-                                    </div>
-                                </div>
-                            }
+<!-- Date Picker Modal -->
+<div class="modal fade" id="datePickerModal" tabindex="-1" aria-labelledby="datePickerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="datePickerModalLabel">Select Month and Year</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="get" action="@Url.Action("Index", "Dashboard")">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="yearSelect" class="form-label">Year</label>
+                            <select class="form-select" id="yearSelect" name="year" required>
+                                @{
+                                    for (int y = DateTime.UtcNow.Year - 2; y <= DateTime.UtcNow.Year + 2; y++)
+                                    {
+                                        var isSelected = y == selectedYear;
+                                        <option value="@y" selected="@isSelected">@y</option>
+                                    }
+                                }
+                            </select>
                         </div>
-                    }
-                    else
-                    {
-                        <div class="text-center text-muted p-4">
-                            <p>No upcoming events</p>
+                        <div class="col-md-6">
+                            <label for="monthSelect" class="form-label">Month</label>
+                            <select class="form-select" id="monthSelect" name="month" required>
+                                @{
+                                    for (int m = 1; m <= 12; m++)
+                                    {
+                                        var isSelected = m == selectedMonth;
+                                        var displayMonth = DateTime.UtcNow.AddMonths(m - DateTime.UtcNow.Month).ToString("MMMM");
+                                        <option value="@m" selected="@isSelected">@displayMonth</option>
+                                    }
+                                }
+                            </select>
                         </div>
-                    }
-                </div>
+                    </div>
+                    <div class="modal-footer mt-4">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Go to Month</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    .calendar-table {
+        table-layout: fixed;
+        border-collapse: collapse;
+    }
+
+    .calendar-table tbody td {
+        border: 1px solid #dee2e6 !important;
+    }
+
+    .calendar-header {
+        background-color: #f8f9fa !important;
+        padding: 12px 8px !important;
+        font-weight: 600;
+        text-align: center;
+        color: #495057;
+        font-size: 0.875rem;
+        border-bottom: 2px solid #dee2e6 !important;
+    }
+
+    .calendar-day {
+        background-color: white;
+        min-height: 120px;
+        padding: 8px;
+        position: relative;
+        overflow-y: auto;
+        vertical-align: top;
+    }
+
+    .calendar-day-empty {
+        background-color: #f8f9fa;
+    }
+
+    .calendar-day-today {
+        background-color: #e7f3ff;
+    }
+
+    .calendar-day-number {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #495057;
+        margin-bottom: 6px;
+    }
+
+    .calendar-day-number.today-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #0d6efd;
+        color: white;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        font-size: 0.875rem;
+    }
+
+    .calendar-day-items {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        font-size: 0.75rem;
+    }
+
+    .calendar-item {
+        display: block;
+        padding: 2px 6px;
+        background-color: #e3f2fd;
+        color: #1976d2;
+        border-radius: 3px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .calendar-item:hover {
+        background-color: #1976d2;
+        color: white;
+    }
+
+    .calendar-item-more {
+        padding: 2px 6px;
+        color: #6c757d;
+        font-size: 0.7rem;
+        font-weight: 500;
+    }
+
+    @@media (max-width: 768px) {
+        .calendar-day {
+            min-height: 80px;
+            font-size: 0.85rem;
+            padding: 4px;
+        }
+
+        .calendar-day-number {
+            font-size: 0.85rem;
+        }
+
+        .calendar-item {
+            font-size: 0.65rem;
+            padding: 1px 3px;
+        }
+    }
+</style>
