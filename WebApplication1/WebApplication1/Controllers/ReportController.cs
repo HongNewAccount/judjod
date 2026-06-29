@@ -14,26 +14,13 @@ public class ReportController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index(int page = 1)
+    public async Task<IActionResult> Index()
     {
-        const int pageSize = 20;
-
-        var query = _context.Reports
+        var reports = await _context.Reports
             .Include(r => r.CreatedByUser)
             .Include(r => r.Assignments)
-            .OrderByDescending(r => r.CreatedAt);
-
-        var totalCount = await query.CountAsync();
-        var reports = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
-
-        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
-
-        ViewBag.CurrentPage = page;
-        ViewBag.TotalPages = totalPages;
-        ViewBag.TotalCount = totalCount;
 
         return View(reports);
     }
@@ -102,9 +89,22 @@ public class ReportController : Controller
         {
             try
             {
-                report.UpdatedAt = DateTime.UtcNow;
-                _context.Update(report);
-                await _context.SaveChangesAsync();
+                var existingReport = await _context.Reports.FindAsync(id);
+                if (existingReport != null)
+                {
+                    existingReport.Title = report.Title;
+                    existingReport.Description = report.Description;
+                    existingReport.Priority = report.Priority;
+                    existingReport.Status = report.Status;
+                    existingReport.ScheduledDate = report.ScheduledDate;
+                    existingReport.ScheduledEndDate = report.ScheduledEndDate;
+                    existingReport.Location = report.Location;
+                    existingReport.IsOnSite = report.IsOnSite;
+                    existingReport.UpdatedAt = DateTime.UtcNow;
+
+                    _context.Update(existingReport);
+                    await _context.SaveChangesAsync();
+                }
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -114,6 +114,8 @@ public class ReportController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        var users = await _context.Users.Where(u => u.IsActive).ToListAsync();
+        ViewBag.Users = users;
         return View(report);
     }
 }

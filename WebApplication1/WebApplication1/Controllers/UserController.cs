@@ -15,25 +15,12 @@ public class UserController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index(int page = 1)
+    public async Task<IActionResult> Index()
     {
-        const int pageSize = 20;
-
-        var query = _context.Users
+        var users = await _context.Users
             .OrderBy(u => u.FirstName)
-            .ThenBy(u => u.LastName);
-
-        var totalCount = await query.CountAsync();
-        var users = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .ThenBy(u => u.LastName)
             .ToListAsync();
-
-        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
-
-        ViewBag.CurrentPage = page;
-        ViewBag.TotalPages = totalPages;
-        ViewBag.TotalCount = totalCount;
 
         return View(users);
     }

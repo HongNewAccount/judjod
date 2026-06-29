@@ -14,26 +14,13 @@ public class EventController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index(int page = 1)
+    public async Task<IActionResult> Index()
     {
-        const int pageSize = 20;
-
-        var query = _context.OrganizationEvents
+        var events = await _context.OrganizationEvents
             .Include(e => e.CreatedByUser)
             .Include(e => e.Attendees)
-            .OrderByDescending(e => e.EventDate);
-
-        var totalCount = await query.CountAsync();
-        var events = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .OrderByDescending(e => e.EventDate)
             .ToListAsync();
-
-        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
-
-        ViewBag.CurrentPage = page;
-        ViewBag.TotalPages = totalPages;
-        ViewBag.TotalCount = totalCount;
 
         return View(events);
     }
@@ -92,9 +79,20 @@ public class EventController : Controller
         {
             try
             {
-                @event.UpdatedAt = DateTime.UtcNow;
-                _context.Update(@event);
-                await _context.SaveChangesAsync();
+                var existingEvent = await _context.OrganizationEvents.FindAsync(id);
+                if (existingEvent != null)
+                {
+                    existingEvent.Title = @event.Title;
+                    existingEvent.Description = @event.Description;
+                    existingEvent.EventDate = @event.EventDate;
+                    existingEvent.EventEndDate = @event.EventEndDate;
+                    existingEvent.Location = @event.Location;
+                    existingEvent.IsOnSite = @event.IsOnSite;
+                    existingEvent.UpdatedAt = DateTime.UtcNow;
+
+                    _context.Update(existingEvent);
+                    await _context.SaveChangesAsync();
+                }
             }
             catch (DbUpdateConcurrencyException)
             {

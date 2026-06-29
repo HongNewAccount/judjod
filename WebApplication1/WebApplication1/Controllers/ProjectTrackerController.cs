@@ -14,9 +14,8 @@ public class ProjectTrackerController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index(string sortBy = "latest", string filter = "all", int page = 1)
+    public async Task<IActionResult> Index(string sortBy = "latest", string filter = "all")
     {
-        const int pageSize = 20;
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var allProjects = await _context.Projects
             .Include(p => p.CreatedByUser)
@@ -75,6 +74,15 @@ public class ProjectTrackerController : Controller
         {
             projects = projects.Where(p => p.Favorites.Any()).ToList();
         }
+        else if (filter == "thismonth")
+        {
+            var now = DateTime.UtcNow;
+            var startOfMonth = new DateTime(now.Year, now.Month, 1);
+            var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
+            projects = projects.Where(p =>
+                                          (p.StartDate.Date >= startOfMonth.Date && p.StartDate.Date <= endOfMonth.Date) ||
+                                          (p.EndDate.HasValue && p.EndDate.Value.Date >= startOfMonth.Date && p.EndDate.Value.Date <= endOfMonth.Date)).ToList();
+        }
 
         // Count stats before removing Closed projects
         var stats = new Dictionary<string, int>
@@ -103,23 +111,10 @@ public class ProjectTrackerController : Controller
             _ => projects.OrderByDescending(p => p.CreatedAt).ToList()
         };
 
-        // Apply pagination
-        var totalCount = projects.Count;
-        var paginatedProjects = projects
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-
-        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
-
         ViewBag.Stats = stats;
         ViewBag.CurrentSort = sortBy;
         ViewBag.CurrentFilter = filter;
-        ViewBag.CurrentPage = page;
-        ViewBag.TotalPages = totalPages;
-        ViewBag.TotalCount = totalCount;
-
-        return View(paginatedProjects);
+        return View(projects);
     }
 
     public async Task<IActionResult> Details(int id, int page = 1)
