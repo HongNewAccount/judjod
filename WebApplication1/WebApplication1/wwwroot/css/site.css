@@ -242,3 +242,140 @@ body {
 .priority-low {
     background-color: #17a2b8;
 }
+
+/* Standardized Page Headings */
+.page-header {
+    margin-top: 0;
+    margin-bottom: 2rem;
+    padding-top: 0;
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+    margin-top: 0;
+    line-height: 1.2;
+}
+
+.page-subtitle {
+    font-size: 0.95rem;
+    color: #6c757d;
+    margin-bottom: 0;
+    margin-top: 0;
+    line-height: 1.5;
+}
+
+/* Create/Edit Form Buttons */
+.btn-create,
+.btn-edit,
+.btn-delete,
+.btn-save {
+    font-weight: 600;
+    padding: 0.5rem 1.5rem;
+    border-radius: 0.375rem;
+    transition: all 0.3s ease;
+}
+
+.btn-create {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+}
+
+.btn-create:hover {
+    background-color: #218838;
+    border-color: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+.btn-save {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+
+.btn-save:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+/* Standard Primary Button Styling */
+.btn-primary {
+    font-weight: 600;
+    padding: 0.5rem 1.5rem;
+    border-radius: 0.375rem;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.btn.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0b5ed7;
+}
+
+/* Form Button Group Styling */
+.d-grid.gap-2 .btn {
+    font-weight: 600;
+    padding: 0.6rem 1.5rem;
+}
+
+/* Standard Action Buttons (Create, Register, Pending) - Same style as Logout */
+.btn-action {
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 0.6rem 1.5rem;
+    border-radius: 0.375rem;
+    background-color: #0dcaf0;
+    border-color: #0dcaf0;
+    color: white;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+    line-height: 1.5;
+}
+
+.btn-action:hover,
+.btn-action.active {
+    background-color: #0099cc;
+    border-color: #0099cc;
+    color: white;
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(13, 202, 240, 0.3);
+}
+
+/* Badge for Pending Count */
+.badge.bg-danger {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.65rem;
+    font-weight: 600;
+}
+
+/* Override Bootstrap btn-info for action buttons */
+.btn.btn-action.btn-info,
+.btn.btn-action {
+    background-color: #0dcaf0 !important;
+    border-color: #0dcaf0 !important;
+    color: white !important;
+}
+
+.btn.btn-action:hover {
+    background-color: #0099cc !important;
+    border-color: #0099cc !important;
+}

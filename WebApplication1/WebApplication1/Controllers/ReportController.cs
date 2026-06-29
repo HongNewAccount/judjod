@@ -14,13 +14,26 @@ public class ReportController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1)
     {
-        var reports = await _context.Reports
+        const int pageSize = 20;
+
+        var query = _context.Reports
             .Include(r => r.CreatedByUser)
             .Include(r => r.Assignments)
-            .OrderByDescending(r => r.CreatedAt)
+            .OrderByDescending(r => r.CreatedAt);
+
+        var totalCount = await query.CountAsync();
+        var reports = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
+
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
 
         return View(reports);
     }

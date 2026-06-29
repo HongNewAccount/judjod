@@ -94,8 +94,8 @@ using (var scope = app.Services.CreateScope())
         context.Database.EnsureCreated();
     }
 
-    // Data is stored in MySQL - no seed needed
-    // SeedData.Initialize(context);
+    // Seed initial data
+    SeedData.Initialize(context);
 }
 
 app.Run();

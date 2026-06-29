@@ -17,8 +17,9 @@ public class OrganizationEvent
 
     public DateTime? EventEndDate { get; set; }
 
+    [Required]
     [StringLength(500)]
-    public string? Location { get; set; }
+    public string Location { get; set; }
 
     public bool IsOnSite { get; set; } = true;
 

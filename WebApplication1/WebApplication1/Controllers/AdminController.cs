@@ -14,23 +14,35 @@ public class AdminController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> PendingRequests()
+    public async Task<IActionResult> PendingRequests(int page = 1)
     {
+        const int pageSize = 20;
+
         var userRole = HttpContext.Session.GetString("UserRole");
         if (userRole != "Admin")
         {
             return Forbid();
         }
 
-        var requests = await _context.ProjectApprovalRequests
+        var query = _context.ProjectApprovalRequests
             .Include(r => r.RequestedByUser)
             .Include(r => r.Project)
             .Where(r => r.ApprovalStatus == "Pending")
-            .OrderByDescending(r => r.RequestedAt)
+            .OrderByDescending(r => r.RequestedAt);
+
+        var totalCount = await query.CountAsync();
+        var requests = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
+
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
         var users = await _context.Users.Where(u => u.IsActive).ToListAsync();
         ViewBag.Users = users;
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
 
         return View(requests);
     }

@@ -14,8 +14,9 @@ public class ProjectTrackerController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index(string sortBy = "latest", string filter = "all")
+    public async Task<IActionResult> Index(string sortBy = "latest", string filter = "all", int page = 1)
     {
+        const int pageSize = 20;
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var allProjects = await _context.Projects
             .Include(p => p.CreatedByUser)
@@ -102,10 +103,23 @@ public class ProjectTrackerController : Controller
             _ => projects.OrderByDescending(p => p.CreatedAt).ToList()
         };
 
+        // Apply pagination
+        var totalCount = projects.Count;
+        var paginatedProjects = projects
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
         ViewBag.Stats = stats;
         ViewBag.CurrentSort = sortBy;
         ViewBag.CurrentFilter = filter;
-        return View(projects);
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+
+        return View(paginatedProjects);
     }
 
     public async Task<IActionResult> Details(int id, int page = 1)

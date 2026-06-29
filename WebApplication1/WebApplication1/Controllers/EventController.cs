@@ -14,13 +14,26 @@ public class EventController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1)
     {
-        var events = await _context.OrganizationEvents
+        const int pageSize = 20;
+
+        var query = _context.OrganizationEvents
             .Include(e => e.CreatedByUser)
             .Include(e => e.Attendees)
-            .OrderByDescending(e => e.EventDate)
+            .OrderByDescending(e => e.EventDate);
+
+        var totalCount = await query.CountAsync();
+        var events = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
+
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
 
         return View(events);
     }
