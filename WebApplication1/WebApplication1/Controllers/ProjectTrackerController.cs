@@ -14,8 +14,15 @@ public class ProjectTrackerController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index(string sortBy = "latest", string filter = "all")
+    private async Task<bool> IsProjectAccessSuspendedAsync(int userId)
     {
+        var user = await _context.Users.FindAsync(userId);
+        return user?.ProjectAccessSuspended ?? false;
+    }
+
+    public async Task<IActionResult> Index(string searchTerm = "", string sortBy = "latest", string filter = "all", int page = 1)
+    {
+        const int pageSize = 10;
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var allProjects = await _context.Projects
             .Include(p => p.CreatedByUser)
@@ -98,6 +105,17 @@ public class ProjectTrackerController : Controller
         // Remove Closed projects from view
         projects = projects.Where(p => p.Status != "Closed").ToList();
 
+        // Apply search
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var lowerSearchTerm = searchTerm.ToLower();
+            projects = projects.Where(p =>
+                p.Name.ToLower().Contains(lowerSearchTerm) ||
+                p.Owners.Any(o => o.User != null &&
+                    ($"{o.User.FirstName} {o.User.LastName}".ToLower().Contains(lowerSearchTerm)))
+            ).ToList();
+        }
+
         // Apply sorting
         projects = sortBy switch
         {
@@ -111,10 +129,19 @@ public class ProjectTrackerController : Controller
             _ => projects.OrderByDescending(p => p.CreatedAt).ToList()
         };
 
+        var totalCount = projects.Count;
+        var totalPages = Math.Max(1, (int)Math.Ceiling((double)totalCount / pageSize));
+        page = Math.Max(1, Math.Min(page, totalPages));
+        var pagedProjects = projects.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
         ViewBag.Stats = stats;
         ViewBag.CurrentSort = sortBy;
         ViewBag.CurrentFilter = filter;
-        return View(projects);
+        ViewBag.SearchTerm = searchTerm;
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+        return View(pagedProjects);
     }
 
     public async Task<IActionResult> Details(int id, int page = 1)
@@ -158,6 +185,15 @@ public class ProjectTrackerController : Controller
 
     public async Task<IActionResult> Create()
     {
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var userRole = HttpContext.Session.GetString("UserRole");
+
+        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId))
+        {
+            TempData["ErrorMessage"] = "Your project management access has been suspended by an Admin.";
+            return RedirectToAction(nameof(Index));
+        }
+
         var users = await _context.Users.Where(u => u.IsActive).ToListAsync();
         ViewBag.Users = users;
         return View();
@@ -167,6 +203,15 @@ public class ProjectTrackerController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(WebApplication1.Models.Project project, [FromForm] int[] ownerIds)
     {
+        var createUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var createUserRole = HttpContext.Session.GetString("UserRole");
+
+        if (createUserRole != "Admin" && await IsProjectAccessSuspendedAsync(createUserId))
+        {
+            TempData["ErrorMessage"] = "Your project management access has been suspended by an Admin.";
+            return RedirectToAction(nameof(Index));
+        }
+
         if (ModelState.IsValid)
         {
             var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
@@ -256,6 +301,12 @@ public class ProjectTrackerController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId))
+        {
+            TempData["ErrorMessage"] = "Your project management access has been suspended by an Admin.";
+            return RedirectToAction(nameof(Index));
+        }
+
         var users = await _context.Users.Where(u => u.IsActive).ToListAsync();
         ViewBag.Users = users;
         return View(project);
@@ -287,6 +338,12 @@ public class ProjectTrackerController : Controller
                 if (userRole != "Admin" && !isOwner)
                 {
                     TempData["ErrorMessage"] = "You can only edit projects where you are an owner";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId))
+                {
+                    TempData["ErrorMessage"] = "Your project management access has been suspended by an Admin.";
                     return RedirectToAction(nameof(Index));
                 }
 
@@ -542,6 +599,12 @@ public class ProjectTrackerController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId))
+        {
+            TempData["ErrorMessage"] = "Your project management access has been suspended by an Admin.";
+            return RedirectToAction(nameof(Index));
+        }
+
         var projectName = project.Name;
 
         if (userRole == "Admin")
@@ -648,24 +711,59 @@ public class ProjectTrackerController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    public async Task<IActionResult> ActivityLog(string filter = "all", int page = 1)
+    public async Task<IActionResult> ActivityLog(string filter = "all", string searchTerm = "", string searchType = "all", string sortBy = "newest", int page = 1)
     {
         const int pageSize = 20;
 
         var query = _context.ActivityLogs as IQueryable<WebApplication1.Models.ActivityLog>;
 
+        // Filter by action type
         if (filter != "all")
         {
             query = query.Where(al => al.ActionType == filter);
         }
 
+        // Search by user or project
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var lowerSearchTerm = searchTerm.ToLower();
+            if (searchType == "user")
+            {
+                query = query.Where(al =>
+                    al.User.FirstName.ToLower().Contains(lowerSearchTerm) ||
+                    al.User.LastName.ToLower().Contains(lowerSearchTerm)
+                );
+            }
+            else if (searchType == "project")
+            {
+                query = query.Where(al =>
+                    al.Project.Name.ToLower().Contains(lowerSearchTerm)
+                );
+            }
+            else
+            {
+                query = query.Where(al =>
+                    al.User.FirstName.ToLower().Contains(lowerSearchTerm) ||
+                    al.User.LastName.ToLower().Contains(lowerSearchTerm) ||
+                    (al.Project != null && al.Project.Name.ToLower().Contains(lowerSearchTerm))
+                );
+            }
+        }
+
         var queryWithIncludes = query
             .Include(al => al.Project)
-            .Include(al => al.User)
-            .OrderByDescending(al => al.CreatedAt);
+            .Include(al => al.User);
 
-        var totalCount = await queryWithIncludes.CountAsync();
-        var logs = await queryWithIncludes
+        IOrderedQueryable<WebApplication1.Models.ActivityLog> sortedQuery = sortBy switch
+        {
+            "oldest" => queryWithIncludes.OrderBy(al => al.CreatedAt),
+            "user" => queryWithIncludes.OrderBy(al => al.User.FirstName).ThenBy(al => al.User.LastName),
+            "project" => queryWithIncludes.OrderBy(al => al.Project.Name),
+            _ => queryWithIncludes.OrderByDescending(al => al.CreatedAt)
+        };
+
+        var totalCount = await sortedQuery.CountAsync();
+        var logs = await sortedQuery
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
@@ -673,6 +771,9 @@ public class ProjectTrackerController : Controller
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
         ViewBag.FilterType = filter;
+        ViewBag.SearchTerm = searchTerm;
+        ViewBag.SearchType = searchType;
+        ViewBag.SortBy = sortBy;
         ViewBag.CurrentPage = page;
         ViewBag.TotalPages = totalPages;
         ViewBag.TotalCount = totalCount;

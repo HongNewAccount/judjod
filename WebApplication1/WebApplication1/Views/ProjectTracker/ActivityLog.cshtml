@@ -4,26 +4,6 @@
     ViewData["Title"] = "Activity Log";
 }
 
-<style>
-    .pagination .page-link {
-        color: #0dcaf0;
-        border-color: #0dcaf0;
-    }
-
-    .pagination .page-link:hover {
-        color: #fff;
-        background-color: #0dcaf0;
-        border-color: #0dcaf0;
-    }
-
-    .pagination .page-item.active .page-link {
-        background-color: #0dcaf0;
-        border-color: #0dcaf0;
-        color: #fff;
-        font-weight: bold;
-    }
-</style>
-
 <div class="container-fluid">
     <div class="row mb-4 page-header">
         <div class="col">
@@ -44,6 +24,43 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
+
+    <!-- Search and Filter -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" asp-action="ActivityLog" class="row g-3">
+                <div class="col-md-4">
+                    <input type="text" name="searchTerm" class="form-control" placeholder="Search..." value="@ViewBag.SearchTerm" />
+                </div>
+                <div class="col-md-2">
+                    <select name="searchType" class="form-select">
+                        <option value="all" selected="@(ViewBag.SearchType == "all")">Search All</option>
+                        <option value="user" selected="@(ViewBag.SearchType == "user")">Search by User</option>
+                        <option value="project" selected="@(ViewBag.SearchType == "project")">Search by Project</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="filter" class="form-select">
+                        <option value="all" selected="@(ViewBag.FilterType == "all")">All Actions</option>
+                        <option value="Created" selected="@(ViewBag.FilterType == "Created")">Created</option>
+                        <option value="StatusChanged" selected="@(ViewBag.FilterType == "StatusChanged")">Status Changed</option>
+                        <option value="NameChanged" selected="@(ViewBag.FilterType == "NameChanged")">Name Changed</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="sortBy" class="form-select">
+                        <option value="newest" selected="@(ViewBag.SortBy == "newest")">Newest First</option>
+                        <option value="oldest" selected="@(ViewBag.SortBy == "oldest")">Oldest First</option>
+                        <option value="user" selected="@(ViewBag.SortBy == "user")">Sort by User</option>
+                        <option value="project" selected="@(ViewBag.SortBy == "project")">Sort by Project</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-action w-100">Search</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <div class="card">
         <div class="card-header bg-light">
@@ -140,6 +157,10 @@
                             int endPage = Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2);
                         }
 
+                        <li class="page-item @(ViewBag.CurrentPage <= 1 ? "disabled" : "")">
+                            <a class="page-link" asp-action="ActivityLog" asp-route-filter="@ViewBag.FilterType" asp-route-searchTerm="@ViewBag.SearchTerm" asp-route-searchType="@ViewBag.SearchType" asp-route-sortBy="@ViewBag.SortBy" asp-route-page="@(ViewBag.CurrentPage - 1)" aria-label="Previous">&lt;</a>
+                        </li>
+
                         @if (startPage > 1)
                         {
                             <li class="page-item"><span class="page-link">...</span></li>
@@ -156,7 +177,7 @@
                             else
                             {
                                 <li class="page-item">
-                                    <a class="page-link" asp-action="ActivityLog" asp-route-filter="@ViewBag.FilterType" asp-route-page="@i">@i</a>
+                                    <a class="page-link" asp-action="ActivityLog" asp-route-filter="@ViewBag.FilterType" asp-route-searchTerm="@ViewBag.SearchTerm" asp-route-searchType="@ViewBag.SearchType" asp-route-sortBy="@ViewBag.SortBy" asp-route-page="@i">@i</a>
                                 </li>
                             }
                         }
@@ -165,6 +186,10 @@
                         {
                             <li class="page-item"><span class="page-link">...</span></li>
                         }
+
+                        <li class="page-item @(ViewBag.CurrentPage >= ViewBag.TotalPages ? "disabled" : "")">
+                            <a class="page-link" asp-action="ActivityLog" asp-route-filter="@ViewBag.FilterType" asp-route-searchTerm="@ViewBag.SearchTerm" asp-route-searchType="@ViewBag.SearchType" asp-route-sortBy="@ViewBag.SortBy" asp-route-page="@(ViewBag.CurrentPage + 1)" aria-label="Next">&gt;</a>
+                        </li>
                     </ul>
                 </nav>
             </div>
@@ -183,18 +208,18 @@
     {
         return actionType switch
         {
-            "Created" => "bg-secondary",
-            "StatusChanged" => "bg-primary",
-            "NameChanged" => "bg-primary",
-            "DescriptionChanged" => "bg-primary",
-            "StartDateChanged" => "bg-primary",
-            "EndDateChanged" => "bg-primary",
-            "OwnerAdded" => "bg-warning",
-            "OwnerRemoved" => "bg-danger",
-            "Deleted" => "bg-danger",
-            "FavoriteAdded" => "bg-warning",
-            "FavoriteRemoved" => "bg-danger",
-            _ => "bg-secondary"
+            "Created" => "text-bg-success",
+            "StatusChanged" => "text-bg-primary",
+            "NameChanged" => "text-bg-info",
+            "DescriptionChanged" => "text-bg-secondary",
+            "StartDateChanged" => "text-bg-dark",
+            "EndDateChanged" => "text-bg-warning",
+            "OwnerAdded" => "text-bg-success",
+            "OwnerRemoved" => "text-bg-danger",
+            "Deleted" => "text-bg-danger",
+            "FavoriteAdded" => "text-bg-warning",
+            "FavoriteRemoved" => "text-bg-secondary",
+            _ => "text-bg-secondary"
         };
     }
 

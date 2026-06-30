@@ -7,6 +7,13 @@
     var startDate = (DateTime)ViewBag.StartDate;
     var endDate = (DateTime)ViewBag.EndDate;
     var events = (List<WebApplication1.Models.OrganizationEvent>)ViewBag.Events;
+    var monthReports = (List<WebApplication1.Models.Report>?)ViewBag.MonthReports ?? new List<WebApplication1.Models.Report>();
+    var recentReports = (List<WebApplication1.Models.Report>?)ViewBag.RecentReports ?? new List<WebApplication1.Models.Report>();
+
+    var upcomingItems = new List<(DateTime Date, string Type, int Id, string Title)>();
+    upcomingItems.AddRange(events.Where(e => e.EventDate >= DateTime.UtcNow).Select(e => (e.EventDate, "Event", e.Id, e.Title)));
+    upcomingItems.AddRange(monthProjects.Where(p => p.EndDate.HasValue && p.EndDate.Value >= DateTime.UtcNow).Select(p => (p.EndDate!.Value, "Project", p.Id, p.Name)));
+    upcomingItems = upcomingItems.OrderBy(i => i.Date).Take(8).ToList();
 
     var daysInMonth = DateTime.DaysInMonth(selectedYear, selectedMonth);
     var firstDayOfMonth = new DateTime(selectedYear, selectedMonth, 1);
@@ -67,30 +74,32 @@
             var monthEventCount = events.Count;
         }
 
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <p class="text-muted small mb-1">Project Deadlines</p>
-                            <h3 class="mb-0 text-primary">@monthProjectCount</h3>
-                        </div>
-                        <i class="fas fa-project-diagram fa-2x text-primary opacity-25"></i>
-                    </div>
+        <div class="col-md-4">
+            <div class="stat-card stat-card-primary">
+                <div class="stat-card-icon"><i class="fas fa-project-diagram"></i></div>
+                <div>
+                    <div class="stat-card-value">@monthProjectCount</div>
+                    <div class="stat-card-label">Project Deadlines</div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <p class="text-muted small mb-1">Events</p>
-                            <h3 class="mb-0 text-info">@monthEventCount</h3>
-                        </div>
-                        <i class="fas fa-calendar fa-2x text-info opacity-25"></i>
-                    </div>
+        <div class="col-md-4">
+            <div class="stat-card stat-card-info">
+                <div class="stat-card-icon"><i class="fas fa-calendar"></i></div>
+                <div>
+                    <div class="stat-card-value">@monthEventCount</div>
+                    <div class="stat-card-label">Events</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="stat-card stat-card-success">
+                <div class="stat-card-icon"><i class="fas fa-file-alt"></i></div>
+                <div>
+                    <div class="stat-card-value">@monthReports.Count</div>
+                    <div class="stat-card-label">Reports This Month</div>
                 </div>
             </div>
         </div>
@@ -179,6 +188,71 @@
                     }
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- Upcoming & Recent Reports -->
+    <div class="row mt-4 g-3">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0"><i class="fas fa-clock text-primary me-2"></i>Upcoming This Month</h6>
+                </div>
+                <div class="card-body p-0">
+                    @if (!upcomingItems.Any())
+                    {
+                        <div class="text-center py-4">
+                            <p class="text-muted mb-0">Nothing upcoming</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var item in upcomingItems)
+                            {
+                                var url = item.Type == "Event"
+                                    ? Url.Action("Details", "Event", new { id = item.Id })
+                                    : Url.Action("Details", "ProjectTracker", new { id = item.Id });
+                                <a href="@url" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                    <span>
+                                        <i class="fas @(item.Type == "Event" ? "fa-calendar-day text-info" : "fa-flag text-warning") me-2"></i>
+                                        @item.Title
+                                    </span>
+                                    <small class="text-muted">@item.Date.ToString("dd MMM")</small>
+                                </a>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0"><i class="fas fa-file-alt text-success me-2"></i>Recent Reports</h6>
+                </div>
+                <div class="card-body p-0">
+                    @if (!recentReports.Any())
+                    {
+                        <div class="text-center py-4">
+                            <p class="text-muted mb-0">No reports yet</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var report in recentReports)
+                            {
+                                <a asp-controller="Report" asp-action="Details" asp-route-id="@report.Id" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                    <span>@report.Title</span>
+                                    <small class="text-muted">@report.CreatedAt.ToString("dd MMM")</small>
+                                </a>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
         </div>
     </div>
 </div>

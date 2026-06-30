@@ -111,6 +111,7 @@ namespace WebApplication1.Migrations
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Location")
+                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
 
@@ -433,10 +434,6 @@ namespace WebApplication1.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
-                    b.Property<string>("Line")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
                     b.Property<string>("Links")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
@@ -455,6 +452,13 @@ namespace WebApplication1.Migrations
                     b.Property<string>("Position")
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
+
+                    b.Property<string>("ProfileImagePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<bool>("ProjectAccessSuspended")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Role")
                         .HasMaxLength(50)

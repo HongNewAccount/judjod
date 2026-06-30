@@ -14,15 +14,64 @@ public class ReportController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string searchTerm = "", string sortBy = "latest", string statusFilter = "all", int page = 1)
     {
+        const int pageSize = 10;
         var reports = await _context.Reports
             .Include(r => r.CreatedByUser)
             .Include(r => r.Assignments)
-            .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
 
-        return View(reports);
+        // Search filter
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var lowerSearchTerm = searchTerm.ToLower();
+            reports = reports.Where(r =>
+                r.Title.ToLower().Contains(lowerSearchTerm) ||
+                r.Description.ToLower().Contains(lowerSearchTerm) ||
+                r.Location.ToLower().Contains(lowerSearchTerm)
+            ).ToList();
+        }
+
+        // Status filter
+        if (statusFilter != "all")
+        {
+            reports = reports.Where(r => r.Status == statusFilter).ToList();
+        }
+
+        // Sort
+        reports = sortBy switch
+        {
+            "oldest" => reports.OrderBy(r => r.CreatedAt).ToList(),
+            "title-asc" => reports.OrderBy(r => r.Title).ToList(),
+            "title-desc" => reports.OrderByDescending(r => r.Title).ToList(),
+            "priority-high" => reports.OrderByDescending(r => r.Priority == "High").ThenByDescending(r => r.CreatedAt).ToList(),
+            _ => reports.OrderByDescending(r => r.CreatedAt).ToList()
+        };
+
+        // Statistics
+        var stats = new Dictionary<string, int>
+        {
+            { "TotalReports", reports.Count },
+            { "PendingReports", reports.Count(r => r.Status == "Pending") },
+            { "InProgressReports", reports.Count(r => r.Status == "InProgress") },
+            { "CompletedReports", reports.Count(r => r.Status == "Completed") }
+        };
+
+        var totalCount = reports.Count;
+        var totalPages = Math.Max(1, (int)Math.Ceiling((double)totalCount / pageSize));
+        page = Math.Max(1, Math.Min(page, totalPages));
+        var pagedReports = reports.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+        ViewBag.Stats = stats;
+        ViewBag.SearchTerm = searchTerm;
+        ViewBag.SortBy = sortBy;
+        ViewBag.StatusFilter = statusFilter;
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+
+        return View(pagedReports);
     }
 
     public async Task<IActionResult> Details(int id)

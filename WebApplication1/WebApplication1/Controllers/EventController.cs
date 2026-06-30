@@ -14,15 +14,71 @@ public class EventController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string searchTerm = "", string sortBy = "latest", string filter = "all", int page = 1)
     {
+        const int pageSize = 9;
         var events = await _context.OrganizationEvents
             .Include(e => e.CreatedByUser)
             .Include(e => e.Attendees)
-            .OrderByDescending(e => e.EventDate)
             .ToListAsync();
 
-        return View(events);
+        // Search filter
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var lowerSearchTerm = searchTerm.ToLower();
+            events = events.Where(e =>
+                e.Title.ToLower().Contains(lowerSearchTerm) ||
+                e.Description.ToLower().Contains(lowerSearchTerm) ||
+                e.Location.ToLower().Contains(lowerSearchTerm)
+            ).ToList();
+        }
+
+        // Statistics (reflect search, not the timeline filter)
+        var now = DateTime.UtcNow;
+        var stats = new Dictionary<string, int>
+        {
+            { "TotalEvents", events.Count },
+            { "UpcomingEvents", events.Count(e => e.EventDate > now) },
+            { "PastEvents", events.Count(e => e.EventDate <= now) }
+        };
+
+        // Timeline filter
+        if (filter == "upcoming")
+        {
+            events = events.Where(e => e.EventDate > now).ToList();
+        }
+        else if (filter == "past")
+        {
+            events = events.Where(e => e.EventDate <= now).ToList();
+        }
+        else if (filter == "thismonth")
+        {
+            events = events.Where(e => e.EventDate.Year == now.Year && e.EventDate.Month == now.Month).ToList();
+        }
+
+        // Sort
+        events = sortBy switch
+        {
+            "oldest" => events.OrderBy(e => e.EventDate).ToList(),
+            "title-asc" => events.OrderBy(e => e.Title).ToList(),
+            "title-desc" => events.OrderByDescending(e => e.Title).ToList(),
+            _ => events.OrderByDescending(e => e.EventDate).ToList()
+        };
+
+        var totalCount = events.Count;
+        var totalPages = Math.Max(1, (int)Math.Ceiling((double)totalCount / pageSize));
+        page = Math.Max(1, Math.Min(page, totalPages));
+        var pagedEvents = events.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+        ViewBag.Stats = stats;
+        ViewBag.SearchTerm = searchTerm;
+        ViewBag.SortBy = sortBy;
+        ViewBag.FilterType = filter;
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+
+        return View(pagedEvents);
     }
 
     public async Task<IActionResult> Details(int id)

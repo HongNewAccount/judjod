@@ -30,9 +30,6 @@ public class User
     [Phone]
     public string? Phone { get; set; }
 
-    [StringLength(100)]
-    public string? Line { get; set; }
-
     [StringLength(50)]
     public string? Role { get; set; }
 
@@ -53,6 +50,11 @@ public class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAt { get; set; }
+
+    [StringLength(500)]
+    public string? ProfileImagePath { get; set; }
+
+    public bool ProjectAccessSuspended { get; set; } = false;
 
     // Navigation properties
     public ICollection<Report> ReportsCreated { get; set; } = new List<Report>();

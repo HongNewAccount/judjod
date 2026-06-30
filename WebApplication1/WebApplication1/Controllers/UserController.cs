@@ -36,6 +36,22 @@ public class UserController : Controller
         if (user == null)
             return NotFound();
 
+        var projectsOwnedCount = await _context.ProjectOwners.CountAsync(po => po.UserId == id);
+        var projectsCreatedCount = await _context.Projects.CountAsync(p => p.CreatedByUserId == id);
+        var eventsAttendedCount = await _context.EventAttendees.CountAsync(ea => ea.UserId == id);
+
+        var recentActivity = await _context.ActivityLogs
+            .Where(al => al.UserId == id)
+            .Include(al => al.Project)
+            .OrderByDescending(al => al.CreatedAt)
+            .Take(10)
+            .ToListAsync();
+
+        ViewBag.ProjectsOwnedCount = projectsOwnedCount;
+        ViewBag.ProjectsCreatedCount = projectsCreatedCount;
+        ViewBag.EventsAttendedCount = eventsAttendedCount;
+        ViewBag.RecentActivity = recentActivity;
+
         return View(user);
     }
 
@@ -61,32 +77,43 @@ public class UserController : Controller
 
     public async Task<IActionResult> Edit(int id)
     {
+        var currentUserId = HttpContext.Session.GetInt32("UserId");
         var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin")
-        {
-            TempData["ErrorMessage"] = "Only Admin can edit users";
-            return RedirectToAction(nameof(Index));
-        }
 
         var user = await _context.Users.FindAsync(id);
         if (user == null)
             return NotFound();
+
+        // Allow admin to edit anyone, or user to edit own profile
+        if (userRole != "Admin" && currentUserId != id)
+        {
+            TempData["ErrorMessage"] = "You can only edit your own profile";
+            return RedirectToAction(nameof(Index));
+        }
 
         return View(user);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, User user)
+    public async Task<IActionResult> Edit(int id, User user, IFormFile? profileImage)
     {
+        var currentUserId = HttpContext.Session.GetInt32("UserId");
         var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin")
+
+        if (id != user.Id)
+            return NotFound();
+
+        // Allow admin to edit anyone, or user to edit own profile
+        if (userRole != "Admin" && currentUserId != id)
         {
             return Forbid();
         }
 
-        if (id != user.Id)
-            return NotFound();
+        // This form never submits Username (not editable here) and PasswordHash is optional
+        // (only changed if filled in), so neither should block validation.
+        ModelState.Remove(nameof(WebApplication1.Models.User.Username));
+        ModelState.Remove(nameof(WebApplication1.Models.User.PasswordHash));
 
         if (ModelState.IsValid)
         {
@@ -100,12 +127,37 @@ public class UserController : Controller
                     existingUser.NickName = user.NickName;
                     existingUser.Email = user.Email;
                     existingUser.Phone = user.Phone;
-                    existingUser.Line = user.Line;
-                    existingUser.Role = user.Role;
                     existingUser.Position = user.Position;
                     existingUser.WorkLocation = user.WorkLocation;
                     existingUser.Status = user.Status;
                     existingUser.Links = user.Links;
+
+                    // Only admin can edit Role
+                    if (userRole == "Admin")
+                    {
+                        existingUser.Role = user.Role;
+                    }
+
+                    // Handle profile image upload
+                    if (profileImage != null && profileImage.Length > 0)
+                    {
+                        var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "profiles");
+                        if (!Directory.Exists(uploadsFolder))
+                        {
+                            Directory.CreateDirectory(uploadsFolder);
+                        }
+
+                        var uniqueFileName = $"{id}_{Guid.NewGuid()}_{Path.GetFileName(profileImage.FileName)}";
+                        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                        using (var fileStream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await profileImage.CopyToAsync(fileStream);
+                        }
+
+                        existingUser.ProfileImagePath = $"/uploads/profiles/{uniqueFileName}";
+                    }
+
                     existingUser.UpdatedAt = DateTime.UtcNow;
 
                     if (!string.IsNullOrEmpty(user.PasswordHash))
@@ -115,6 +167,8 @@ public class UserController : Controller
 
                     _context.Update(existingUser);
                     await _context.SaveChangesAsync();
+
+                    TempData["SuccessMessage"] = "Profile updated successfully.";
                 }
             }
             catch (DbUpdateConcurrencyException)
@@ -126,5 +180,53 @@ public class UserController : Controller
         }
 
         return View(user);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleBan(int id)
+    {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            return Forbid();
+        }
+
+        var user = await _context.Users.FindAsync(id);
+        if (user == null)
+            return NotFound();
+
+        user.IsActive = !user.IsActive;
+        await _context.SaveChangesAsync();
+
+        TempData["SuccessMessage"] = user.IsActive
+            ? $"{user.FirstName} {user.LastName} has been unbanned."
+            : $"{user.FirstName} {user.LastName} has been banned.";
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleProjectSuspension(int id)
+    {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin")
+        {
+            return Forbid();
+        }
+
+        var user = await _context.Users.FindAsync(id);
+        if (user == null)
+            return NotFound();
+
+        user.ProjectAccessSuspended = !user.ProjectAccessSuspended;
+        await _context.SaveChangesAsync();
+
+        TempData["SuccessMessage"] = user.ProjectAccessSuspended
+            ? $"{user.FirstName} {user.LastName}'s project access has been suspended."
+            : $"{user.FirstName} {user.LastName}'s project access has been restored.";
+
+        return RedirectToAction(nameof(Details), new { id });
     }
 }

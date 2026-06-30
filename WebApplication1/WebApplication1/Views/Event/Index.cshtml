@@ -2,6 +2,10 @@
 
 @{
     ViewData["Title"] = "Events";
+    var stats = (Dictionary<string, int>)ViewBag.Stats ?? new Dictionary<string, int>();
+    var searchTerm = ViewBag.SearchTerm ?? "";
+    var sortBy = ViewBag.SortBy ?? "latest";
+    var filter = ViewBag.FilterType ?? "all";
 }
 
 <div class="container-fluid">
@@ -17,10 +21,80 @@
         </div>
     </div>
 
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-lg-3 mb-3">
+            <div class="stat-card stat-card-total">
+                <div class="stat-card-icon"><i class="fas fa-calendar-day"></i></div>
+                <div>
+                    <div class="stat-card-value">@stats.GetValueOrDefault("TotalEvents", 0)</div>
+                    <div class="stat-card-label">Total Events</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 mb-3">
+            <div class="stat-card stat-card-primary">
+                <div class="stat-card-icon"><i class="fas fa-arrow-circle-up"></i></div>
+                <div>
+                    <div class="stat-card-value">@stats.GetValueOrDefault("UpcomingEvents", 0)</div>
+                    <div class="stat-card-label">Upcoming</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 mb-3">
+            <div class="stat-card stat-card-secondary">
+                <div class="stat-card-icon"><i class="fas fa-history"></i></div>
+                <div>
+                    <div class="stat-card-value">@stats.GetValueOrDefault("PastEvents", 0)</div>
+                    <div class="stat-card-label">Past Events</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 mb-3">
+            <div class="stat-card stat-card-info">
+                <div class="stat-card-icon"><i class="fas fa-calendar"></i></div>
+                <div>
+                    <div class="stat-card-value">@ViewBag.TotalCount</div>
+                    <div class="stat-card-label">Matching Events</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search, Filter & Sort -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" asp-action="Index" class="row g-3">
+                <div class="col-md-5">
+                    <input type="text" name="searchTerm" class="form-control" placeholder="Search events..." value="@searchTerm" />
+                </div>
+                <div class="col-md-3">
+                    <select name="filter" class="form-select">
+                        <option value="all" selected="@(filter == "all")">All</option>
+                        <option value="upcoming" selected="@(filter == "upcoming")">Upcoming</option>
+                        <option value="past" selected="@(filter == "past")">Past</option>
+                        <option value="thismonth" selected="@(filter == "thismonth")">This Month</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="sortBy" class="form-select">
+                        <option value="latest" selected="@(sortBy == "latest")">Latest First</option>
+                        <option value="oldest" selected="@(sortBy == "oldest")">Oldest First</option>
+                        <option value="title-asc" selected="@(sortBy == "title-asc")">Title (A-Z)</option>
+                        <option value="title-desc" selected="@(sortBy == "title-desc")">Title (Z-A)</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-action w-100">Search</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     @if (Model.Any())
     {
         <div class="row">
-            @foreach (var evt in Model.OrderBy(e => e.EventDate))
+            @foreach (var evt in Model)
             {
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card h-100">
@@ -59,11 +133,57 @@
                 </div>
             }
         </div>
+
+        @if (ViewBag.TotalPages > 1)
+        {
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center mb-0">
+                    @{
+                        int startPage = Math.Max(1, ViewBag.CurrentPage - 2);
+                        int endPage = Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2);
+                    }
+
+                    <li class="page-item @(ViewBag.CurrentPage <= 1 ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-route-filter="@filter" asp-route-searchTerm="@searchTerm" asp-route-sortBy="@sortBy" asp-route-page="@(ViewBag.CurrentPage - 1)" aria-label="Previous">&lt;</a>
+                    </li>
+
+                    @if (startPage > 1)
+                    {
+                        <li class="page-item"><span class="page-link">...</span></li>
+                    }
+
+                    @for (int i = startPage; i <= endPage; i++)
+                    {
+                        if (i == ViewBag.CurrentPage)
+                        {
+                            <li class="page-item active">
+                                <span class="page-link">@i</span>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="page-item">
+                                <a class="page-link" asp-action="Index" asp-route-filter="@filter" asp-route-searchTerm="@searchTerm" asp-route-sortBy="@sortBy" asp-route-page="@i">@i</a>
+                            </li>
+                        }
+                    }
+
+                    @if (endPage < ViewBag.TotalPages)
+                    {
+                        <li class="page-item"><span class="page-link">...</span></li>
+                    }
+
+                    <li class="page-item @(ViewBag.CurrentPage >= ViewBag.TotalPages ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-route-filter="@filter" asp-route-searchTerm="@searchTerm" asp-route-sortBy="@sortBy" asp-route-page="@(ViewBag.CurrentPage + 1)" aria-label="Next">&gt;</a>
+                    </li>
+                </ul>
+            </nav>
+        }
     }
     else
     {
         <div class="alert alert-info" role="alert">
-            No events scheduled. <a asp-action="Create" class="alert-link">Create one now</a>
+            No events found. <a asp-action="Create" class="alert-link">Create one now</a>
         </div>
     }
 </div>

@@ -12,9 +12,39 @@
                     <h5 class="mb-0">Edit User Profile</h5>
                 </div>
                 <div class="card-body p-4">
-                    <form method="post" asp-action="Edit" class="needs-validation" novalidate>
+                    @{
+                        var currentUserId = Context.Session.GetInt32("UserId");
+                        var userRole = Context.Session.GetString("UserRole");
+                        var canEditRole = userRole == "Admin";
+                    }
+
+                    <form method="post" asp-action="Edit" enctype="multipart/form-data" class="needs-validation" novalidate>
                         <input type="hidden" asp-for="Id" />
                         <div asp-validation-summary="All" class="alert alert-danger"></div>
+
+                        <!-- Profile Image Section -->
+                        <div class="mb-4 text-center">
+                            <div class="mb-3">
+                                @if (!string.IsNullOrEmpty(Model.ProfileImagePath))
+                                {
+                                    <img src="@Model.ProfileImagePath" alt="Profile" class="rounded-circle" width="150" height="150" />
+                                }
+                                else
+                                {
+                                    <div class="rounded-circle bg-secondary text-white d-inline-flex align-items-center justify-content-center" style="width: 150px; height: 150px; font-size: 60px;">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                }
+                            </div>
+                            @if (currentUserId == Model.Id || canEditRole)
+                            {
+                                <label for="profileImage" class="form-label">Upload Profile Picture</label>
+                                <input type="file" class="form-control" id="profileImage" name="profileImage" accept="image/*" />
+                                <small class="text-muted">JPG, PNG, GIF (Max 5MB)</small>
+                            }
+                        </div>
+
+                        <hr />
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
@@ -49,11 +79,6 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="line" class="form-label">Line ID</label>
-                            <input type="text" class="form-control" id="line" asp-for="Line" />
-                        </div>
-
-                        <div class="mb-3">
                             <label for="passwordHash" class="form-label">Password (Optional)</label>
                             <input type="password" class="form-control" id="passwordHash" asp-for="PasswordHash" placeholder="Leave blank to keep current password" />
                             <small class="text-muted">Only fill this field if you want to change the password</small>
@@ -62,12 +87,17 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="role" class="form-label">Role</label>
-                                <select class="form-control" id="role" asp-for="Role">
+                                <select class="form-control" id="role" asp-for="Role" disabled="@(!canEditRole)">
                                     <option value="">Select Role</option>
                                     <option value="Admin">Admin</option>
                                     <option value="Manager">Manager</option>
                                     <option value="User">User</option>
                                 </select>
+                                @if (!canEditRole)
+                                {
+                                    <input type="hidden" asp-for="Role" />
+                                    <small class="text-muted">(Admin only)</small>
+                                }
                             </div>
 
                             <div class="col-md-6 mb-3">
@@ -88,6 +118,11 @@
                                 <option value="Unavailable">Unavailable</option>
                                 <option value="Absent">Absent</option>
                             </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="links" class="form-label">Links</label>
+                            <input type="text" class="form-control" id="links" asp-for="Links" placeholder="e.g., portfolio/social links, comma-separated" />
                         </div>
 
                         <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">
