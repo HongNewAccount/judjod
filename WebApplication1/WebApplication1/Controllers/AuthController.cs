@@ -63,7 +63,7 @@ public class AuthController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Register(User user)
+    public async Task<IActionResult> Register(string username, string password, string confirmPassword, bool canEdit = false)
     {
         var userRole = HttpContext.Session.GetString("UserRole");
         if (userRole != "Admin")
@@ -71,29 +71,46 @@ public class AuthController : Controller
             return RedirectToAction(nameof(Login));
         }
 
-        if (await _context.Users.AnyAsync(u => u.Username == user.Username))
+        if (string.IsNullOrWhiteSpace(username) || username.Length < 3)
         {
-            ModelState.AddModelError("Username", "Username already exists");
-            var users = _context.Users.ToList();
-            ViewBag.Users = users;
-            return View(user);
+            ViewBag.ErrorMessage = "Username must be at least 3 characters.";
+            return View();
         }
 
-        if (ModelState.IsValid)
+        if (string.IsNullOrWhiteSpace(password) || password.Length < 4)
         {
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
-            user.CreatedAt = DateTime.UtcNow;
-            user.IsActive = true;
-            user.Status = "Active";
-            _context.Add(user);
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = $"User '{user.Username}' has been registered successfully.";
-            return RedirectToAction(nameof(Register));
+            ViewBag.ErrorMessage = "Password must be at least 4 characters.";
+            return View();
         }
 
-        var usersList = _context.Users.ToList();
-        ViewBag.Users = usersList;
-        return View(user);
+        if (password != confirmPassword)
+        {
+            ViewBag.ErrorMessage = "Passwords do not match.";
+            return View();
+        }
+
+        if (await _context.Users.AnyAsync(u => u.Username == username))
+        {
+            ViewBag.ErrorMessage = $"Username '{username}' already exists.";
+            return View();
+        }
+
+        var user = new User
+        {
+            Username = username.Trim(),
+            FirstName = username.Trim(),
+            LastName = "",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+            Role = canEdit ? "Admin" : "User",
+            Status = "Available",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.Add(user);
+        await _context.SaveChangesAsync();
+
+        TempData["SuccessMessage"] = $"User '{username}' created successfully as {user.Role}.";
+        return RedirectToAction(nameof(Register));
     }
 }

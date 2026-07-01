@@ -1045,6 +1045,32 @@ public class ProjectTrackerController : Controller
         }
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("ProjectTracker/DeleteAjax/{id:int}")]
+    public async Task<IActionResult> DeleteAjax(int id)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin") return Forbid();
+
+        var project = await _context.Projects.FindAsync(id);
+        if (project == null) return NotFound();
+
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        _context.ActivityLogs.Add(new ActivityLog
+        {
+            ProjectId = id, UserId = userId, ActionType = "Deleted",
+            Description = $"Project '{project.Name}' was deleted", CreatedAt = DateTime.UtcNow
+        });
+
+        _context.Projects.Remove(project);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { success = true });
+    }
+
     // ===== GROUP MANAGEMENT =====
 
     [HttpPost]

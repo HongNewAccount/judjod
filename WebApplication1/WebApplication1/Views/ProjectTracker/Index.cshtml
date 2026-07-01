@@ -77,7 +77,7 @@
                 @Html.AntiForgeryToken()
                 <input type="text" name="name" class="form-control form-control-sm" placeholder="Group name" style="width:160px;" required />
                 <input type="color" name="color" class="form-control form-control-color form-control-sm" value="#0d6efd" style="width:36px;padding:2px;" />
-                <button type="submit" class="btn btn-sm btn-action">Add</button>
+                <button type="submit" class="btn btn-sm btn-modal-action">Add</button>
                 <button type="button" class="btn btn-sm btn-secondary" onclick="document.getElementById('newGroupForm').classList.add('d-none')">Cancel</button>
             </form>
         }
@@ -125,8 +125,7 @@
 
                     @foreach (var project in colProjects)
                     {
-                        var isOwner = project.Owners.Any(o => o.UserId == currentUserId);
-                        var canEdit = userRole == "Admin" || (isOwner && !isSuspended);
+                        var isAdmin = userRole == "Admin";
                         var isPendingEdit = pendingUpdates.Contains(project.Id);
                         var ownerIdList = string.Join(",", project.Owners.Select(o => o.UserId));
 
@@ -135,46 +134,37 @@
                              data-status="@project.Status"
                              data-sort-order="@project.SortOrder"
                              data-search="@($"{project.Name} {string.Join(' ', project.Owners.Select(o => o.User != null ? o.User.FirstName + ' ' + o.User.LastName : ""))}".ToLower())"
-                             draggable="@(canEdit ? "true" : "false")"
+                             draggable="@(isAdmin ? "true" : "false")"
                              onclick="cardClicked(event, @project.Id, '@project.Name.Replace("'","\\'")')">
 
-                            <div class="d-flex align-items-center gap-1 flex-wrap mb-1">
-                                @if (project.Group != null)
-                                {
-                                    <span class="group-chip" style="@(project.Group.Color != null ? $"--group-color: {project.Group.Color};" : "")">
-                                        <i class="fas fa-users"></i> @project.Group.Name
-                                    </span>
-                                }
-                                @if (isPendingEdit)
-                                {
-                                    <span class="badge bg-warning text-dark" style="font-size:.65rem;"><i class="fas fa-hourglass-half me-1"></i>Pending</span>
-                                }
-                            </div>
+                            @if (isPendingEdit)
+                            {
+                                <span class="badge bg-warning text-dark mb-1" style="font-size:.65rem;"><i class="fas fa-hourglass-half me-1"></i>Pending</span>
+                            }
 
                             <span class="kanban-card-title d-block">@project.Name</span>
 
                             <div class="kanban-quick-row">
-                                @* Assignee *@
-                                <div class="dropdown">
-                                    <button type="button"
-                                            class="kanban-quick-btn @(project.Owners.Any() ? "" : "kanban-quick-btn-empty")"
-                                            data-bs-toggle="@(userRole == "Admin" ? "dropdown" : "")"
-                                            title="Assignees" @(userRole == "Admin" ? "" : "disabled")>
-                                        @if (project.Owners.Any())
-                                        {
-                                            <div class="kanban-avatars">
-                                                @foreach (var owner in project.Owners.Take(3))
-                                                {
-                                                    <span class="kanban-card-avatar" title="@owner.User?.FirstName @owner.User?.LastName">
-                                                        @(owner.User != null ? $"{owner.User.FirstName[0]}{owner.User.LastName[0]}" : "?")
-                                                    </span>
-                                                }
-                                            </div>
-                                        }
-                                        else { <i class="fas fa-user-plus"></i> }
-                                    </button>
-                                    @if (userRole == "Admin")
-                                    {
+                                @if (isAdmin)
+                                {
+                                    @* Assignee — interactive *@
+                                    <div class="dropdown">
+                                        <button type="button"
+                                                class="kanban-quick-btn @(project.Owners.Any() ? "" : "kanban-quick-btn-empty")"
+                                                data-bs-toggle="dropdown" title="Assignees">
+                                            @if (project.Owners.Any())
+                                            {
+                                                <div class="kanban-avatars">
+                                                    @foreach (var owner in project.Owners.Take(3))
+                                                    {
+                                                        <span class="kanban-card-avatar" title="@owner.User?.FirstName @owner.User?.LastName">
+                                                            @(owner.User != null ? $"{owner.User.FirstName[0]}{owner.User.LastName[0]}" : "?")
+                                                        </span>
+                                                    }
+                                                </div>
+                                            }
+                                            else { <i class="fas fa-user-plus"></i> }
+                                        </button>
                                         <div class="dropdown-menu p-2 owner-picker" style="min-width:200px;" data-project-id="@project.Id">
                                             @foreach (var user in allUsers)
                                             {
@@ -187,12 +177,9 @@
                                                 </div>
                                             }
                                         </div>
-                                    }
-                                </div>
+                                    </div>
 
-                                @* Group *@
-                                @if (userRole == "Admin")
-                                {
+                                    @* Group — interactive *@
                                     <div class="dropdown">
                                         <button type="button"
                                                 class="kanban-quick-btn @(project.GroupId.HasValue ? "kanban-quick-btn-group" : "kanban-quick-btn-empty")"
@@ -214,37 +201,29 @@
                                             }
                                         </div>
                                     </div>
-                                }
 
-                                @* Due Date *@
-                                <div class="kanban-date-wrap">
-                                    <button type="button"
-                                            class="kanban-quick-btn @(project.EndDate.HasValue ? "" : "kanban-quick-btn-empty")"
-                                            title="Due Date"
-                                            onclick="if(@(canEdit ? "true" : "false")) toggleDatePicker(this)"
-                                            data-project-id="@project.Id">
-                                        <i class="fas fa-calendar-alt me-1"></i>
-                                        <span class="due-date-label">@(project.EndDate?.ToString("dd MMM") ?? "Date")</span>
-                                    </button>
-                                    @if (canEdit)
-                                    {
+                                    @* Due Date — interactive *@
+                                    <div class="kanban-date-wrap">
+                                        <button type="button"
+                                                class="kanban-quick-btn @(project.EndDate.HasValue ? "" : "kanban-quick-btn-empty")"
+                                                title="Due Date" onclick="toggleDatePicker(this)"
+                                                data-project-id="@project.Id">
+                                            <i class="fas fa-calendar-alt me-1"></i>
+                                            <span class="due-date-label">@(project.EndDate?.ToString("dd MMM") ?? "Date")</span>
+                                        </button>
                                         <input type="date" class="kanban-date-input form-control form-control-sm d-none"
                                                value="@(project.EndDate?.ToString("yyyy-MM-dd") ?? "")"
                                                data-project-id="@project.Id" />
-                                    }
-                                </div>
+                                    </div>
 
-                                @* Priority — dropdown, not cycle *@
-                                <div class="dropdown">
-                                    <button type="button"
-                                            class="kanban-quick-btn kanban-priority-btn @PriorityCls(project.Priority)"
-                                            data-bs-toggle="@(canEdit ? "dropdown" : "")"
-                                            title="Priority" @(canEdit ? "" : "disabled")>
-                                        <i class="fas fa-flag me-1"></i>
-                                        <span class="priority-label">@PriorityLabel(project.Priority)</span>
-                                    </button>
-                                    @if (canEdit)
-                                    {
+                                    @* Priority — interactive dropdown *@
+                                    <div class="dropdown">
+                                        <button type="button"
+                                                class="kanban-quick-btn kanban-priority-btn @PriorityCls(project.Priority)"
+                                                data-bs-toggle="dropdown" title="Priority">
+                                            <i class="fas fa-flag me-1"></i>
+                                            <span class="priority-label">@PriorityLabel(project.Priority)</span>
+                                        </button>
                                         <div class="dropdown-menu p-1" style="min-width:130px;">
                                             @foreach (var pOpt in new[] { "None","Low","Medium","High" })
                                             {
@@ -254,18 +233,34 @@
                                                 </button>
                                             }
                                         </div>
-                                    }
-                                </div>
-
-                                @* Delete *@
-                                @if (canEdit)
+                                    </div>
+                                }
+                                else
                                 {
-                                    <form asp-action="Delete" asp-route-id="@project.Id" method="post" class="d-inline" onsubmit="return confirm('Delete?');">
-                                        @Html.AntiForgeryToken()
-                                        <button type="submit" class="kanban-quick-btn kanban-quick-btn-danger" title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </form>
+                                    @* Non-admin: read-only display *@
+                                    @if (project.Owners.Any())
+                                    {
+                                        <span class="kanban-quick-btn kanban-quick-btn-empty" style="cursor:default;" title="Assignees">
+                                            <div class="kanban-avatars">
+                                                @foreach (var owner in project.Owners.Take(3))
+                                                {
+                                                    <span class="kanban-card-avatar">@(owner.User != null ? $"{owner.User.FirstName[0]}{owner.User.LastName[0]}" : "?")</span>
+                                                }
+                                            </div>
+                                        </span>
+                                    }
+                                    @if (project.EndDate.HasValue)
+                                    {
+                                        <span class="kanban-quick-btn kanban-quick-btn-empty" style="cursor:default;">
+                                            <i class="fas fa-calendar-alt me-1"></i>@project.EndDate.Value.ToString("dd MMM")
+                                        </span>
+                                    }
+                                    @if (!string.IsNullOrEmpty(project.Priority) && project.Priority != "None")
+                                    {
+                                        <span class="kanban-quick-btn kanban-priority-btn @PriorityCls(project.Priority)" style="cursor:default;">
+                                            <i class="fas fa-flag me-1"></i>@PriorityLabel(project.Priority)
+                                        </span>
+                                    }
                                 }
                             </div>
                         </div>
@@ -275,6 +270,14 @@
         }
     </div>
 </div>
+
+<!-- Drag-to-delete trash zone (Admin only) -->
+@if (userRole == "Admin")
+{
+    <div id="deleteDropZone" class="kanban-delete-zone">
+        <i class="fas fa-trash"></i> Drop here to delete
+    </div>
+}
 
 <!-- ===== ADD TASK MODAL ===== -->
 <div class="modal fade" id="addTaskModal" tabindex="-1" aria-hidden="true">
@@ -576,10 +579,15 @@ function createPlaceholder() {
     return p;
 }
 
+const deleteZone = document.getElementById('deleteDropZone');
+
 document.querySelectorAll('.kanban-card[draggable="true"]').forEach(card => {
     card.addEventListener('dragstart', e => {
         draggedCard = card;
-        setTimeout(() => card.classList.add('dragging'), 0);
+        setTimeout(() => {
+            card.classList.add('dragging');
+            if (deleteZone) deleteZone.classList.add('visible');
+        }, 0);
         e.dataTransfer.effectAllowed = 'move';
     });
     card.addEventListener('dragend', () => {
@@ -587,9 +595,36 @@ document.querySelectorAll('.kanban-card[draggable="true"]').forEach(card => {
         placeholder?.remove();
         placeholder = null;
         document.querySelectorAll('.kanban-column-body.drag-over').forEach(b => b.classList.remove('drag-over'));
+        if (deleteZone) { deleteZone.classList.remove('visible', 'drag-over-delete'); }
         draggedCard = null;
     });
 });
+
+if (deleteZone) {
+    deleteZone.addEventListener('dragover', e => {
+        e.preventDefault();
+        deleteZone.classList.add('drag-over-delete');
+    });
+    deleteZone.addEventListener('dragleave', () => {
+        deleteZone.classList.remove('drag-over-delete');
+    });
+    deleteZone.addEventListener('drop', async e => {
+        e.preventDefault();
+        deleteZone.classList.remove('drag-over-delete', 'visible');
+        if (!draggedCard) return;
+        const projectId = draggedCard.getAttribute('data-project-id');
+        const name = draggedCard.querySelector('.kanban-card-title')?.textContent?.trim() || 'this project';
+        if (!confirm(`Delete "${name}"?`)) return;
+        try {
+            const res = await fetch('/ProjectTracker/DeleteAjax/' + projectId, {
+                method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: new URLSearchParams({ __RequestVerificationToken: token })
+            });
+            if (res.ok) location.reload();
+            else alert('Delete failed.');
+        } catch { alert('Delete error.'); }
+    });
+}
 
 document.querySelectorAll('.kanban-column-body').forEach(body => {
     body.addEventListener('dragover', e => {
