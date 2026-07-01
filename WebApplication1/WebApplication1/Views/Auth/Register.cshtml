@@ -32,7 +32,10 @@
 
                     <form method="post" asp-action="Register" class="needs-validation" novalidate>
                         @Html.AntiForgeryToken()
-                        <div asp-validation-summary="All" class="alert alert-danger d-none"></div>
+                        @if (!ViewData.ModelState.IsValid)
+                        {
+                            <div asp-validation-summary="All" class="alert alert-danger"></div>
+                        }
 
                         <!-- Name Fields -->
                         <div class="row mb-3">

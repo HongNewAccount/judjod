@@ -20,11 +20,16 @@ public class ProjectTrackerController : Controller
         return user?.ProjectAccessSuspended ?? false;
     }
 
-    public async Task<IActionResult> Index(string searchTerm = "", string sortBy = "latest", string filter = "all", int page = 1)
+    public async Task<IActionResult> Index(int? groupId)
     {
-        const int pageSize = 10;
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+
+        var groups = await _context.ProjectGroups.OrderBy(g => g.Name).ToListAsync();
+        ViewBag.Groups = groups;
+        ViewBag.SelectedGroupId = groupId;
+
         var allProjects = await _context.Projects
+            .Include(p => p.Group)
             .Include(p => p.CreatedByUser)
             .Include(p => p.Owners)
                 .ThenInclude(po => po.User)
@@ -58,90 +63,13 @@ public class ProjectTrackerController : Controller
         }
         await _context.SaveChangesAsync();
 
-        var projects = allProjects;
+        // Board shows everything at once; only exclude archived (Closed) projects, sorted by SortOrder
+        var projects = allProjects
+            .Where(p => p.Status != "Closed")
+            .Where(p => groupId == null || p.GroupId == groupId)
+            .OrderBy(p => p.SortOrder).ThenByDescending(p => p.CreatedAt).ToList();
 
-        // Apply filter
-        if (filter == "completed")
-        {
-            projects = projects.Where(p => p.Status == "Completed").ToList();
-        }
-        else if (filter == "late")
-        {
-            projects = projects.Where(p => p.Status == "Late").ToList();
-        }
-        else if (filter == "notcompleted")
-        {
-            projects = projects.Where(p => p.Status != "Completed" && p.Status != "Closed").ToList();
-        }
-        else if (filter == "inprogress")
-        {
-            projects = projects.Where(p => p.Status == "InProgress").ToList();
-        }
-        else if (filter == "favorites")
-        {
-            projects = projects.Where(p => p.Favorites.Any()).ToList();
-        }
-        else if (filter == "thismonth")
-        {
-            var now = DateTime.UtcNow;
-            var startOfMonth = new DateTime(now.Year, now.Month, 1);
-            var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
-            projects = projects.Where(p =>
-                                          (p.StartDate.Date >= startOfMonth.Date && p.StartDate.Date <= endOfMonth.Date) ||
-                                          (p.EndDate.HasValue && p.EndDate.Value.Date >= startOfMonth.Date && p.EndDate.Value.Date <= endOfMonth.Date)).ToList();
-        }
-
-        // Count stats before removing Closed projects
-        var stats = new Dictionary<string, int>
-        {
-            { "TotalProjects", allProjects.Where(p => p.Status != "Closed").Count() },
-            { "ActiveProjects", allProjects.Count(p => p.Status == "InProgress") },
-            { "PlanningProjects", allProjects.Count(p => p.Status == "Planning") },
-            { "LateProjects", allProjects.Count(p => p.Status == "Late") },
-            { "CompletedProjects", allProjects.Count(p => p.Status == "Completed") },
-            { "FavoriteProjects", allProjects.Count(p => p.Favorites.Any()) }
-        };
-
-        // Remove Closed projects from view
-        projects = projects.Where(p => p.Status != "Closed").ToList();
-
-        // Apply search
-        if (!string.IsNullOrWhiteSpace(searchTerm))
-        {
-            var lowerSearchTerm = searchTerm.ToLower();
-            projects = projects.Where(p =>
-                p.Name.ToLower().Contains(lowerSearchTerm) ||
-                p.Owners.Any(o => o.User != null &&
-                    ($"{o.User.FirstName} {o.User.LastName}".ToLower().Contains(lowerSearchTerm)))
-            ).ToList();
-        }
-
-        // Apply sorting
-        projects = sortBy switch
-        {
-            "date_asc" => projects.OrderBy(p => p.StartDate).ToList(),
-            "date_desc" => projects.OrderByDescending(p => p.StartDate).ToList(),
-            "name_asc" => projects.OrderBy(p => p.Name).ToList(),
-            "name_desc" => projects.OrderByDescending(p => p.Name).ToList(),
-            "enddate_asc" => projects.OrderBy(p => p.EndDate ?? DateTime.MaxValue).ToList(),
-            "enddate_desc" => projects.OrderByDescending(p => p.EndDate ?? DateTime.MinValue).ToList(),
-            "favorites" => projects.OrderByDescending(p => p.Favorites.Count).ToList(),
-            _ => projects.OrderByDescending(p => p.CreatedAt).ToList()
-        };
-
-        var totalCount = projects.Count;
-        var totalPages = Math.Max(1, (int)Math.Ceiling((double)totalCount / pageSize));
-        page = Math.Max(1, Math.Min(page, totalPages));
-        var pagedProjects = projects.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-
-        ViewBag.Stats = stats;
-        ViewBag.CurrentSort = sortBy;
-        ViewBag.CurrentFilter = filter;
-        ViewBag.SearchTerm = searchTerm;
-        ViewBag.CurrentPage = page;
-        ViewBag.TotalPages = totalPages;
-        ViewBag.TotalCount = totalCount;
-        return View(pagedProjects);
+        return View(projects);
     }
 
     public async Task<IActionResult> Details(int id, int page = 1)
@@ -183,7 +111,7 @@ public class ProjectTrackerController : Controller
         return View(project);
     }
 
-    public async Task<IActionResult> Create()
+    public async Task<IActionResult> Create(string? status)
     {
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var userRole = HttpContext.Session.GetString("UserRole");
@@ -195,8 +123,14 @@ public class ProjectTrackerController : Controller
         }
 
         var users = await _context.Users.Where(u => u.IsActive).ToListAsync();
+        var groups = await _context.ProjectGroups.OrderBy(g => g.Name).ToListAsync();
         ViewBag.Users = users;
-        return View();
+        ViewBag.Groups = groups;
+        return View(new WebApplication1.Models.Project
+        {
+            Status = ValidBoardStatuses.Contains(status) ? status : "Planning",
+            StartDate = DateTime.Today
+        });
     }
 
     [HttpPost]
@@ -709,6 +643,463 @@ public class ProjectTrackerController : Controller
         }
 
         return RedirectToAction(nameof(Index));
+    }
+
+    private static readonly string[] ValidBoardStatuses = { "Planning", "InProgress", "Late", "Completed" };
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateStatus(int id, string status)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest")
+        {
+            return BadRequest();
+        }
+
+        if (!ValidBoardStatuses.Contains(status))
+        {
+            return BadRequest();
+        }
+
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var userRole = HttpContext.Session.GetString("UserRole");
+
+        var existingProject = await _context.Projects
+            .Include(p => p.Owners)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (existingProject == null)
+            return NotFound();
+
+        bool isOwner = existingProject.Owners.Any(o => o.UserId == userId);
+        if (userRole != "Admin" && !isOwner)
+        {
+            return Forbid();
+        }
+
+        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId))
+        {
+            return Forbid();
+        }
+
+        if (userRole == "Admin")
+        {
+            if (existingProject.Status != status)
+            {
+                _context.ActivityLogs.Add(new ActivityLog
+                {
+                    ProjectId = id,
+                    UserId = userId,
+                    ActionType = "StatusChanged",
+                    Description = $"Project status changed from '{existingProject.Status}' to '{status}'",
+                    OldValue = existingProject.Status,
+                    NewValue = status,
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                existingProject.Status = status;
+                existingProject.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new { success = true, requiresApproval = false });
+        }
+        else
+        {
+            var existingPendingRequest = await _context.ProjectApprovalRequests
+                .FirstOrDefaultAsync(r => r.ProjectId == id && r.RequestType == "Update" && r.ApprovalStatus == "Pending");
+
+            var ownerIdsCsv = string.Join(",", existingProject.Owners.Select(o => o.UserId).Distinct());
+
+            if (existingPendingRequest != null)
+            {
+                existingPendingRequest.Name = existingProject.Name;
+                existingPendingRequest.Description = existingProject.Description;
+                existingPendingRequest.StartDate = existingProject.StartDate;
+                existingPendingRequest.EndDate = existingProject.EndDate;
+                existingPendingRequest.Status = status;
+                existingPendingRequest.Issues = existingProject.Issues;
+                existingPendingRequest.OwnerIds = ownerIdsCsv;
+                existingPendingRequest.RequestedAt = DateTime.UtcNow;
+                existingPendingRequest.RequestedByUserId = userId;
+
+                _context.Update(existingPendingRequest);
+            }
+            else
+            {
+                _context.ProjectApprovalRequests.Add(new ProjectApprovalRequest
+                {
+                    ProjectId = id,
+                    RequestType = "Update",
+                    Name = existingProject.Name,
+                    Description = existingProject.Description,
+                    StartDate = existingProject.StartDate,
+                    EndDate = existingProject.EndDate,
+                    Status = status,
+                    Issues = existingProject.Issues,
+                    OwnerIds = ownerIdsCsv,
+                    RequestedByUserId = userId,
+                    RequestedAt = DateTime.UtcNow,
+                    ApprovalStatus = "Pending"
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, requiresApproval = true });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateName(int id, string name)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+        if (string.IsNullOrWhiteSpace(name)) return BadRequest();
+
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var userRole = HttpContext.Session.GetString("UserRole");
+
+        var project = await _context.Projects.Include(p => p.Owners).FirstOrDefaultAsync(p => p.Id == id);
+        if (project == null) return NotFound();
+
+        bool isOwner = project.Owners.Any(o => o.UserId == userId);
+        if (userRole != "Admin" && !isOwner) return Forbid();
+        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
+
+        if (userRole == "Admin")
+        {
+            _context.ActivityLogs.Add(new ActivityLog { ProjectId = id, UserId = userId, ActionType = "NameChanged", Description = $"Project renamed from '{project.Name}' to '{name}'", OldValue = project.Name, NewValue = name, CreatedAt = DateTime.UtcNow });
+            project.Name = name.Trim();
+            project.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, requiresApproval = false });
+        }
+        else
+        {
+            var pending = await _context.ProjectApprovalRequests.FirstOrDefaultAsync(r => r.ProjectId == id && r.RequestType == "Update" && r.ApprovalStatus == "Pending");
+            var ownerIdsCsv = string.Join(",", project.Owners.Select(o => o.UserId).Distinct());
+            if (pending != null) { pending.Name = name.Trim(); pending.RequestedAt = DateTime.UtcNow; pending.RequestedByUserId = userId; _context.Update(pending); }
+            else { _context.ProjectApprovalRequests.Add(new ProjectApprovalRequest { ProjectId = id, RequestType = "Update", Name = name.Trim(), Description = project.Description, StartDate = project.StartDate, EndDate = project.EndDate, Status = project.Status, Issues = project.Issues, OwnerIds = ownerIdsCsv, RequestedByUserId = userId, RequestedAt = DateTime.UtcNow, ApprovalStatus = "Pending" }); }
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, requiresApproval = true });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdatePriority(int id, string priority)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+        var allowed = new[] { "None", "Low", "Medium", "High" };
+        if (!allowed.Contains(priority)) return BadRequest();
+
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var userRole = HttpContext.Session.GetString("UserRole");
+
+        var project = await _context.Projects.Include(p => p.Owners).FirstOrDefaultAsync(p => p.Id == id);
+        if (project == null) return NotFound();
+
+        bool isOwner = project.Owners.Any(o => o.UserId == userId);
+        if (userRole != "Admin" && !isOwner) return Forbid();
+        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
+
+        project.Priority = priority == "None" ? null : priority;
+        project.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true, priority = project.Priority });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateDueDate(int id, string? endDate)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var userRole = HttpContext.Session.GetString("UserRole");
+
+        var project = await _context.Projects.Include(p => p.Owners).FirstOrDefaultAsync(p => p.Id == id);
+        if (project == null) return NotFound();
+
+        bool isOwner = project.Owners.Any(o => o.UserId == userId);
+        if (userRole != "Admin" && !isOwner) return Forbid();
+        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
+
+        DateTime? newDate = string.IsNullOrWhiteSpace(endDate) ? null : (DateTime.TryParse(endDate, out var d) ? d : project.EndDate);
+
+        if (userRole == "Admin")
+        {
+            _context.ActivityLogs.Add(new ActivityLog { ProjectId = id, UserId = userId, ActionType = "EndDateChanged", Description = $"End date changed to {newDate?.ToString("dd MMM yyyy") ?? "Ongoing"}", OldValue = project.EndDate?.ToString("dd MMM yyyy") ?? "Ongoing", NewValue = newDate?.ToString("dd MMM yyyy") ?? "Ongoing", CreatedAt = DateTime.UtcNow });
+            project.EndDate = newDate;
+            project.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, requiresApproval = false, endDate = project.EndDate?.ToString("dd MMM") ?? "Ongoing" });
+        }
+        else
+        {
+            var pending = await _context.ProjectApprovalRequests.FirstOrDefaultAsync(r => r.ProjectId == id && r.RequestType == "Update" && r.ApprovalStatus == "Pending");
+            var ownerIdsCsv = string.Join(",", project.Owners.Select(o => o.UserId).Distinct());
+            if (pending != null) { pending.EndDate = newDate; pending.RequestedAt = DateTime.UtcNow; pending.RequestedByUserId = userId; _context.Update(pending); }
+            else { _context.ProjectApprovalRequests.Add(new ProjectApprovalRequest { ProjectId = id, RequestType = "Update", Name = project.Name, Description = project.Description, StartDate = project.StartDate, EndDate = newDate, Status = project.Status, Issues = project.Issues, OwnerIds = ownerIdsCsv, RequestedByUserId = userId, RequestedAt = DateTime.UtcNow, ApprovalStatus = "Pending" }); }
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, requiresApproval = true });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateOwners(int id, string ownerIds)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var userRole = HttpContext.Session.GetString("UserRole");
+
+        if (userRole != "Admin") return Forbid();
+
+        var project = await _context.Projects.Include(p => p.Owners).FirstOrDefaultAsync(p => p.Id == id);
+        if (project == null) return NotFound();
+
+        var newOwnerIds = (ownerIds ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => int.TryParse(s.Trim(), out var oid) ? oid : 0).Where(x => x > 0).Distinct().ToList();
+
+        _context.ProjectOwners.RemoveRange(project.Owners);
+        foreach (var oid in newOwnerIds)
+        {
+            project.Owners.Add(new ProjectOwner { ProjectId = id, UserId = oid });
+        }
+        project.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReorderProjects(string orderedIds)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin") return Forbid();
+
+        if (string.IsNullOrEmpty(orderedIds)) return BadRequest();
+
+        var ids = orderedIds.Split(',').Select(s => int.TryParse(s.Trim(), out var id) ? id : 0).Where(x => x > 0).ToArray();
+        var projects = await _context.Projects.Where(p => ids.Contains(p.Id)).ToListAsync();
+        for (int i = 0; i < ids.Length; i++)
+        {
+            var proj = projects.FirstOrDefault(p => p.Id == ids[i]);
+            if (proj != null) proj.SortOrder = i;
+        }
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true });
+    }
+
+    // ===== QUICK CREATE (inline popup) =====
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateQuick(string name, string status = "Planning",
+        string? priority = null, string? endDate = null, string? ownerIds = null, int? groupId = null)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+        if (string.IsNullOrWhiteSpace(name)) return BadRequest(new { error = "Name is required" });
+
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var userRole = HttpContext.Session.GetString("UserRole");
+
+        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId))
+            return Forbid();
+
+        var ownerIdList = (ownerIds ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => int.TryParse(s.Trim(), out var oid) ? oid : 0).Where(x => x > 0).Distinct().ToList();
+
+        var validStatus = ValidBoardStatuses.Contains(status) ? status : "Planning";
+        DateTime? dueDate = string.IsNullOrWhiteSpace(endDate) ? null :
+            (DateTime.TryParse(endDate, out var d) ? (DateTime?)d : null);
+
+        if (userRole == "Admin")
+        {
+            var project = new WebApplication1.Models.Project
+            {
+                Name = name.Trim(),
+                Status = validStatus,
+                Priority = string.IsNullOrWhiteSpace(priority) || priority == "None" ? null : priority,
+                StartDate = DateTime.Today,
+                EndDate = dueDate,
+                GroupId = groupId,
+                CreatedByUserId = userId,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Add(project);
+            await _context.SaveChangesAsync();
+
+            foreach (var oid in ownerIdList)
+                _context.ProjectOwners.Add(new ProjectOwner { ProjectId = project.Id, UserId = oid });
+
+            _context.ActivityLogs.Add(new ActivityLog
+            {
+                ProjectId = project.Id, UserId = userId, ActionType = "Created",
+                Description = $"Project '{project.Name}' was created", CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, requiresApproval = false, projectId = project.Id });
+        }
+        else
+        {
+            var request = new ProjectApprovalRequest
+            {
+                RequestType = "Create", Name = name.Trim(), Status = validStatus,
+                StartDate = DateTime.Today, EndDate = dueDate,
+                OwnerIds = ownerIdList.Any() ? string.Join(",", ownerIdList) : null,
+                RequestedByUserId = userId, RequestedAt = DateTime.UtcNow, ApprovalStatus = "Pending"
+            };
+            _context.ProjectApprovalRequests.Add(request);
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, requiresApproval = true });
+        }
+    }
+
+    // ===== TASK DETAIL (description + activity log) =====
+
+    [HttpGet]
+    public async Task<IActionResult> GetProjectDetails(int id)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+
+        var project = await _context.Projects
+            .Include(p => p.Owners).ThenInclude(o => o.User)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (project == null) return NotFound();
+
+        var logs = await _context.ActivityLogs
+            .Where(al => al.ProjectId == id)
+            .Include(al => al.User)
+            .OrderByDescending(al => al.CreatedAt)
+            .Take(20)
+            .Select(al => new {
+                al.ActionType, al.Description, al.OldValue, al.NewValue,
+                CreatedAt = al.CreatedAt.ToString("dd MMM yyyy HH:mm"),
+                UserName = al.User != null ? al.User.FirstName + " " + al.User.LastName : "Unknown"
+            })
+            .ToListAsync();
+
+        return Ok(new {
+            project.Id, project.Name,
+            Description = project.Description ?? "",
+            Logs = logs
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateDescription(int id, string? description)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var userRole = HttpContext.Session.GetString("UserRole");
+
+        var project = await _context.Projects.Include(p => p.Owners).FirstOrDefaultAsync(p => p.Id == id);
+        if (project == null) return NotFound();
+
+        bool isOwner = project.Owners.Any(o => o.UserId == userId);
+        if (userRole != "Admin" && !isOwner) return Forbid();
+        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
+
+        if (userRole == "Admin")
+        {
+            project.Description = description?.Trim();
+            project.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, requiresApproval = false });
+        }
+        else
+        {
+            var pending = await _context.ProjectApprovalRequests
+                .FirstOrDefaultAsync(r => r.ProjectId == id && r.RequestType == "Update" && r.ApprovalStatus == "Pending");
+            var ownerIdsCsv = string.Join(",", project.Owners.Select(o => o.UserId).Distinct());
+            if (pending != null)
+            {
+                pending.Description = description?.Trim();
+                pending.RequestedAt = DateTime.UtcNow;
+                pending.RequestedByUserId = userId;
+                _context.Update(pending);
+            }
+            else
+            {
+                _context.ProjectApprovalRequests.Add(new ProjectApprovalRequest
+                {
+                    ProjectId = id, RequestType = "Update", Name = project.Name,
+                    Description = description?.Trim(), StartDate = project.StartDate,
+                    EndDate = project.EndDate, Status = project.Status, Issues = project.Issues,
+                    OwnerIds = ownerIdsCsv, RequestedByUserId = userId,
+                    RequestedAt = DateTime.UtcNow, ApprovalStatus = "Pending"
+                });
+            }
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, requiresApproval = true });
+        }
+    }
+
+    // ===== GROUP MANAGEMENT =====
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateGroup(string name, string? color)
+    {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin") return Forbid();
+        if (string.IsNullOrWhiteSpace(name)) return BadRequest();
+
+        var group = new ProjectGroup
+        {
+            Name = name.Trim(),
+            Color = string.IsNullOrWhiteSpace(color) ? null : color.Trim(),
+            CreatedAt = DateTime.UtcNow
+        };
+        _context.ProjectGroups.Add(group);
+        await _context.SaveChangesAsync();
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteGroup(int id)
+    {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin") return Forbid();
+
+        var group = await _context.ProjectGroups.FindAsync(id);
+        if (group == null) return NotFound();
+
+        _context.ProjectGroups.Remove(group);
+        await _context.SaveChangesAsync();
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AssignGroup(int id, int? groupId)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin") return Forbid();
+
+        var project = await _context.Projects.FindAsync(id);
+        if (project == null) return NotFound();
+
+        project.GroupId = groupId;
+        project.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { success = true });
     }
 
     public async Task<IActionResult> ActivityLog(string filter = "all", string searchTerm = "", string searchType = "all", string sortBy = "newest", int page = 1)

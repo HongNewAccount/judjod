@@ -10,7 +10,10 @@
             <h1 class="mb-4">Create New Event</h1>
 
             <form method="post" asp-action="Create" class="needs-validation" novalidate>
-                <div asp-validation-summary="All" class="alert alert-danger"></div>
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div asp-validation-summary="All" class="alert alert-danger"></div>
+                }
 
                 <div class="mb-3">
                     <label for="title" class="form-label">Event Title *</label>

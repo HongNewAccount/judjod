@@ -20,7 +20,10 @@
 
                     <form method="post" asp-action="Edit" enctype="multipart/form-data" class="needs-validation" novalidate>
                         <input type="hidden" asp-for="Id" />
-                        <div asp-validation-summary="All" class="alert alert-danger"></div>
+                        @if (!ViewData.ModelState.IsValid)
+                        {
+                            <div asp-validation-summary="All" class="alert alert-danger"></div>
+                        }
 
                         <!-- Profile Image Section -->
                         <div class="mb-4 text-center">
@@ -90,7 +93,6 @@
                                 <select class="form-control" id="role" asp-for="Role" disabled="@(!canEditRole)">
                                     <option value="">Select Role</option>
                                     <option value="Admin">Admin</option>
-                                    <option value="Manager">Manager</option>
                                     <option value="User">User</option>
                                 </select>
                                 @if (!canEditRole)
@@ -127,7 +129,7 @@
 
                         <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">
                             <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                            <button type="submit" class="btn btn-action">Save Changes</button>
                         </div>
                     </form>
                 </div>

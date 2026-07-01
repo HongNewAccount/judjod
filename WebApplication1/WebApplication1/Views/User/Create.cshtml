@@ -13,7 +13,10 @@
                 </div>
                 <div class="card-body p-4">
                     <form method="post" asp-action="Create" class="needs-validation" novalidate>
-                        <div asp-validation-summary="All" class="alert alert-danger"></div>
+                        @if (!ViewData.ModelState.IsValid)
+                        {
+                            <div asp-validation-summary="All" class="alert alert-danger"></div>
+                        }
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
@@ -68,7 +71,6 @@
                                 <select class="form-control" id="role" asp-for="Role">
                                     <option value="">Select Role</option>
                                     <option value="Admin">Admin</option>
-                                    <option value="Manager">Manager</option>
                                     <option value="User">User</option>
                                 </select>
                             </div>

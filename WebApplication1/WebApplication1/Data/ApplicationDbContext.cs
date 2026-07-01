@@ -17,6 +17,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ReportComment> ReportComments { get; set; }
     public DbSet<OrganizationEvent> OrganizationEvents { get; set; }
     public DbSet<EventAttendee> EventAttendees { get; set; }
+    public DbSet<ProjectGroup> ProjectGroups { get; set; }
     public DbSet<Project> Projects { get; set; }
     public DbSet<ProjectOwner> ProjectOwners { get; set; }
     public DbSet<ProjectFavorite> ProjectFavorites { get; set; }
@@ -94,9 +95,18 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(ea => ea.UserId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Configure ProjectGroup entity
+        modelBuilder.Entity<ProjectGroup>()
+            .HasKey(g => g.Id);
+
         // Configure Project entity
         modelBuilder.Entity<Project>()
             .HasKey(p => p.Id);
+        modelBuilder.Entity<Project>()
+            .HasOne(p => p.Group)
+            .WithMany(g => g.Projects)
+            .HasForeignKey(p => p.GroupId)
+            .OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<Project>()
             .HasOne(p => p.CreatedByUser)
             .WithMany()

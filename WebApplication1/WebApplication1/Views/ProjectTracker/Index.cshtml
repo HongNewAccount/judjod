@@ -2,514 +2,678 @@
 @inject WebApplication1.Data.ApplicationDbContext DbContext
 @{
     ViewData["Title"] = "Project Tracker";
-    var stats = (Dictionary<string, int>)ViewBag.Stats ?? new Dictionary<string, int>();
     var userRole = Context.Session.GetString("UserRole") ?? "User";
     var allUsers = DbContext.Users.Where(u => u.IsActive).ToList();
-    var currentUserIdForSuspension = Context.Session.GetInt32("UserId") ?? 1;
-    var isSuspended = userRole != "Admin" && (DbContext.Users.Find(currentUserIdForSuspension)?.ProjectAccessSuspended ?? false);
-    var searchTerm = ViewBag.SearchTerm ?? "";
-    var currentSort = ViewBag.CurrentSort ?? "latest";
-    var currentFilter = ViewBag.CurrentFilter ?? "all";
+    var currentUserId = Context.Session.GetInt32("UserId") ?? 1;
+    var isSuspended = userRole != "Admin" && (DbContext.Users.Find(currentUserId)?.ProjectAccessSuspended ?? false);
+    var pendingUpdates = (HashSet<int>)(ViewBag.PendingUpdates ?? new HashSet<int>());
+    var pendingCreations = (IEnumerable<WebApplication1.Models.ProjectApprovalRequest>)(ViewBag.PendingCreations ?? new List<WebApplication1.Models.ProjectApprovalRequest>());
+    var groups = (List<WebApplication1.Models.ProjectGroup>)(ViewBag.Groups ?? new List<WebApplication1.Models.ProjectGroup>());
+    var selectedGroupId = (int?)ViewBag.SelectedGroupId;
 
-    string GetStatusClass(string status) => status switch
+    var columns = new (string Key, string Label, string Cls, string Icon)[]
     {
-        "Planning" => "bg-secondary",
-        "InProgress" => "bg-primary",
-        "Late" => "bg-danger text-white",
-        "Completed" => "bg-success",
-        _ => "bg-secondary"
+        ("Planning",   "To Do",       "secondary", "fa-list-ul"),
+        ("InProgress", "In Progress", "primary",   "fa-spinner"),
+        ("Late",       "Late",        "danger",    "fa-exclamation-circle"),
+        ("Completed",  "Complete",    "success",   "fa-check-circle"),
     };
 
-    string GetStatusTextClass(string status) => status switch
+    string PriorityLabel(string? p) => p switch { "High"=>"High","Medium"=>"Medium","Low"=>"Low",_=>"Priority" };
+    string PriorityCls(string? p) => p switch { "High"=>"priority-high","Medium"=>"priority-medium","Low"=>"priority-low",_=>"priority-none" };
+
+    string OwnerNamesFromCsv(string? csv)
     {
-        "Planning" => "text-secondary",
-        "InProgress" => "text-primary",
-        "Late" => "text-danger",
-        "Completed" => "text-success",
-        _ => "text-secondary"
-    };
+        if (string.IsNullOrEmpty(csv)) return "None";
+        var ids = csv.Split(',').Select(s => int.TryParse(s, out var id) ? id : 0).Where(x => x > 0).ToList();
+        var names = allUsers.Where(u => ids.Contains(u.Id)).Select(u => $"{u.FirstName} {u.LastName}");
+        return names.Any() ? string.Join(", ", names) : "None";
+    }
 }
 
+@Html.AntiForgeryToken()
+
 <div class="container-fluid">
-    <div class="row mb-4 page-header">
+    <div class="row mb-3 page-header">
         <div class="col">
             <h1 class="page-title">Project Tracker</h1>
             <p class="page-subtitle">Track and manage all organization projects</p>
         </div>
-        <div class="col-auto">
-            @if (isSuspended)
-            {
-                <span class="btn btn-action disabled" style="opacity: 0.5; cursor: not-allowed;" title="Your project access has been suspended by an Admin.">
-                    <i class="fas fa-plus me-2"></i>Create New Project
-                </span>
-            }
-            else
-            {
-                <a asp-action="Create" class="btn btn-action">
-                    <i class="fas fa-plus me-2"></i>Create New Project
-                </a>
-            }
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <input type="text" id="boardSearch" class="form-control" placeholder="Search by project or owner name..." />
         </div>
     </div>
 
-    <!-- Quick Stats -->
-    <div class="row mb-4">
-        <div class="col-lg-3 mb-3">
-            <div class="stat-card stat-card-total">
-                <div class="stat-card-icon"><i class="fas fa-folder"></i></div>
-                <div>
-                    <div class="stat-card-value">@(stats.ContainsKey("TotalProjects") ? stats["TotalProjects"] : 0)</div>
-                    <div class="stat-card-label">Total Projects</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 mb-3">
-            <div class="stat-card stat-card-secondary">
-                <div class="stat-card-icon"><i class="fas fa-circle"></i></div>
-                <div>
-                    <div class="stat-card-value">@(stats.ContainsKey("PlanningProjects") ? stats["PlanningProjects"] : 0)</div>
-                    <div class="stat-card-label">Planning Projects</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 mb-3">
-            <div class="stat-card stat-card-primary">
-                <div class="stat-card-icon"><i class="fas fa-spinner"></i></div>
-                <div>
-                    <div class="stat-card-value">@(stats.ContainsKey("ActiveProjects") ? stats["ActiveProjects"] : 0)</div>
-                    <div class="stat-card-label">Active Projects</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 mb-3">
-            <div class="stat-card stat-card-danger">
-                <div class="stat-card-icon"><i class="fas fa-exclamation-circle"></i></div>
-                <div>
-                    <div class="stat-card-value">@(stats.ContainsKey("LateProjects") ? stats["LateProjects"] : 0)</div>
-                    <div class="stat-card-label">Late Projects</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 mb-3">
-            <div class="stat-card stat-card-warning">
-                <div class="stat-card-icon"><i class="fas fa-star"></i></div>
-                <div>
-                    <div class="stat-card-value">@(stats.ContainsKey("FavoriteProjects") ? stats["FavoriteProjects"] : 0)</div>
-                    <div class="stat-card-label">Favorite Projects</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 mb-3">
-            <div class="stat-card stat-card-success">
-                <div class="stat-card-icon"><i class="fas fa-check-circle"></i></div>
-                <div>
-                    <div class="stat-card-value">@(stats.ContainsKey("CompletedProjects") ? stats["CompletedProjects"] : 0)</div>
-                    <div class="stat-card-label">Completed Projects</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Search, Filter & Sort -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <form method="get" asp-action="Index" class="row g-3">
-                <div class="col-md-5">
-                    <input type="text" name="searchTerm" class="form-control" placeholder="Search by project or owner name..." value="@searchTerm" />
-                </div>
-                <div class="col-md-3">
-                    <select name="filter" class="form-select">
-                        <option value="all" selected="@(currentFilter == "all")">All</option>
-                        <option value="planning" selected="@(currentFilter == "planning")">Planning</option>
-                        <option value="inprogress" selected="@(currentFilter == "inprogress")">Active</option>
-                        <option value="late" selected="@(currentFilter == "late")">Late</option>
-                        <option value="completed" selected="@(currentFilter == "completed")">Completed</option>
-                        <option value="favorites" selected="@(currentFilter == "favorites")">Favorite</option>
-                        <option value="thismonth" selected="@(currentFilter == "thismonth")">This Month</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <select name="sortBy" class="form-select">
-                        <option value="latest" selected="@(currentSort == "latest")">Latest</option>
-                        <option value="date_asc" selected="@(currentSort == "date_asc")">Start Date (Old→New)</option>
-                        <option value="date_desc" selected="@(currentSort == "date_desc")">Start Date (New→Old)</option>
-                        <option value="enddate_asc" selected="@(currentSort == "enddate_asc")">End Date (Old→New)</option>
-                        <option value="enddate_desc" selected="@(currentSort == "enddate_desc")">End Date (New→Old)</option>
-                        <option value="name_asc" selected="@(currentSort == "name_asc")">Name (A-Z)</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-action w-100">Search</button>
-                </div>
+    <!-- Group filter bar -->
+    <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+        <a asp-action="Index" class="group-tab @(selectedGroupId == null ? "group-tab-active" : "")">
+            <i class="fas fa-th me-1"></i>All
+        </a>
+        @foreach (var g in groups)
+        {
+            <a asp-action="Index" asp-route-groupId="@g.Id"
+               class="group-tab @(selectedGroupId == g.Id ? "group-tab-active" : "")"
+               style="@(g.Color != null ? $"--group-color: {g.Color};" : "")">
+                <i class="fas fa-users me-1"></i>@g.Name
+                @if (userRole == "Admin")
+                {
+                    <form asp-action="DeleteGroup" asp-route-id="@g.Id" method="post" class="d-inline ms-1"
+                          onsubmit="return confirm('Delete group &quot;@g.Name&quot;?');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="group-tab-delete" title="Delete group">×</button>
+                    </form>
+                }
+            </a>
+        }
+        @if (userRole == "Admin")
+        {
+            <button type="button" class="group-tab group-tab-add" onclick="document.getElementById('newGroupForm').classList.toggle('d-none')">
+                <i class="fas fa-plus me-1"></i>New Group
+            </button>
+            <form asp-action="CreateGroup" method="post" class="d-none d-flex gap-2 align-items-center" id="newGroupForm">
+                @Html.AntiForgeryToken()
+                <input type="text" name="name" class="form-control form-control-sm" placeholder="Group name" style="width:160px;" required />
+                <input type="color" name="color" class="form-control form-control-color form-control-sm" value="#0d6efd" style="width:36px;padding:2px;" />
+                <button type="submit" class="btn btn-sm btn-action">Add</button>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="document.getElementById('newGroupForm').classList.add('d-none')">Cancel</button>
             </form>
-        </div>
+        }
     </div>
 
-    <!-- Projects Table -->
-    <div class="card">
-        <div class="card-header bg-light">
-            <h5 class="mb-0">All Projects</h5>
-        </div>
-        <div class="card-body p-0">
-            @if (Model.Any() || (ViewBag.PendingCreations != null && ((IEnumerable<WebApplication1.Models.ProjectApprovalRequest>)ViewBag.PendingCreations).Any()))
-            {
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Project Name</th>
-                                <th>Owners</th>
-                                <th>Start Date</th>
-                                <th>End Date</th>
-                                <th>Status</th>
-                                <th>Created By</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (ViewBag.PendingCreations != null)
-                            {
-                                @foreach (var req in (IEnumerable<WebApplication1.Models.ProjectApprovalRequest>)ViewBag.PendingCreations)
-                                {
-                                    <tr class="table-warning border-start border-4 border-warning align-middle">
-                                        <td>
-                                            <strong class="text-warning">
-                                                @req.Name
-                                            </strong>
-                                            <span class="badge bg-warning text-dark ms-1">
-                                                <i class="fas fa-hourglass-start me-1"></i>Pending Creation
-                                            </span>
-                                            @if (!string.IsNullOrEmpty(req.Description))
-                                            {
-                                                <br />
-                                                <small class="text-muted">@req.Description.Substring(0, Math.Min(50, req.Description.Length))...</small>
-                                            }
-                                        </td>
-                                        <td>
-                                            @{
-                                                var ownerNames = "None";
-                                                if (!string.IsNullOrEmpty(req.OwnerIds))
-                                                {
-                                                    var ids = req.OwnerIds.Split(',').Select(s => int.TryParse(s, out var id) ? id : 0).Where(x => x > 0).ToList();
-                                                    var names = allUsers.Where(u => ids.Contains(u.Id)).Select(u => $"{u.FirstName} {u.LastName}");
-                                                    if (names.Any())
-                                                    {
-                                                        ownerNames = string.Join(", ", names);
-                                                    }
-                                                }
-                                            }
-                                            @ownerNames
-                                        </td>
-                                        <td>@req.StartDate.ToString("dd MMM yyyy")</td>
-                                        <td>@(req.EndDate?.ToString("dd MMM yyyy") ?? "Ongoing")</td>
-                                        <td>
-                                            <span class="badge bg-secondary">@req.Status</span>
-                                        </td>
-                                        <td>@req.RequestedByUser?.FirstName @req.RequestedByUser?.LastName</td>
-                                        <td>
-                                            <form asp-action="CancelRequest" asp-route-id="@req.Id" method="post" onsubmit="return confirm('Are you sure you want to cancel this creation request?');" class="d-inline">
-                                                @Html.AntiForgeryToken()
-                                                <button type="submit" class="btn btn-sm btn-danger">
-                                                    <i class="fas fa-times me-1"></i> Cancel
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                }
-                            }
+    <!-- Kanban board -->
+    <div class="kanban-board" id="kanbanBoard">
+        @foreach (var col in columns)
+        {
+            var colProjects = Model.Where(p => p.Status == col.Key).ToList();
+            var colPending = pendingCreations.Where(r => (r.Status ?? "Planning") == col.Key).ToList();
+            var count = colProjects.Count + colPending.Count;
 
-                            @foreach (var project in Model)
-                            {
-                                <tr>
-                                    <td>
-                                        <strong class="@GetStatusTextClass(project.Status)">
-                                            @project.Name
-                                            @if (project.Favorites.Any())
-                                            {
-                                                <i class="fas fa-star text-warning ms-1"></i>
-                                            }
-                                        </strong>
-                                        @if (ViewBag.PendingUpdates != null && ((HashSet<int>)ViewBag.PendingUpdates).Contains(project.Id))
-                                        {
-                                            <span class="badge bg-warning text-dark ms-1" title="Proposed updates are awaiting Admin approval.">
-                                                <i class="fas fa-hourglass-half me-1"></i>Pending Edits
-                                            </span>
-                                        }
-                                        @if (!string.IsNullOrEmpty(project.Description))
-                                        {
-                                            <br />
-                                            <small class="text-muted">@project.Description.Substring(0, Math.Min(50, project.Description.Length))...</small>
-                                        }
-                                    </td>
-                                    <td>
+            <div class="kanban-column kanban-col-@col.Cls">
+                <div class="kanban-column-header kanban-column-@col.Cls">
+                    <div class="kanban-column-title">
+                        <i class="fas @col.Icon"></i>
+                        <span>@col.Label</span>
+                    </div>
+                    <span class="kanban-column-count">@count</span>
+                </div>
+
+                @if (!isSuspended)
+                {
+                    <button type="button" class="kanban-add-task" onclick="openAddModal('@col.Key', @(selectedGroupId.HasValue ? selectedGroupId.Value.ToString() : "null"))">
+                        <i class="fas fa-plus"></i> Add Task
+                    </button>
+                }
+
+                <div class="kanban-column-body" data-status="@col.Key">
+                    @foreach (var req in colPending)
+                    {
+                        <div class="kanban-card kanban-card-pending">
+                            <span class="badge bg-warning text-dark mb-1" style="font-size:.65rem;"><i class="fas fa-hourglass-start me-1"></i>Pending</span>
+                            <strong class="d-block">@req.Name</strong>
+                            <div class="kanban-quick-row">
+                                <span class="kanban-quick-btn kanban-quick-btn-empty"><i class="fas fa-user me-1"></i>@OwnerNamesFromCsv(req.OwnerIds)</span>
+                            </div>
+                            <form asp-action="CancelRequest" asp-route-id="@req.Id" method="post" onsubmit="return confirm('Cancel this request?');" class="mt-1">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger w-100">× Cancel</button>
+                            </form>
+                        </div>
+                    }
+
+                    @foreach (var project in colProjects)
+                    {
+                        var isOwner = project.Owners.Any(o => o.UserId == currentUserId);
+                        var canEdit = userRole == "Admin" || (isOwner && !isSuspended);
+                        var isPendingEdit = pendingUpdates.Contains(project.Id);
+                        var ownerIdList = string.Join(",", project.Owners.Select(o => o.UserId));
+
+                        <div class="kanban-card"
+                             data-project-id="@project.Id"
+                             data-status="@project.Status"
+                             data-sort-order="@project.SortOrder"
+                             data-search="@($"{project.Name} {string.Join(' ', project.Owners.Select(o => o.User != null ? o.User.FirstName + ' ' + o.User.LastName : ""))}".ToLower())"
+                             draggable="@(canEdit ? "true" : "false")"
+                             onclick="cardClicked(event, @project.Id, '@project.Name.Replace("'","\\'")')">
+
+                            <div class="d-flex align-items-center gap-1 flex-wrap mb-1">
+                                @if (project.Group != null)
+                                {
+                                    <span class="group-chip" style="@(project.Group.Color != null ? $"--group-color: {project.Group.Color};" : "")">
+                                        <i class="fas fa-users"></i> @project.Group.Name
+                                    </span>
+                                }
+                                @if (isPendingEdit)
+                                {
+                                    <span class="badge bg-warning text-dark" style="font-size:.65rem;"><i class="fas fa-hourglass-half me-1"></i>Pending</span>
+                                }
+                            </div>
+
+                            <span class="kanban-card-title d-block">@project.Name</span>
+
+                            <div class="kanban-quick-row">
+                                @* Assignee *@
+                                <div class="dropdown">
+                                    <button type="button"
+                                            class="kanban-quick-btn @(project.Owners.Any() ? "" : "kanban-quick-btn-empty")"
+                                            data-bs-toggle="@(userRole == "Admin" ? "dropdown" : "")"
+                                            title="Assignees" @(userRole == "Admin" ? "" : "disabled")>
                                         @if (project.Owners.Any())
                                         {
-                                            @foreach (var owner in project.Owners)
-                                            {
-                                                <span class="badge bg-secondary me-1">@owner.User?.FirstName @owner.User?.LastName</span>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">No owners</span>
-                                        }
-                                    </td>
-                                    <td>@project.StartDate.ToString("dd MMM yyyy")</td>
-                                    <td>@(project.EndDate?.ToString("dd MMM yyyy") ?? "Ongoing")</td>
-                                    <td>
-                                        <span class="badge @GetStatusClass(project.Status)">@project.Status</span>
-                                    </td>
-                                    <td>@project.CreatedByUser?.FirstName @project.CreatedByUser?.LastName</td>
-                                    <td>
-                                        <div class="action-buttons">
-                                            <a asp-action="Details" asp-route-id="@project.Id" class="btn btn-sm btn-success" title="View Details">
-                                                View
-                                            </a>
-                                            @{
-                                                var currentUserId = Context.Session.GetInt32("UserId") ?? 1;
-                                                var isOwner = project.Owners.Any(o => o.UserId == currentUserId);
-                                                var canEdit = userRole == "Admin" || (isOwner && !isSuspended);
-                                                var editTitle = canEdit ? "Edit" : (isOwner && isSuspended ? "Your project access has been suspended by an Admin." : "Only owner can edit");
-                                            }
-                                            @if (canEdit)
-                                            {
-                                                <a asp-action="Edit" asp-route-id="@project.Id" class="btn btn-sm btn-info" title="@editTitle">
-                                                    Edit
-                                                </a>
-                                            }
-                                            else
-                                            {
-                                                <span class="btn btn-sm btn-secondary disabled" style="opacity: 0.5; cursor: not-allowed;" title="@editTitle">
-                                                    Edit
-                                                </span>
-                                            }
-                                            <form asp-action="ToggleFavorite" asp-route-id="@project.Id" method="post" class="action-form">
-                                                @Html.AntiForgeryToken()
-                                                @if (userRole == "Admin")
+                                            <div class="kanban-avatars">
+                                                @foreach (var owner in project.Owners.Take(3))
                                                 {
-                                                    <button type="submit" class="btn btn-sm @(project.Favorites.Any() ? "btn-warning" : "btn-outline-warning")" title="@(project.Favorites.Any() ? "Remove Mark" : "Mark Project")">
-                                                        <i class="@(project.Favorites.Any() ? "fas fa-star" : "far fa-star")"></i>
-                                                    </button>
+                                                    <span class="kanban-card-avatar" title="@owner.User?.FirstName @owner.User?.LastName">
+                                                        @(owner.User != null ? $"{owner.User.FirstName[0]}{owner.User.LastName[0]}" : "?")
+                                                    </span>
                                                 }
-                                                else
-                                                {
-                                                    <button type="button" disabled class="btn btn-sm btn-secondary disabled" title="Only admin can mark favorite" style="opacity: 0.5; cursor: not-allowed;">
-                                                        <i class="@(project.Favorites.Any() ? "fas fa-star" : "far fa-star")"></i>
-                                                    </button>
-                                                }
-                                            </form>
-                                            @if (canEdit)
+                                            </div>
+                                        }
+                                        else { <i class="fas fa-user-plus"></i> }
+                                    </button>
+                                    @if (userRole == "Admin")
+                                    {
+                                        <div class="dropdown-menu p-2 owner-picker" style="min-width:200px;" data-project-id="@project.Id">
+                                            @foreach (var user in allUsers)
                                             {
-                                                <form asp-action="Delete" asp-route-id="@project.Id" method="post" class="action-form" onsubmit="return confirm('Are you sure you want to delete this project?');">
-                                                    @Html.AntiForgeryToken()
-                                                    <button type="submit" class="btn btn-sm btn-danger" title="Delete">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </form>
+                                                var isAssigned = project.Owners.Any(o => o.UserId == user.Id);
+                                                <div class="form-check">
+                                                    <input class="form-check-input owner-checkbox" type="checkbox"
+                                                           id="owner_@(project.Id)_@(user.Id)" value="@user.Id"
+                                                           checked="@isAssigned" data-project-id="@project.Id" />
+                                                    <label class="form-check-label small" for="owner_@(project.Id)_@(user.Id)">@user.FirstName @user.LastName</label>
+                                                </div>
                                             }
-                                            else
+                                        </div>
+                                    }
+                                </div>
+
+                                @* Group *@
+                                @if (userRole == "Admin")
+                                {
+                                    <div class="dropdown">
+                                        <button type="button"
+                                                class="kanban-quick-btn @(project.GroupId.HasValue ? "kanban-quick-btn-group" : "kanban-quick-btn-empty")"
+                                                data-bs-toggle="dropdown" title="Group">
+                                            <i class="fas fa-users me-1"></i>
+                                            <span>@(project.Group?.Name ?? "Group")</span>
+                                        </button>
+                                        <div class="dropdown-menu p-2" style="min-width:170px;" data-project-id="@project.Id">
+                                            <button class="dropdown-item small group-assign-btn" type="button" data-project-id="@project.Id" data-group-id="">
+                                                <i class="fas fa-times me-1"></i>None
+                                            </button>
+                                            <div class="dropdown-divider"></div>
+                                            @foreach (var g in groups)
                                             {
-                                                <button type="button" disabled class="btn btn-sm btn-secondary disabled" style="opacity: 0.5; cursor: not-allowed;" title="@(isOwner && isSuspended ? "Your project access has been suspended by an Admin." : "Only owner can delete")">
-                                                    <i class="fas fa-trash"></i>
+                                                <button class="dropdown-item small group-assign-btn" type="button"
+                                                        data-project-id="@project.Id" data-group-id="@g.Id">
+                                                    <i class="fas fa-circle me-1" style="@(g.Color != null ? $"color:{g.Color};" : "")"></i>@g.Name
                                                 </button>
                                             }
                                         </div>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+                                    </div>
+                                }
+
+                                @* Due Date *@
+                                <div class="kanban-date-wrap">
+                                    <button type="button"
+                                            class="kanban-quick-btn @(project.EndDate.HasValue ? "" : "kanban-quick-btn-empty")"
+                                            title="Due Date"
+                                            onclick="if(@(canEdit ? "true" : "false")) toggleDatePicker(this)"
+                                            data-project-id="@project.Id">
+                                        <i class="fas fa-calendar-alt me-1"></i>
+                                        <span class="due-date-label">@(project.EndDate?.ToString("dd MMM") ?? "Date")</span>
+                                    </button>
+                                    @if (canEdit)
+                                    {
+                                        <input type="date" class="kanban-date-input form-control form-control-sm d-none"
+                                               value="@(project.EndDate?.ToString("yyyy-MM-dd") ?? "")"
+                                               data-project-id="@project.Id" />
+                                    }
+                                </div>
+
+                                @* Priority — dropdown, not cycle *@
+                                <div class="dropdown">
+                                    <button type="button"
+                                            class="kanban-quick-btn kanban-priority-btn @PriorityCls(project.Priority)"
+                                            data-bs-toggle="@(canEdit ? "dropdown" : "")"
+                                            title="Priority" @(canEdit ? "" : "disabled")>
+                                        <i class="fas fa-flag me-1"></i>
+                                        <span class="priority-label">@PriorityLabel(project.Priority)</span>
+                                    </button>
+                                    @if (canEdit)
+                                    {
+                                        <div class="dropdown-menu p-1" style="min-width:130px;">
+                                            @foreach (var pOpt in new[] { "None","Low","Medium","High" })
+                                            {
+                                                <button class="dropdown-item small priority-pick-btn" type="button"
+                                                        data-project-id="@project.Id" data-priority="@pOpt">
+                                                    @pOpt
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+
+                                @* Delete *@
+                                @if (canEdit)
+                                {
+                                    <form asp-action="Delete" asp-route-id="@project.Id" method="post" class="d-inline" onsubmit="return confirm('Delete?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="kanban-quick-btn kanban-quick-btn-danger" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        </div>
+                    }
                 </div>
-            }
-            else
-            {
-                <div class="p-5 text-center">
-                    <i class="fas fa-inbox" style="font-size: 48px; color: #ccc;"></i>
-                    <p class="text-muted mt-3">No projects found. <a asp-action="Create">Create one now</a></p>
-                </div>
-            }
-        </div>
-        @if (ViewBag.TotalPages > 1)
-        {
-            <div class="card-footer bg-light">
-                <nav aria-label="Page navigation">
-                    <ul class="pagination justify-content-center mb-0">
-                        @{
-                            int startPage = Math.Max(1, ViewBag.CurrentPage - 2);
-                            int endPage = Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2);
-                        }
-
-                        <li class="page-item @(ViewBag.CurrentPage <= 1 ? "disabled" : "")">
-                            <a class="page-link" asp-action="Index" asp-route-filter="@currentFilter" asp-route-searchTerm="@searchTerm" asp-route-sortBy="@currentSort" asp-route-page="@(ViewBag.CurrentPage - 1)" aria-label="Previous">&lt;</a>
-                        </li>
-
-                        @if (startPage > 1)
-                        {
-                            <li class="page-item"><span class="page-link">...</span></li>
-                        }
-
-                        @for (int i = startPage; i <= endPage; i++)
-                        {
-                            if (i == ViewBag.CurrentPage)
-                            {
-                                <li class="page-item active">
-                                    <span class="page-link">@i</span>
-                                </li>
-                            }
-                            else
-                            {
-                                <li class="page-item">
-                                    <a class="page-link" asp-action="Index" asp-route-filter="@currentFilter" asp-route-searchTerm="@searchTerm" asp-route-sortBy="@currentSort" asp-route-page="@i">@i</a>
-                                </li>
-                            }
-                        }
-
-                        @if (endPage < ViewBag.TotalPages)
-                        {
-                            <li class="page-item"><span class="page-link">...</span></li>
-                        }
-
-                        <li class="page-item @(ViewBag.CurrentPage >= ViewBag.TotalPages ? "disabled" : "")">
-                            <a class="page-link" asp-action="Index" asp-route-filter="@currentFilter" asp-route-searchTerm="@searchTerm" asp-route-sortBy="@currentSort" asp-route-page="@(ViewBag.CurrentPage + 1)" aria-label="Next">&gt;</a>
-                        </li>
-                    </ul>
-                </nav>
             </div>
         }
     </div>
 </div>
 
-<style>
-    .text-secondary {
-        color: #6c757d;
-    }
+<!-- ===== ADD TASK MODAL ===== -->
+<div class="modal fade" id="addTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:460px;">
+        <div class="modal-content">
+            <div class="modal-header py-2 px-3">
+                <h6 class="modal-title fw-bold" id="addTaskModalTitle">Add Task</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3">
+                <div class="mb-3">
+                    <input type="text" id="addTaskName" class="form-control" placeholder="Task name *" />
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Priority</label>
+                        <select id="addTaskPriority" class="form-select form-select-sm">
+                            <option value="None">None</option>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Due Date</label>
+                        <input type="date" id="addTaskDate" class="form-control form-control-sm" />
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold">Assignees</label>
+                    <div class="modal-assignee-list">
+                        @foreach (var user in allUsers)
+                        {
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input add-task-assignee" type="checkbox"
+                                       id="addAssignee_@user.Id" value="@user.Id" />
+                                <label class="form-check-label small" for="addAssignee_@user.Id">@user.FirstName @user.LastName</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div id="addTaskError" class="text-danger small d-none"></div>
+            </div>
+            <div class="modal-footer py-2 px-3">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-modal-action" id="addTaskSubmit" onclick="submitAddTask()">
+                    <i class="fas fa-plus me-1"></i>Add Task
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
-    .text-primary {
-        color: #0d6efd;
-    }
-
-    .text-danger {
-        color: #dc3545;
-    }
-
-    .text-success {
-        color: #198754;
-    }
-
-    .action-buttons {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px;
-        width: 180px;
-    }
-
-    .action-buttons .btn,
-    .action-form .btn {
-        border: 1px solid currentColor;
-        padding: 0.375rem 0.75rem;
-        font-size: 0.875rem;
-        height: 32px;
-        width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        white-space: nowrap;
-    }
-
-    .action-buttons .btn-info,
-    .action-form .btn-info {
-        border-color: #0dcaf0;
-        color: white;
-        background-color: #0dcaf0;
-    }
-
-    .action-buttons .btn-success,
-    .action-form .btn-success {
-        border-color: #6ec96e;
-        color: white;
-        background-color: #6ec96e;
-    }
-
-    .action-buttons .btn-warning,
-    .action-form .btn-warning {
-        border-color: #ffc107;
-        color: white;
-    }
-
-    .action-buttons .btn-outline-warning,
-    .action-form .btn-outline-warning {
-        border-color: #ffc107;
-        color: white;
-        background-color: #ffc107;
-    }
-
-    .action-buttons .btn-danger,
-    .action-form .btn-danger {
-        border-color: #dc3545;
-    }
-
-    .action-form {
-        display: inline;
-    }
-
-    table th {
-        white-space: nowrap;
-    }
-</style>
+<!-- ===== TASK DETAIL MODAL ===== -->
+<div class="modal fade" id="taskDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2 px-3">
+                <input type="text" id="taskDetailTitle" class="form-control form-control-sm fw-bold border-0 p-0"
+                       style="font-size:1rem;box-shadow:none;" placeholder="Task name" />
+                <button type="button" class="btn-close ms-2" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3" style="max-height:70vh;overflow-y:auto;">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Description</label>
+                        <textarea id="taskDetailDesc" class="form-control form-control-sm" rows="8"
+                                  placeholder="Add a description..."></textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Activity Log</label>
+                        <div id="taskDetailLog" style="max-height:250px;overflow-y:auto;font-size:.8rem;">
+                            <div class="text-muted">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer py-2 px-3">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-modal-action btn-sm" onclick="saveDetailModal()">
+                    <i class="fas fa-save me-1"></i>Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
-    // Handle favorite button with AJAX
-    document.querySelectorAll('form[action*="ToggleFavorite"]').forEach(form => {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
+const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
 
-            const button = form.querySelector('button[type="submit"]');
-            if (!button) return;
-
-            const isFilled = button.classList.contains('btn-warning');
-
-            try {
-                const response = await fetch(form.action, {
-                    method: 'POST',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: new FormData(form)
-                });
-
-                if (response.ok) {
-                    // Toggle button appearance
-                    button.classList.toggle('btn-warning');
-                    button.classList.toggle('btn-outline-warning');
-
-                    const icon = button.querySelector('i');
-                    icon.classList.toggle('fas');
-                    icon.classList.toggle('far');
-
-                    // Toggle star icon in project name
-                    const row = form.closest('tr');
-                    if (row) {
-                        const projectNameElement = row.querySelector('td strong');
-                        if (projectNameElement) {
-                            const starIcon = projectNameElement.querySelector('.fa-star');
-                            if (isFilled && starIcon) {
-                                starIcon.remove();
-                            } else if (!isFilled && !starIcon) {
-                                const newStar = document.createElement('i');
-                                newStar.className = 'fas fa-star text-warning ms-1';
-                                projectNameElement.appendChild(newStar);
-                            }
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error('Error toggling favorite:', error);
-            }
-        });
+// ===== BOARD SEARCH =====
+document.getElementById('boardSearch').addEventListener('keyup', function () {
+    const term = this.value.toLowerCase();
+    document.querySelectorAll('.kanban-card[data-search]').forEach(card => {
+        card.style.display = card.getAttribute('data-search').includes(term) ? '' : 'none';
     });
+});
+
+// ===== CARD CLICK → OPEN DETAIL MODAL =====
+function cardClicked(e, id, name) {
+    // Skip if clicking on any interactive element or the chip row
+    if (e.target.closest('.kanban-quick-row')) return;
+    const skipTags = ['BUTTON','INPUT','SELECT','TEXTAREA','A'];
+    if (skipTags.includes(e.target.tagName)) return;
+    openDetailModal(id, name);
+}
+
+// ===== PRIORITY DROPDOWN =====
+document.querySelectorAll('.priority-pick-btn').forEach(btn => {
+    btn.addEventListener('click', async function () {
+        const id = this.getAttribute('data-project-id');
+        const priority = this.getAttribute('data-priority');
+        try {
+            const res = await fetch('/ProjectTracker/UpdatePriority', {
+                method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: new URLSearchParams({ id, priority, __RequestVerificationToken: token })
+            });
+            if (res.ok) location.reload();
+        } catch (e) { console.error(e); }
+    });
+});
+
+// ===== DUE DATE =====
+function toggleDatePicker(btn) {
+    const wrap = btn.closest('.kanban-date-wrap');
+    const input = wrap.querySelector('.kanban-date-input');
+    if (!input) return;
+    input.classList.toggle('d-none');
+    if (!input.classList.contains('d-none')) input.focus();
+}
+
+document.querySelectorAll('.kanban-date-input').forEach(input => {
+    input.addEventListener('change', async () => {
+        const id = input.getAttribute('data-project-id');
+        const endDate = input.value;
+        try {
+            const res = await fetch('/ProjectTracker/UpdateDueDate', {
+                method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: new URLSearchParams({ id, endDate, __RequestVerificationToken: token })
+            });
+            if (res.ok) location.reload();
+        } catch (e) { console.error(e); }
+    });
+    input.addEventListener('blur', () => input.classList.add('d-none'));
+});
+
+// ===== ASSIGNEE PICKER =====
+document.querySelectorAll('.owner-checkbox').forEach(cb => {
+    cb.addEventListener('change', async function () {
+        const id = this.getAttribute('data-project-id');
+        const picker = this.closest('.owner-picker');
+        const checked = [...picker.querySelectorAll('.owner-checkbox:checked')].map(c => c.value);
+        try {
+            await fetch('/ProjectTracker/UpdateOwners', {
+                method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: new URLSearchParams({ id, ownerIds: checked.join(','), __RequestVerificationToken: token })
+            });
+            setTimeout(() => location.reload(), 300);
+        } catch (e) { console.error(e); }
+    });
+});
+
+// ===== GROUP ASSIGN =====
+document.querySelectorAll('.group-assign-btn').forEach(btn => {
+    btn.addEventListener('click', async function () {
+        const id = this.getAttribute('data-project-id');
+        const groupId = this.getAttribute('data-group-id') || '';
+        try {
+            await fetch('/ProjectTracker/AssignGroup', {
+                method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: new URLSearchParams({ id, groupId, __RequestVerificationToken: token })
+            });
+            location.reload();
+        } catch (e) { console.error(e); }
+    });
+});
+
+// ===== ADD TASK MODAL =====
+let currentAddStatus = 'Planning';
+let currentAddGroupId = null;
+
+function openAddModal(status, groupId) {
+    currentAddStatus = status;
+    currentAddGroupId = (groupId === null || groupId === 'null') ? null : parseInt(groupId);
+
+    document.getElementById('addTaskName').value = '';
+    document.getElementById('addTaskDate').value = '';
+    document.getElementById('addTaskPriority').value = 'None';
+    document.getElementById('addTaskError').classList.add('d-none');
+    document.querySelectorAll('.add-task-assignee').forEach(cb => cb.checked = false);
+
+    const titles = { Planning: 'To Do', InProgress: 'In Progress', Late: 'Late', Completed: 'Complete' };
+    document.getElementById('addTaskModalTitle').textContent = `Add Task — ${titles[status] || status}`;
+
+    new bootstrap.Modal(document.getElementById('addTaskModal')).show();
+    setTimeout(() => document.getElementById('addTaskName').focus(), 300);
+}
+
+document.getElementById('addTaskName').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitAddTask();
+});
+
+async function submitAddTask() {
+    const name = document.getElementById('addTaskName').value.trim();
+    const errEl = document.getElementById('addTaskError');
+    if (!name) { errEl.textContent = 'Task name is required.'; errEl.classList.remove('d-none'); return; }
+
+    errEl.classList.add('d-none');
+    const status = currentAddStatus;
+    const priority = document.getElementById('addTaskPriority').value;
+    const endDate = document.getElementById('addTaskDate').value;
+    const groupId = currentAddGroupId ?? '';
+    const ownerIds = [...document.querySelectorAll('.add-task-assignee:checked')].map(c => c.value).join(',');
+
+    const btn = document.getElementById('addTaskSubmit');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Adding...';
+
+    try {
+        const res = await fetch('/ProjectTracker/CreateQuick', {
+            method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: new URLSearchParams({ name, status, priority, endDate, ownerIds, groupId, __RequestVerificationToken: token })
+        });
+        if (res.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('addTaskModal')).hide();
+            location.reload();
+        } else {
+            errEl.textContent = 'Failed to create task.';
+            errEl.classList.remove('d-none');
+        }
+    } catch (e) {
+        errEl.textContent = 'Error: ' + e.message;
+        errEl.classList.remove('d-none');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plus me-1"></i>Add Task';
+    }
+}
+
+// ===== TASK DETAIL MODAL =====
+let currentDetailId = null;
+function openDetailModal(id, name) {
+    currentDetailId = id;
+    document.getElementById('taskDetailTitle').value = name;
+    document.getElementById('taskDetailDesc').value = '';
+    document.getElementById('taskDetailLog').innerHTML = '<div class="text-muted small">Loading...</div>';
+
+    new bootstrap.Modal(document.getElementById('taskDetailModal')).show();
+
+    fetch('/ProjectTracker/GetProjectDetails?id=' + id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('taskDetailDesc').value = data.description || '';
+            const logEl = document.getElementById('taskDetailLog');
+            if (!data.logs || data.logs.length === 0) {
+                logEl.innerHTML = '<div class="text-muted small">No activity yet</div>';
+            } else {
+                logEl.innerHTML = data.logs.map(l => `
+                    <div class="task-log-entry">
+                        <span class="task-log-action">${l.actionType}</span>
+                        <span class="task-log-desc">${l.description || ''}</span>
+                        ${l.oldValue && l.newValue ? `<small class="text-muted ms-1">${l.oldValue} → ${l.newValue}</small>` : ''}
+                        <div class="task-log-meta">${l.userName} · ${l.createdAt}</div>
+                    </div>`).join('');
+            }
+        })
+        .catch(() => {
+            document.getElementById('taskDetailLog').innerHTML = '<div class="text-danger small">Failed to load</div>';
+        });
+}
+
+async function saveDetailModal() {
+    const name = document.getElementById('taskDetailTitle').value.trim();
+    const desc = document.getElementById('taskDetailDesc').value;
+    if (!name) return;
+
+    await Promise.all([
+        fetch('/ProjectTracker/UpdateName', {
+            method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: new URLSearchParams({ id: currentDetailId, name, __RequestVerificationToken: token })
+        }),
+        fetch('/ProjectTracker/UpdateDescription', {
+            method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: new URLSearchParams({ id: currentDetailId, description: desc, __RequestVerificationToken: token })
+        })
+    ]);
+
+    bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')).hide();
+    location.reload();
+}
+
+// ===== DRAG AND DROP =====
+let draggedCard = null;
+let placeholder = null;
+
+function createPlaceholder() {
+    const p = document.createElement('div');
+    p.className = 'kanban-drag-placeholder';
+    return p;
+}
+
+document.querySelectorAll('.kanban-card[draggable="true"]').forEach(card => {
+    card.addEventListener('dragstart', e => {
+        draggedCard = card;
+        setTimeout(() => card.classList.add('dragging'), 0);
+        e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        placeholder?.remove();
+        placeholder = null;
+        document.querySelectorAll('.kanban-column-body.drag-over').forEach(b => b.classList.remove('drag-over'));
+        draggedCard = null;
+    });
+});
+
+document.querySelectorAll('.kanban-column-body').forEach(body => {
+    body.addEventListener('dragover', e => {
+        if (!draggedCard) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        body.classList.add('drag-over');
+
+        if (!placeholder) placeholder = createPlaceholder();
+        const afterCard = getDragAfterCard(body, e.clientY);
+        if (afterCard) body.insertBefore(placeholder, afterCard);
+        else body.appendChild(placeholder);
+    });
+
+    body.addEventListener('dragleave', e => {
+        if (body.contains(e.relatedTarget)) return;
+        body.classList.remove('drag-over');
+        placeholder?.remove();
+        placeholder = null;
+    });
+
+    body.addEventListener('drop', async e => {
+        e.preventDefault();
+        body.classList.remove('drag-over');
+        if (!draggedCard) return;
+
+        const newStatus = body.getAttribute('data-status');
+        const oldStatus = draggedCard.getAttribute('data-status');
+        const projectId = draggedCard.getAttribute('data-project-id');
+
+        if (placeholder) {
+            body.insertBefore(draggedCard, placeholder);
+            placeholder.remove();
+            placeholder = null;
+        }
+
+        if (newStatus !== oldStatus) {
+            // Cross-column status change
+            draggedCard.setAttribute('data-status', newStatus);
+            try {
+                const res = await fetch('/ProjectTracker/UpdateStatus', {
+                    method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: new URLSearchParams({ id: projectId, status: newStatus, __RequestVerificationToken: token })
+                });
+                if (!res.ok) location.reload();
+                else {
+                    // Update column counts
+                    updateColumnCounts();
+                }
+            } catch { location.reload(); }
+        } else {
+            // Same-column reorder
+            const orderedIds = [...body.querySelectorAll('.kanban-card[data-project-id]')]
+                .map(c => parseInt(c.getAttribute('data-project-id')));
+            if (orderedIds.length > 0) {
+                fetch('/ProjectTracker/ReorderProjects', {
+                    method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: new URLSearchParams({ orderedIds: orderedIds.join(','), __RequestVerificationToken: token })
+                }).catch(e => console.error(e));
+            }
+        }
+    });
+});
+
+function getDragAfterCard(container, y) {
+    const cards = [...container.querySelectorAll('.kanban-card:not(.dragging)')];
+    return cards.reduce((closest, card) => {
+        const box = card.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > (closest.offset ?? -Infinity)) {
+            return { offset, element: card };
+        }
+        return closest;
+    }, {}).element;
+}
+
+function updateColumnCounts() {
+    document.querySelectorAll('.kanban-column').forEach(col => {
+        const body = col.querySelector('.kanban-column-body');
+        const header = col.querySelector('.kanban-column-count');
+        if (body && header) {
+            const count = body.querySelectorAll('.kanban-card').length;
+            header.textContent = count;
+        }
+    });
+}
 </script>

@@ -11,7 +11,10 @@
 
             <form method="post" asp-action="Edit" class="needs-validation" novalidate>
                 <input type="hidden" asp-for="Id" />
-                <div asp-validation-summary="All" class="alert alert-danger"></div>
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div asp-validation-summary="All" class="alert alert-danger"></div>
+                }
 
                 <div class="mb-3">
                     <label for="title" class="form-label">Event Title *</label>

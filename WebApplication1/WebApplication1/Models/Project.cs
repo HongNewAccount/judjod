@@ -23,6 +23,13 @@ public class Project
     [StringLength(500)]
     public string? Issues { get; set; } // JSON array or comma-separated
 
+    public int? GroupId { get; set; }
+
+    [StringLength(20)]
+    public string? Priority { get; set; } // None, Low, Medium, High
+
+    public int SortOrder { get; set; } = 0;
+
     public int CreatedByUserId { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -30,6 +37,7 @@ public class Project
     public DateTime? UpdatedAt { get; set; }
 
     // Navigation properties
+    public ProjectGroup? Group { get; set; }
     public User? CreatedByUser { get; set; }
     public ICollection<ProjectOwner> Owners { get; set; } = new List<ProjectOwner>();
     public ICollection<ProjectFavorite> Favorites { get; set; } = new List<ProjectFavorite>();

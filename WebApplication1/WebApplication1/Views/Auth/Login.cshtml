@@ -24,7 +24,10 @@
 
                     <form method="post" asp-controller="Auth" asp-action="Login">
                         @Html.AntiForgeryToken()
-                        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                        @if (!ViewData.ModelState.IsValid)
+                        {
+                            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                        }
 
                         <div class="mb-3">
                             <label for="username" class="form-label">Username</label>
