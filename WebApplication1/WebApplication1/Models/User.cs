@@ -10,12 +10,8 @@ public class User
     [StringLength(100)]
     public string FirstName { get; set; }
 
-    [Required]
     [StringLength(100)]
-    public string LastName { get; set; }
-
-    [StringLength(100)]
-    public string? NickName { get; set; }
+    public string? LastName { get; set; }
 
     [Required]
     [StringLength(100)]
@@ -33,17 +29,8 @@ public class User
     [StringLength(50)]
     public string? Role { get; set; }
 
-    [StringLength(100)]
-    public string? Position { get; set; }
-
     [StringLength(200)]
     public string? WorkLocation { get; set; }
-
-    [StringLength(20)]
-    public string? Status { get; set; } // Available, Unavailable, Absent
-
-    [StringLength(500)]
-    public string? Links { get; set; } // JSON or comma-separated links
 
     public bool IsActive { get; set; } = true;
 
@@ -55,10 +42,4 @@ public class User
     public string? ProfileImagePath { get; set; }
 
     public bool ProjectAccessSuspended { get; set; } = false;
-
-    // Navigation properties
-    public ICollection<Report> ReportsCreated { get; set; } = new List<Report>();
-    public ICollection<ReportAssignment> Assignments { get; set; } = new List<ReportAssignment>();
-    public ICollection<ReportComment> Comments { get; set; } = new List<ReportComment>();
-    public ICollection<EventAttendee> EventAttendees { get; set; } = new List<EventAttendee>();
 }

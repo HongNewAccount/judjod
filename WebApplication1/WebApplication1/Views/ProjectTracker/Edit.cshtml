@@ -1,4 +1,4 @@
-@model WebApplication1.Models.Project
+﻿@model WebApplication1.Models.Project
 
 @{
     ViewData["Title"] = "Edit Project";
@@ -59,7 +59,7 @@
                                     @foreach (var user in (List<WebApplication1.Models.User>)ViewBag.Users ?? new List<WebApplication1.Models.User>())
                                     {
                                         <option value="@user.Id" selected="@(Model?.Owners.Any(o => o.UserId == user.Id) == true)">
-                                            @user.FirstName @user.LastName (@user.Position)
+                                            @user.FirstName @user.LastName
                                         </option>
                                     }
                                 </select>
@@ -108,3 +108,4 @@
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
 }
+

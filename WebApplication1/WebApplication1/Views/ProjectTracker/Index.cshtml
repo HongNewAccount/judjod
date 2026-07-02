@@ -1,4 +1,4 @@
-@model IEnumerable<WebApplication1.Models.Project>
+﻿@model IEnumerable<WebApplication1.Models.Project>
 @inject WebApplication1.Data.ApplicationDbContext DbContext
 @{
     ViewData["Title"] = "Project Tracker";
@@ -22,6 +22,32 @@
     string PriorityLabel(string? p) => p switch { "High"=>"High","Medium"=>"Medium","Low"=>"Low",_=>"Priority" };
     string PriorityCls(string? p) => p switch { "High"=>"priority-high","Medium"=>"priority-medium","Low"=>"priority-low",_=>"priority-none" };
 
+    string DateLabel(DateTime? date) {
+        if (!date.HasValue) return "Date";
+        var days = (int)(date.Value.Date - DateTime.Today).TotalDays;
+        return days switch { 0 => "today", > 0 => $"{days}d", _ => $"{-days}d late" };
+    }
+    string DateUrgencyCls(DateTime? date) {
+        if (!date.HasValue) return "";
+        var days = (int)(date.Value.Date - DateTime.Today).TotalDays;
+        if (days < 0) return "date-overdue";
+        if (days == 0) return "date-today";
+        if (days <= 3) return "date-soon";
+        return "";
+    }
+    // Show date with Buddhist Era year (CE+543)
+    string ToBE(DateTime? date) {
+        if (!date.HasValue) return "";
+        return date.Value.ToString("dd MMM ") + (date.Value.Year + 543);
+    }
+    // Safe initials — handles null/empty LastName
+    string Initials(WebApplication1.Models.User? u) {
+        if (u == null) return "?";
+        var f = u.FirstName?.Length > 0 ? u.FirstName[0].ToString() : "";
+        var l = u.LastName?.Length > 0 ? u.LastName[0].ToString() : "";
+        return f + l;
+    }
+
     string OwnerNamesFromCsv(string? csv)
     {
         if (string.IsNullOrEmpty(csv)) return "None";
@@ -34,11 +60,25 @@
 @Html.AntiForgeryToken()
 
 <div class="container-fluid">
-    <div class="row mb-3 page-header">
+    <div class="row mb-3 page-header align-items-start">
         <div class="col">
-            <h1 class="page-title">Project Tracker</h1>
+            <div class="d-flex align-items-baseline gap-3">
+                <h1 class="page-title mb-0">Project Tracker</h1>
+                <span class="text-muted" style="font-size:.9rem;">@DateTime.Now.ToString("dddd, dd MMMM yyyy")</span>
+            </div>
             <p class="page-subtitle">Track and manage all organization projects</p>
         </div>
+        @if (userRole == "Admin")
+        {
+            <div class="col-auto d-flex gap-2 align-items-center">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="enterSelectMode('delete')">
+                    <i class="fas fa-trash me-1"></i>Delete
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-success" onclick="enterSelectMode('archive')">
+                    <i class="fas fa-archive me-1"></i>Archive
+                </button>
+            </div>
+        }
     </div>
 
     <div class="card mb-3">
@@ -63,7 +103,7 @@
                     <form asp-action="DeleteGroup" asp-route-id="@g.Id" method="post" class="d-inline ms-1"
                           onsubmit="return confirm('Delete group &quot;@g.Name&quot;?');">
                         @Html.AntiForgeryToken()
-                        <button type="submit" class="group-tab-delete" title="Delete group">×</button>
+                        <button type="submit" class="group-tab-delete" title="Delete group">&times;</button>
                     </form>
                 }
             </a>
@@ -118,7 +158,7 @@
                             </div>
                             <form asp-action="CancelRequest" asp-route-id="@req.Id" method="post" onsubmit="return confirm('Cancel this request?');" class="mt-1">
                                 @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-danger w-100">× Cancel</button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger w-100">&times; Cancel</button>
                             </form>
                         </div>
                     }
@@ -147,7 +187,7 @@
                             <div class="kanban-quick-row">
                                 @if (isAdmin)
                                 {
-                                    @* Assignee — interactive *@
+                                    @* Assignee - interactive *@
                                     <div class="dropdown">
                                         <button type="button"
                                                 class="kanban-quick-btn @(project.Owners.Any() ? "" : "kanban-quick-btn-empty")"
@@ -158,33 +198,54 @@
                                                     @foreach (var owner in project.Owners.Take(3))
                                                     {
                                                         <span class="kanban-card-avatar" title="@owner.User?.FirstName @owner.User?.LastName">
-                                                            @(owner.User != null ? $"{owner.User.FirstName[0]}{owner.User.LastName[0]}" : "?")
+                                                            @Initials(owner.User)
                                                         </span>
                                                     }
                                                 </div>
                                             }
                                             else { <i class="fas fa-user-plus"></i> }
                                         </button>
-                                        <div class="dropdown-menu p-2 owner-picker" style="min-width:200px;" data-project-id="@project.Id">
+                                        <div class="dropdown-menu p-2 owner-picker" style="min-width:230px;max-height:280px;overflow-y:auto;" data-project-id="@project.Id">
+                                            <input type="text" class="form-control form-control-sm mb-2 owner-search" placeholder="Search..." onclick="event.stopPropagation()" />
                                             @foreach (var user in allUsers)
                                             {
                                                 var isAssigned = project.Owners.Any(o => o.UserId == user.Id);
-                                                <div class="form-check">
-                                                    <input class="form-check-input owner-checkbox" type="checkbox"
-                                                           id="owner_@(project.Id)_@(user.Id)" value="@user.Id"
-                                                           checked="@isAssigned" data-project-id="@project.Id" />
-                                                    <label class="form-check-label small" for="owner_@(project.Id)_@(user.Id)">@user.FirstName @user.LastName</label>
+                                                <div class="owner-item py-1">
+                                                    <label class="d-flex align-items-center gap-2" for="owner_@(project.Id)_@(user.Id)" style="cursor:pointer;margin:0;">
+                                                        <input class="form-check-input flex-shrink-0 owner-checkbox" type="checkbox"
+                                                               id="owner_@(project.Id)_@(user.Id)" value="@user.Id"
+                                                               checked="@isAssigned" data-project-id="@project.Id"
+                                                               style="margin:0;" />
+                                                        @if (!string.IsNullOrEmpty(user.ProfileImagePath))
+                                                        {
+                                                            <img src="@user.ProfileImagePath" class="rounded-circle flex-shrink-0" style="width:24px;height:24px;object-fit:cover;" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="rounded-circle d-inline-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0" style="width:24px;height:24px;font-size:9px;background:linear-gradient(135deg,#667eea,#764ba2);">
+                                                                @(user.FirstName.Length > 0 ? user.FirstName[0].ToString() : "")@(user.LastName?.Length > 0 ? user.LastName[0].ToString() : "")
+                                                            </span>
+                                                        }
+                                                        <span class="small">@user.FirstName @user.LastName</span>
+                                                    </label>
                                                 </div>
                                             }
                                         </div>
                                     </div>
 
-                                    @* Group — interactive *@
+                                    @* Group - interactive *@
                                     <div class="dropdown">
                                         <button type="button"
                                                 class="kanban-quick-btn @(project.GroupId.HasValue ? "kanban-quick-btn-group" : "kanban-quick-btn-empty")"
                                                 data-bs-toggle="dropdown" title="Group">
-                                            <i class="fas fa-users me-1"></i>
+                                            @if (project.Group?.Color != null)
+                                            {
+                                                <span style="width:8px;height:8px;border-radius:50%;background:@project.Group.Color;display:inline-block;margin-right:4px;flex-shrink:0;"></span>
+                                            }
+                                            else
+                                            {
+                                                <i class="fas fa-users me-1"></i>
+                                            }
                                             <span>@(project.Group?.Name ?? "Group")</span>
                                         </button>
                                         <div class="dropdown-menu p-2" style="min-width:170px;" data-project-id="@project.Id">
@@ -202,21 +263,22 @@
                                         </div>
                                     </div>
 
-                                    @* Due Date — interactive *@
+                                    @* Due Date - interactive *@
                                     <div class="kanban-date-wrap">
                                         <button type="button"
-                                                class="kanban-quick-btn @(project.EndDate.HasValue ? "" : "kanban-quick-btn-empty")"
-                                                title="Due Date" onclick="toggleDatePicker(this)"
+                                                class="kanban-quick-btn @(project.EndDate.HasValue ? DateUrgencyCls(project.EndDate) : "kanban-quick-btn-empty")"
+                                                title="@ToBE(project.EndDate)"
+                                                onclick="toggleDatePicker(this)"
                                                 data-project-id="@project.Id">
                                             <i class="fas fa-calendar-alt me-1"></i>
-                                            <span class="due-date-label">@(project.EndDate?.ToString("dd MMM") ?? "Date")</span>
+                                            <span class="due-date-label">@DateLabel(project.EndDate)</span>
                                         </button>
                                         <input type="date" class="kanban-date-input form-control form-control-sm d-none"
                                                value="@(project.EndDate?.ToString("yyyy-MM-dd") ?? "")"
                                                data-project-id="@project.Id" />
                                     </div>
 
-                                    @* Priority — interactive dropdown *@
+                                    @* Priority - interactive dropdown *@
                                     <div class="dropdown">
                                         <button type="button"
                                                 class="kanban-quick-btn kanban-priority-btn @PriorityCls(project.Priority)"
@@ -244,15 +306,16 @@
                                             <div class="kanban-avatars">
                                                 @foreach (var owner in project.Owners.Take(3))
                                                 {
-                                                    <span class="kanban-card-avatar">@(owner.User != null ? $"{owner.User.FirstName[0]}{owner.User.LastName[0]}" : "?")</span>
+                                                    <span class="kanban-card-avatar">@Initials(owner.User)</span>
                                                 }
                                             </div>
                                         </span>
                                     }
                                     @if (project.EndDate.HasValue)
                                     {
-                                        <span class="kanban-quick-btn kanban-quick-btn-empty" style="cursor:default;">
-                                            <i class="fas fa-calendar-alt me-1"></i>@project.EndDate.Value.ToString("dd MMM")
+                                        <span class="kanban-quick-btn @DateUrgencyCls(project.EndDate)" style="cursor:default;"
+                                              title="@project.EndDate.Value.ToString("dd MMM yyyy")">
+                                            <i class="fas fa-calendar-alt me-1"></i>@DateLabel(project.EndDate)
                                         </span>
                                     }
                                     @if (!string.IsNullOrEmpty(project.Priority) && project.Priority != "None")
@@ -271,13 +334,19 @@
     </div>
 </div>
 
-<!-- Drag-to-delete trash zone (Admin only) -->
-@if (userRole == "Admin")
-{
-    <div id="deleteDropZone" class="kanban-delete-zone">
-        <i class="fas fa-trash"></i> Drop here to delete
+
+<!-- FAB bulk actions (center bottom, shown in select mode) -->
+<div id="bulkBottomBar" class="bulk-fab-bar d-none">
+    <div class="bulk-fab-count" id="bulkSelectionCount">0 selected</div>
+    <div class="d-flex gap-3 justify-content-center">
+        <button type="button" id="bulkApplyBtn" class="bulk-fab-btn bulk-fab-apply" onclick="applyBulkAction()" title="Apply">
+            <i class="fas fa-check"></i>
+        </button>
+        <button type="button" class="bulk-fab-btn bulk-fab-cancel" onclick="exitSelectMode()" title="Cancel">
+            <i class="fas fa-times"></i>
+        </button>
     </div>
-}
+</div>
 
 <!-- ===== ADD TASK MODAL ===== -->
 <div class="modal fade" id="addTaskModal" tabindex="-1" aria-hidden="true">
@@ -376,9 +445,69 @@ document.getElementById('boardSearch').addEventListener('keyup', function () {
     });
 });
 
-// ===== CARD CLICK → OPEN DETAIL MODAL =====
+// ===== BULK SELECT MODE =====
+let selectMode = null;
+
+function enterSelectMode(mode) {
+    selectMode = mode;
+    const bar = document.getElementById('bulkBottomBar');
+    bar.classList.remove('d-none');
+    const applyBtn = document.getElementById('bulkApplyBtn');
+    if (mode === 'delete') {
+        applyBtn.className = 'bulk-fab-btn bulk-fab-apply bulk-fab-delete';
+        applyBtn.title = 'Delete selected';
+    } else {
+        applyBtn.className = 'bulk-fab-btn bulk-fab-apply bulk-fab-archive';
+        applyBtn.title = 'Archive selected';
+    }
+    document.querySelectorAll('.kanban-card[data-project-id]').forEach(card => {
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'bulk-cb';
+        cb.addEventListener('change', updateBulkCount);
+        cb.addEventListener('click', e => e.stopPropagation());
+        card.prepend(cb);
+    });
+    document.getElementById('kanbanBoard').classList.add('select-mode');
+    updateBulkCount();
+}
+
+function exitSelectMode() {
+    selectMode = null;
+    const bar2 = document.getElementById('bulkBottomBar');
+    bar2.classList.add('d-none');
+    document.querySelectorAll('.bulk-cb').forEach(cb => cb.remove());
+    document.getElementById('kanbanBoard').classList.remove('select-mode');
+}
+
+function updateBulkCount() {
+    const count = document.querySelectorAll('.bulk-cb:checked').length;
+    document.getElementById('bulkSelectionCount').textContent = count + ' selected';
+}
+
+async function applyBulkAction() {
+    const checked = [...document.querySelectorAll('.bulk-cb:checked')];
+    if (checked.length === 0) { alert('Select at least one task.'); return; }
+    const projectIds = checked.map(cb => cb.closest('.kanban-card').getAttribute('data-project-id')).join(',');
+    const action = selectMode;
+    try {
+        const res = await fetch('/ProjectTracker/BulkAction', {
+            method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: new URLSearchParams({ action, projectIds, __RequestVerificationToken: token })
+        });
+        if (res.ok) location.reload();
+        else alert('Action failed.');
+    } catch { alert('Error occurred.'); }
+}
+
+// ===== CARD CLICK - OPEN DETAIL MODAL =====
 function cardClicked(e, id, name) {
-    // Skip if clicking on any interactive element or the chip row
+    if (selectMode) {
+        const card = e.currentTarget;
+        const cb = card.querySelector('.bulk-cb');
+        if (cb && e.target !== cb) { cb.checked = !cb.checked; updateBulkCount(); }
+        return;
+    }
     if (e.target.closest('.kanban-quick-row')) return;
     const skipTags = ['BUTTON','INPUT','SELECT','TEXTAREA','A'];
     if (skipTags.includes(e.target.tagName)) return;
@@ -440,6 +569,18 @@ document.querySelectorAll('.owner-checkbox').forEach(cb => {
     });
 });
 
+// ===== OWNER SEARCH =====
+document.querySelectorAll('.owner-search').forEach(input => {
+    input.addEventListener('input', function () {
+        const term = this.value.toLowerCase();
+        this.closest('.owner-picker').querySelectorAll('.owner-item').forEach(item => {
+            const name = item.querySelector('span.small')?.textContent?.toLowerCase() ?? '';
+            item.style.display = name.includes(term) ? '' : 'none';
+        });
+    });
+    input.addEventListener('keydown', e => e.stopPropagation());
+});
+
 // ===== GROUP ASSIGN =====
 document.querySelectorAll('.group-assign-btn').forEach(btn => {
     btn.addEventListener('click', async function () {
@@ -470,7 +611,7 @@ function openAddModal(status, groupId) {
     document.querySelectorAll('.add-task-assignee').forEach(cb => cb.checked = false);
 
     const titles = { Planning: 'To Do', InProgress: 'In Progress', Late: 'Late', Completed: 'Complete' };
-    document.getElementById('addTaskModalTitle').textContent = `Add Task — ${titles[status] || status}`;
+    document.getElementById('addTaskModalTitle').textContent = 'Add Task - ' + (titles[status] || status);
 
     new bootstrap.Modal(document.getElementById('addTaskModal')).show();
     setTimeout(() => document.getElementById('addTaskName').focus(), 300);
@@ -530,6 +671,7 @@ function openDetailModal(id, name) {
     fetch('/ProjectTracker/GetProjectDetails?id=' + id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
         .then(r => r.json())
         .then(data => {
+            if (data.name) document.getElementById('taskDetailTitle').value = data.name;
             document.getElementById('taskDetailDesc').value = data.description || '';
             const logEl = document.getElementById('taskDetailLog');
             if (!data.logs || data.logs.length === 0) {
@@ -539,8 +681,8 @@ function openDetailModal(id, name) {
                     <div class="task-log-entry">
                         <span class="task-log-action">${l.actionType}</span>
                         <span class="task-log-desc">${l.description || ''}</span>
-                        ${l.oldValue && l.newValue ? `<small class="text-muted ms-1">${l.oldValue} → ${l.newValue}</small>` : ''}
-                        <div class="task-log-meta">${l.userName} · ${l.createdAt}</div>
+                        ${l.oldValue && l.newValue ? `<small class="text-muted ms-1">${l.oldValue} â†’ ${l.newValue}</small>` : ''}
+                        <div class="task-log-meta">${l.userName} Â· ${l.createdAt}</div>
                     </div>`).join('');
             }
         })
@@ -569,6 +711,21 @@ async function saveDetailModal() {
     location.reload();
 }
 
+async function archiveCurrentTask() {
+    if (!currentDetailId) return;
+    if (!confirm('Archive this task? It will be removed from the board.')) return;
+    try {
+        const res = await fetch('/ProjectTracker/UpdateStatus', {
+            method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: new URLSearchParams({ id: currentDetailId, status: 'Closed', __RequestVerificationToken: token })
+        });
+        if (res.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')).hide();
+            location.reload();
+        }
+    } catch (e) { console.error(e); }
+}
+
 // ===== DRAG AND DROP =====
 let draggedCard = null;
 let placeholder = null;
@@ -579,52 +736,26 @@ function createPlaceholder() {
     return p;
 }
 
-const deleteZone = document.getElementById('deleteDropZone');
-
 document.querySelectorAll('.kanban-card[draggable="true"]').forEach(card => {
     card.addEventListener('dragstart', e => {
+        if (selectMode) { e.preventDefault(); return; }
         draggedCard = card;
-        setTimeout(() => {
-            card.classList.add('dragging');
-            if (deleteZone) deleteZone.classList.add('visible');
-        }, 0);
+        setTimeout(() => { card.classList.add('dragging'); }, 0);
         e.dataTransfer.effectAllowed = 'move';
     });
     card.addEventListener('dragend', () => {
         card.classList.remove('dragging');
         placeholder?.remove();
         placeholder = null;
+        lastDropTarget = null; lastDropBody = null;
         document.querySelectorAll('.kanban-column-body.drag-over').forEach(b => b.classList.remove('drag-over'));
-        if (deleteZone) { deleteZone.classList.remove('visible', 'drag-over-delete'); }
         draggedCard = null;
     });
 });
 
-if (deleteZone) {
-    deleteZone.addEventListener('dragover', e => {
-        e.preventDefault();
-        deleteZone.classList.add('drag-over-delete');
-    });
-    deleteZone.addEventListener('dragleave', () => {
-        deleteZone.classList.remove('drag-over-delete');
-    });
-    deleteZone.addEventListener('drop', async e => {
-        e.preventDefault();
-        deleteZone.classList.remove('drag-over-delete', 'visible');
-        if (!draggedCard) return;
-        const projectId = draggedCard.getAttribute('data-project-id');
-        const name = draggedCard.querySelector('.kanban-card-title')?.textContent?.trim() || 'this project';
-        if (!confirm(`Delete "${name}"?`)) return;
-        try {
-            const res = await fetch('/ProjectTracker/DeleteAjax/' + projectId, {
-                method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                body: new URLSearchParams({ __RequestVerificationToken: token })
-            });
-            if (res.ok) location.reload();
-            else alert('Delete failed.');
-        } catch { alert('Delete error.'); }
-    });
-}
+// Track target card independently of placeholder (placeholder can be removed by dragleave)
+let lastDropTarget = null; // card to insertBefore, or null = append at end
+let lastDropBody = null;   // which column body was last hovered
 
 document.querySelectorAll('.kanban-column-body').forEach(body => {
     body.addEventListener('dragover', e => {
@@ -633,8 +764,11 @@ document.querySelectorAll('.kanban-column-body').forEach(body => {
         e.dataTransfer.dropEffect = 'move';
         body.classList.add('drag-over');
 
-        if (!placeholder) placeholder = createPlaceholder();
         const afterCard = getDragAfterCard(body, e.clientY);
+        lastDropTarget = afterCard ?? null;
+        lastDropBody = body;
+
+        if (!placeholder) placeholder = createPlaceholder();
         if (afterCard) body.insertBefore(placeholder, afterCard);
         else body.appendChild(placeholder);
     });
@@ -644,6 +778,7 @@ document.querySelectorAll('.kanban-column-body').forEach(body => {
         body.classList.remove('drag-over');
         placeholder?.remove();
         placeholder = null;
+        // Keep lastDropTarget/lastDropBody — drop may still fire on this body
     });
 
     body.addEventListener('drop', async e => {
@@ -655,36 +790,51 @@ document.querySelectorAll('.kanban-column-body').forEach(body => {
         const oldStatus = draggedCard.getAttribute('data-status');
         const projectId = draggedCard.getAttribute('data-project-id');
 
-        if (placeholder) {
-            body.insertBefore(draggedCard, placeholder);
-            placeholder.remove();
-            placeholder = null;
+        // Determine insert position — use placeholder if still in DOM, else use lastDropTarget
+        const insertBefore = (placeholder && body.contains(placeholder))
+            ? placeholder
+            : (lastDropTarget && body.contains(lastDropTarget) ? lastDropTarget : null);
+
+        // Move card in DOM
+        if (insertBefore) {
+            body.insertBefore(draggedCard, insertBefore);
+        } else {
+            body.appendChild(draggedCard);
         }
 
+        // Clean up placeholder
+        if (placeholder) { placeholder.remove(); placeholder = null; }
+        lastDropTarget = null; lastDropBody = null;
+
+        // Compute orderedIds from current DOM state (card already moved)
+        const orderedIds = [...body.querySelectorAll('.kanban-card[data-project-id]')]
+            .map(c => parseInt(c.getAttribute('data-project-id')))
+            .filter(id => id > 0);
+
+        const saveReorder = async () => {
+            if (orderedIds.length === 0) return;
+            try {
+                await fetch('/ProjectTracker/ReorderProjects', {
+                    method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: new URLSearchParams({ orderedIds: orderedIds.join(',') })
+                });
+            } catch (err) { console.error('ReorderProjects error:', err); }
+        };
+
         if (newStatus !== oldStatus) {
-            // Cross-column status change
+            // Cross-column: update status + save order + reload
             draggedCard.setAttribute('data-status', newStatus);
             try {
-                const res = await fetch('/ProjectTracker/UpdateStatus', {
+                await fetch('/ProjectTracker/UpdateStatus', {
                     method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
                     body: new URLSearchParams({ id: projectId, status: newStatus, __RequestVerificationToken: token })
                 });
-                if (!res.ok) location.reload();
-                else {
-                    // Update column counts
-                    updateColumnCounts();
-                }
-            } catch { location.reload(); }
+                await saveReorder();
+            } catch { /* fall through */ }
+            location.reload();
         } else {
-            // Same-column reorder
-            const orderedIds = [...body.querySelectorAll('.kanban-card[data-project-id]')]
-                .map(c => parseInt(c.getAttribute('data-project-id')));
-            if (orderedIds.length > 0) {
-                fetch('/ProjectTracker/ReorderProjects', {
-                    method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                    body: new URLSearchParams({ orderedIds: orderedIds.join(','), __RequestVerificationToken: token })
-                }).catch(e => console.error(e));
-            }
+            // Same-column: save silently, card stays in new visual position
+            saveReorder(); // fire-and-forget, no reload
         }
     });
 });
@@ -701,6 +851,17 @@ function getDragAfterCard(container, y) {
     }, {}).element;
 }
 
+// Auto-open modal if ?openTask=ID is in URL (e.g. coming from User Details page)
+(function () {
+    const taskId = new URLSearchParams(window.location.search).get('openTask');
+    if (!taskId) return;
+    const card = document.querySelector(`.kanban-card[data-project-id="${taskId}"]`);
+    const name = card ? (card.querySelector('.kanban-card-title')?.textContent?.trim() || '') : '';
+    openDetailModal(parseInt(taskId), name);
+    // Clean URL without reloading
+    history.replaceState(null, '', window.location.pathname + (window.location.search.replace(/[?&]openTask=\d+/, '') || ''));
+})();
+
 function updateColumnCounts() {
     document.querySelectorAll('.kanban-column').forEach(col => {
         const body = col.querySelector('.kanban-column-body');
@@ -712,3 +873,7 @@ function updateColumnCounts() {
     });
 }
 </script>
+
+
+
+

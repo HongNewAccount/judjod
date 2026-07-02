@@ -1,4 +1,4 @@
-@model WebApplication1.Models.Project
+﻿@model WebApplication1.Models.Project
 
 @{
     ViewData["Title"] = "Create Project";
@@ -47,7 +47,7 @@
                                     @foreach (var user in (List<WebApplication1.Models.User>)ViewBag.Users ?? new List<WebApplication1.Models.User>())
                                     {
                                         <option value="@user.Id">
-                                            @user.FirstName @user.LastName (@user.Position)
+                                            @user.FirstName @user.LastName
                                         </option>
                                     }
                                 </select>
@@ -57,7 +57,7 @@
                             <div class="col-md-6 mb-3">
                                 <label for="group" class="form-label">Group</label>
                                 <select class="form-control" id="group" name="GroupId">
-                                    <option value="">— No Group —</option>
+                                    <option value="">â€” No Group â€”</option>
                                     @foreach (var g in (List<WebApplication1.Models.ProjectGroup>)(ViewBag.Groups ?? new List<WebApplication1.Models.ProjectGroup>()))
                                     {
                                         <option value="@g.Id">@g.Name</option>
@@ -108,3 +108,4 @@
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
 }
+

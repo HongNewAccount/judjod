@@ -43,18 +43,6 @@
                     </a>
                 </li>
                 <li class="sidebar-item">
-                    <a class="@NavClass("Event")" asp-controller="Event" asp-action="Index" title="Events">
-                        <i class="fas fa-calendar"></i>
-                        <span>Events</span>
-                    </a>
-                </li>
-                <li class="sidebar-item">
-                    <a class="@NavClass("Report")" asp-controller="Report" asp-action="Index" title="Reports">
-                        <i class="fas fa-file-alt"></i>
-                        <span>Reports</span>
-                    </a>
-                </li>
-                <li class="sidebar-item">
                     <a class="@NavClass("Dashboard")" asp-controller="Dashboard" asp-action="Index" title="Calendar">
                         <i class="fas fa-calendar-alt"></i>
                         <span>Calendar</span>
@@ -64,6 +52,12 @@
                     <a class="@NavClass("ProjectTracker", "ActivityLog")" asp-controller="ProjectTracker" asp-action="ActivityLog" title="Activity Log">
                         <i class="fas fa-history"></i>
                         <span>Activity Log</span>
+                    </a>
+                </li>
+                <li class="sidebar-item">
+                    <a class="@NavClass("ProjectTracker", "Archive")" asp-controller="ProjectTracker" asp-action="Archive" title="Archive">
+                        <i class="fas fa-archive"></i>
+                        <span>Archive</span>
                     </a>
                 </li>
                 <li class="sidebar-item">

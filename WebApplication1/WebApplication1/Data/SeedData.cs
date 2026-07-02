@@ -25,8 +25,6 @@ public static class SeedData
                 Email = "admin@example.com",
                 Phone = "0812345678",
                 Role = "Admin",
-                Position = "Administrator",
-                Status = "Available",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             },
@@ -38,9 +36,7 @@ public static class SeedData
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("john123"),
                 Email = "john@example.com",
                 Phone = "0812345679",
-                Role = "Manager",
-                Position = "Project Manager",
-                Status = "Available",
+                Role = "User",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             },
@@ -53,8 +49,6 @@ public static class SeedData
                 Email = "jane@example.com",
                 Phone = "0812345680",
                 Role = "User",
-                Position = "Team Member",
-                Status = "Available",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             }
@@ -113,90 +107,6 @@ public static class SeedData
         };
 
         context.ProjectOwners.AddRange(projectOwners);
-        context.SaveChanges();
-
-        // Create sample events
-        var events = new[]
-        {
-            new OrganizationEvent
-            {
-                Title = "Team Meeting",
-                Description = "Weekly team sync-up meeting",
-                EventDate = DateTime.UtcNow.AddDays(2).AddHours(10),
-                EventEndDate = DateTime.UtcNow.AddDays(2).AddHours(11),
-                Location = "Conference Room A",
-                IsOnSite = true,
-                CreatedByUserId = users[0].Id,
-                CreatedAt = DateTime.UtcNow
-            },
-            new OrganizationEvent
-            {
-                Title = "Project Kickoff",
-                Description = "Kickoff meeting for Website Redesign project",
-                EventDate = DateTime.UtcNow.AddDays(5).AddHours(14),
-                EventEndDate = DateTime.UtcNow.AddDays(5).AddHours(15).AddMinutes(30),
-                Location = "Meeting Room B",
-                IsOnSite = true,
-                CreatedByUserId = users[1].Id,
-                CreatedAt = DateTime.UtcNow
-            },
-            new OrganizationEvent
-            {
-                Title = "Training Session",
-                Description = "ASP.NET Core training for developers",
-                EventDate = DateTime.UtcNow.AddDays(10).AddHours(9),
-                EventEndDate = DateTime.UtcNow.AddDays(10).AddHours(12),
-                Location = "Online",
-                IsOnSite = false,
-                CreatedByUserId = users[0].Id,
-                CreatedAt = DateTime.UtcNow
-            }
-        };
-
-        context.OrganizationEvents.AddRange(events);
-        context.SaveChanges();
-
-        // Create sample reports
-        var reports = new[]
-        {
-            new Report
-            {
-                Title = "Bug: Login Page Fails on Firefox",
-                Description = "Users cannot login when using Firefox browser. Error appears on authentication step.",
-                Priority = "High",
-                Status = "InProgress",
-                ReportedDate = DateTime.UtcNow.AddDays(-3),
-                ScheduledDate = DateTime.UtcNow.AddDays(1),
-                Location = "All browsers",
-                IsOnSite = false,
-                CreatedByUserId = users[2].Id,
-                CreatedAt = DateTime.UtcNow
-            },
-            new Report
-            {
-                Title = "Feature Request: Dark Mode",
-                Description = "Add dark mode theme to the application for better user experience.",
-                Priority = "Medium",
-                Status = "Pending",
-                ReportedDate = DateTime.UtcNow.AddDays(-1),
-                ScheduledDate = DateTime.UtcNow.AddDays(10),
-                CreatedByUserId = users[1].Id,
-                CreatedAt = DateTime.UtcNow
-            },
-            new Report
-            {
-                Title = "Performance Issue: Slow Dashboard",
-                Description = "Dashboard takes too long to load with 1000+ records. Need optimization.",
-                Priority = "High",
-                Status = "Pending",
-                ReportedDate = DateTime.UtcNow,
-                ScheduledDate = DateTime.UtcNow.AddDays(3),
-                CreatedByUserId = users[0].Id,
-                CreatedAt = DateTime.UtcNow
-            }
-        };
-
-        context.Reports.AddRange(reports);
         context.SaveChanges();
 
         // Create activity logs

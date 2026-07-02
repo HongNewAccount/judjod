@@ -1,135 +1,93 @@
 @model WebApplication1.Models.User
 
 @{
-    ViewData["Title"] = "Edit User";
+    ViewData["Title"] = "Edit Profile";
 }
 
-<div class="container mt-5">
+<div class="container-fluid">
     <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Edit User Profile</h5>
-                </div>
+        <div class="col-md-6 col-lg-5">
+
+            <div class="page-header mb-4">
+                <h1 class="page-title">Edit Profile</h1>
+                <p class="page-subtitle">@Model.FirstName @Model.LastName</p>
+            </div>
+
+            <div class="card border-0 shadow-sm">
                 <div class="card-body p-4">
-                    @{
-                        var currentUserId = Context.Session.GetInt32("UserId");
-                        var userRole = Context.Session.GetString("UserRole");
-                        var canEditRole = userRole == "Admin";
-                    }
 
-                    <form method="post" asp-action="Edit" enctype="multipart/form-data" class="needs-validation" novalidate>
-                        <input type="hidden" asp-for="Id" />
-                        @if (!ViewData.ModelState.IsValid)
-                        {
-                            <div asp-validation-summary="All" class="alert alert-danger"></div>
-                        }
-
-                        <!-- Profile Image Section -->
-                        <div class="mb-4 text-center">
-                            <div class="mb-3">
-                                @if (!string.IsNullOrEmpty(Model.ProfileImagePath))
-                                {
-                                    <img src="@Model.ProfileImagePath" alt="Profile" class="rounded-circle" width="150" height="150" />
-                                }
-                                else
-                                {
-                                    <div class="rounded-circle bg-secondary text-white d-inline-flex align-items-center justify-content-center" style="width: 150px; height: 150px; font-size: 60px;">
-                                        <i class="fas fa-user"></i>
-                                    </div>
-                                }
-                            </div>
-                            @if (currentUserId == Model.Id || canEditRole)
+                    @if (!ViewData.ModelState.IsValid && ViewData.ModelState.Values.Any(v => v.Errors.Count > 0))
+                    {
+                        <div class="alert alert-danger small py-2">
+                            @foreach (var err in ViewData.ModelState.Values.SelectMany(v => v.Errors))
                             {
-                                <label for="profileImage" class="form-label">Upload Profile Picture</label>
-                                <input type="file" class="form-control" id="profileImage" name="profileImage" accept="image/*" />
-                                <small class="text-muted">JPG, PNG, GIF (Max 5MB)</small>
+                                <div>@err.ErrorMessage</div>
                             }
                         </div>
+                    }
 
-                        <hr />
+                    <form method="post" asp-action="Edit" enctype="multipart/form-data">
+                        <input type="hidden" asp-for="Id" />
 
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="firstName" class="form-label">First Name *</label>
-                                <input type="text" class="form-control" id="firstName" asp-for="FirstName" required />
-                                <span asp-validation-for="FirstName" class="text-danger"></span>
+                        <!-- Profile image -->
+                        <div class="text-center mb-4">
+                            @if (!string.IsNullOrEmpty(Model.ProfileImagePath))
+                            {
+                                <img src="@Model.ProfileImagePath" alt="Profile"
+                                     class="rounded-circle mb-3"
+                                     style="width:100px;height:100px;object-fit:cover;" />
+                            }
+                            else
+                            {
+                                <div class="rounded-circle d-inline-flex align-items-center justify-content-center text-white fw-bold mb-3"
+                                     style="width:100px;height:100px;font-size:36px;background:linear-gradient(135deg,#667eea,#764ba2);">
+                                    @Model.FirstName[0]@(string.IsNullOrEmpty(Model.LastName) ? "" : Model.LastName[0].ToString())
+                                </div>
+                            }
+                            <div>
+                                <label for="profileImage" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-camera me-1"></i>Change Photo
+                                </label>
+                                <input type="file" id="profileImage" name="profileImage"
+                                       accept="image/*" class="d-none"
+                                       onchange="previewImage(this)" />
                             </div>
-
-                            <div class="col-md-6 mb-3">
-                                <label for="lastName" class="form-label">Last Name *</label>
-                                <input type="text" class="form-control" id="lastName" asp-for="LastName" required />
-                                <span asp-validation-for="LastName" class="text-danger"></span>
-                            </div>
+                            <div class="text-muted" style="font-size:.75rem;">JPG, PNG (Max 5MB)</div>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="nickName" class="form-label">Nickname</label>
-                            <input type="text" class="form-control" id="nickName" asp-for="NickName" />
-                        </div>
+                        <hr class="mb-4" />
 
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="email" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="email" asp-for="Email" />
-                                <span asp-validation-for="Email" class="text-danger"></span>
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold small">ชื่อ <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" asp-for="FirstName" required />
                             </div>
-
-                            <div class="col-md-6 mb-3">
-                                <label for="phone" class="form-label">Phone</label>
-                                <input type="tel" class="form-control" id="phone" asp-for="Phone" />
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="passwordHash" class="form-label">Password (Optional)</label>
-                            <input type="password" class="form-control" id="passwordHash" asp-for="PasswordHash" placeholder="Leave blank to keep current password" />
-                            <small class="text-muted">Only fill this field if you want to change the password</small>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="role" class="form-label">Role</label>
-                                <select class="form-control" id="role" asp-for="Role" disabled="@(!canEditRole)">
-                                    <option value="">Select Role</option>
-                                    <option value="Admin">Admin</option>
-                                    <option value="User">User</option>
-                                </select>
-                                @if (!canEditRole)
-                                {
-                                    <input type="hidden" asp-for="Role" />
-                                    <small class="text-muted">(Admin only)</small>
-                                }
-                            </div>
-
-                            <div class="col-md-6 mb-3">
-                                <label for="position" class="form-label">Position</label>
-                                <input type="text" class="form-control" id="position" asp-for="Position" />
+                            <div class="col-6">
+                                <label class="form-label fw-semibold small">นามสกุล</label>
+                                <input type="text" class="form-control" asp-for="LastName" />
                             </div>
                         </div>
 
                         <div class="mb-3">
-                            <label for="workLocation" class="form-label">Work Location</label>
-                            <input type="text" class="form-control" id="workLocation" asp-for="WorkLocation" placeholder="e.g., Floor 2, Desk 5" />
+                            <label class="form-label fw-semibold small">ที่อยู่</label>
+                            <input type="text" class="form-control" asp-for="WorkLocation" placeholder="บ้านเลขที่, ถนน, จังหวัด" />
                         </div>
 
                         <div class="mb-3">
-                            <label for="status" class="form-label">Status</label>
-                            <select class="form-control" id="status" asp-for="Status">
-                                <option value="Available">Available</option>
-                                <option value="Unavailable">Unavailable</option>
-                                <option value="Absent">Absent</option>
-                            </select>
+                            <label class="form-label fw-semibold small">เบอร์โทรศัพท์</label>
+                            <input type="tel" class="form-control" asp-for="Phone" placeholder="0812345678" />
                         </div>
 
-                        <div class="mb-3">
-                            <label for="links" class="form-label">Links</label>
-                            <input type="text" class="form-control" id="links" asp-for="Links" placeholder="e.g., portfolio/social links, comma-separated" />
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold small">Gmail</label>
+                            <input type="email" class="form-control" asp-for="Email" placeholder="example@gmail.com" />
                         </div>
 
-                        <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">
-                            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-action">Save Changes</button>
+                        <div class="d-flex gap-2">
+                            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary flex-fill">Cancel</a>
+                            <button type="submit" class="btn btn-modal-action flex-fill">
+                                <i class="fas fa-save me-1"></i>Save
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -138,6 +96,23 @@
     </div>
 </div>
 
-@section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+<script>
+function previewImage(input) {
+    if (!input.files || !input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        const img = input.closest('.card-body').querySelector('img.rounded-circle');
+        const placeholder = input.closest('.card-body').querySelector('div.rounded-circle');
+        if (img) {
+            img.src = e.target.result;
+        } else if (placeholder) {
+            const newImg = document.createElement('img');
+            newImg.src = e.target.result;
+            newImg.className = 'rounded-circle mb-3';
+            newImg.style.cssText = 'width:100px;height:100px;object-fit:cover;';
+            placeholder.replaceWith(newImg);
+        }
+    };
+    reader.readAsDataURL(input.files[0]);
 }
+</script>

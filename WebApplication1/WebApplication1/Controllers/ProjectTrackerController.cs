@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApplication1.Data;
 using WebApplication1.Models;
@@ -33,7 +33,6 @@ public class ProjectTrackerController : Controller
             .Include(p => p.CreatedByUser)
             .Include(p => p.Owners)
                 .ThenInclude(po => po.User)
-            .Include(p => p.Favorites)
             .ToListAsync();
 
         var pendingCreations = await _context.ProjectApprovalRequests
@@ -51,12 +50,12 @@ public class ProjectTrackerController : Controller
         ViewBag.PendingCreations = pendingCreations;
         ViewBag.PendingUpdates = pendingUpdateIds;
 
-        // Auto-convert to Late if past end date and not completed
+        // Auto-convert to Late: only Planning/InProgress with past due date
         foreach (var project in allProjects)
         {
             if (project.EndDate.HasValue &&
-                DateTime.UtcNow.Date > project.EndDate.Value.Date &&
-                project.Status != "Completed")
+                DateTime.Today > project.EndDate.Value.Date &&
+                (project.Status == "Planning" || project.Status == "InProgress"))
             {
                 project.Status = "Late";
             }
@@ -67,7 +66,7 @@ public class ProjectTrackerController : Controller
         var projects = allProjects
             .Where(p => p.Status != "Closed")
             .Where(p => groupId == null || p.GroupId == groupId)
-            .OrderBy(p => p.SortOrder).ThenByDescending(p => p.CreatedAt).ToList();
+            .OrderBy(p => p.SortOrder).ThenBy(p => p.Id).ToList();
 
         return View(projects);
     }
@@ -585,65 +584,6 @@ public class ProjectTrackerController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ToggleFavorite(int id)
-    {
-        var userRole = HttpContext.Session.GetString("UserRole");
-
-        // Only Admin can toggle favorites
-        if (userRole != "Admin")
-        {
-            return Forbid();
-        }
-
-        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
-        var favorite = await _context.ProjectFavorites
-            .FirstOrDefaultAsync(pf => pf.ProjectId == id && pf.UserId == userId);
-
-        var isFavorited = false;
-
-        if (favorite != null)
-        {
-            _context.ProjectFavorites.Remove(favorite);
-            _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
-            {
-                ProjectId = id,
-                UserId = userId,
-                ActionType = "FavoriteRemoved",
-                Description = "Project removed from favorites",
-                CreatedAt = DateTime.UtcNow
-            });
-        }
-        else
-        {
-            _context.ProjectFavorites.Add(new WebApplication1.Models.ProjectFavorite
-            {
-                ProjectId = id,
-                UserId = userId,
-                CreatedAt = DateTime.UtcNow
-            });
-            _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
-            {
-                ProjectId = id,
-                UserId = userId,
-                ActionType = "FavoriteAdded",
-                Description = "Project added to favorites",
-                CreatedAt = DateTime.UtcNow
-            });
-            isFavorited = true;
-        }
-
-        await _context.SaveChangesAsync();
-
-        // Return JSON for AJAX request
-        if (HttpContext.Request.Headers["X-Requested-With"] == "XMLHttpRequest")
-        {
-            return Ok(new { success = true, isFavorited });
-        }
-
-        return RedirectToAction(nameof(Index));
-    }
 
     private static readonly string[] ValidBoardStatuses = { "Planning", "InProgress", "Late", "Completed" };
 
@@ -656,7 +596,7 @@ public class ProjectTrackerController : Controller
             return BadRequest();
         }
 
-        if (!ValidBoardStatuses.Contains(status))
+        if (!ValidBoardStatuses.Contains(status) && status != "Closed")
         {
             return BadRequest();
         }
@@ -826,7 +766,8 @@ public class ProjectTrackerController : Controller
         if (userRole != "Admin" && !isOwner) return Forbid();
         if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
 
-        DateTime? newDate = string.IsNullOrWhiteSpace(endDate) ? null : (DateTime.TryParse(endDate, out var d) ? d : project.EndDate);
+        DateTime? newDate = string.IsNullOrWhiteSpace(endDate) ? null :
+            (DateTime.TryParse(endDate, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d2) ? d2 : project.EndDate);
 
         if (userRole == "Admin")
         {
@@ -874,7 +815,6 @@ public class ProjectTrackerController : Controller
     }
 
     [HttpPost]
-    [ValidateAntiForgeryToken]
     public async Task<IActionResult> ReorderProjects(string orderedIds)
     {
         if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
@@ -884,15 +824,47 @@ public class ProjectTrackerController : Controller
 
         if (string.IsNullOrEmpty(orderedIds)) return BadRequest();
 
-        var ids = orderedIds.Split(',').Select(s => int.TryParse(s.Trim(), out var id) ? id : 0).Where(x => x > 0).ToArray();
-        var projects = await _context.Projects.Where(p => ids.Contains(p.Id)).ToListAsync();
+        var ids = orderedIds.Split(',')
+            .Select(s => int.TryParse(s.Trim(), out var id) ? id : 0)
+            .Where(x => x > 0).ToArray();
+
+        // Use raw SQL so EF change tracking cannot skip "unchanged" values
         for (int i = 0; i < ids.Length; i++)
         {
-            var proj = projects.FirstOrDefault(p => p.Id == ids[i]);
-            if (proj != null) proj.SortOrder = i;
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE Projects SET SortOrder = {0} WHERE Id = {1}", i, ids[i]);
         }
-        await _context.SaveChangesAsync();
+
         return Ok(new { success = true });
+    }
+
+    // ===== BULK ACTION =====
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkAction(string action, string projectIds)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin") return Forbid();
+        if (string.IsNullOrWhiteSpace(projectIds) || string.IsNullOrWhiteSpace(action)) return BadRequest();
+
+        var ids = projectIds.Split(',')
+            .Select(s => int.TryParse(s.Trim(), out var id) ? id : 0)
+            .Where(x => x > 0).ToList();
+        if (!ids.Any()) return BadRequest();
+
+        var projects = await _context.Projects.Where(p => ids.Contains(p.Id)).ToListAsync();
+
+        if (action == "delete")
+            _context.Projects.RemoveRange(projects);
+        else if (action == "archive")
+            foreach (var p in projects) p.Status = "Closed";
+        else
+            return BadRequest();
+
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true, count = projects.Count });
     }
 
     // ===== QUICK CREATE (inline popup) =====
@@ -916,7 +888,13 @@ public class ProjectTrackerController : Controller
 
         var validStatus = ValidBoardStatuses.Contains(status) ? status : "Planning";
         DateTime? dueDate = string.IsNullOrWhiteSpace(endDate) ? null :
-            (DateTime.TryParse(endDate, out var d) ? (DateTime?)d : null);
+            (DateTime.TryParse(endDate, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d) ? (DateTime?)d : null);
+
+        // New tasks go to the bottom of their column
+        var maxSort = await _context.Projects
+            .Where(p => p.Status == validStatus)
+            .Select(p => (int?)p.SortOrder)
+            .MaxAsync() ?? -1;
 
         if (userRole == "Admin")
         {
@@ -928,6 +906,7 @@ public class ProjectTrackerController : Controller
                 StartDate = DateTime.Today,
                 EndDate = dueDate,
                 GroupId = groupId,
+                SortOrder = maxSort + 1,
                 CreatedByUserId = userId,
                 CreatedAt = DateTime.UtcNow
             };
@@ -1128,6 +1107,48 @@ public class ProjectTrackerController : Controller
         return Ok(new { success = true });
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReopenProject(int id)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin") return Forbid();
+
+        var project = await _context.Projects.FindAsync(id);
+        if (project == null) return NotFound();
+
+        project.Status = "InProgress";
+        project.EndDate = null;
+        project.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true });
+    }
+
+    public async Task<IActionResult> Archive(string searchTerm = "")
+    {
+        var query = _context.Projects
+            .Include(p => p.CreatedByUser)
+            .Include(p => p.Owners).ThenInclude(o => o.User)
+            .Include(p => p.Group)
+            .Where(p => p.Status == "Closed")
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var lower = searchTerm.ToLower();
+            var matching = await query.ToListAsync();
+            matching = matching.Where(p => p.Name.ToLower().Contains(lower) ||
+                (p.Description ?? "").ToLower().Contains(lower)).ToList();
+            ViewBag.SearchTerm = searchTerm;
+            return View(matching.OrderByDescending(p => p.UpdatedAt ?? p.CreatedAt).ToList());
+        }
+
+        var projects = await query.OrderByDescending(p => p.UpdatedAt ?? p.CreatedAt).ToListAsync();
+        ViewBag.SearchTerm = searchTerm;
+        return View(projects);
+    }
+
     public async Task<IActionResult> ActivityLog(string filter = "all", string searchTerm = "", string searchType = "all", string sortBy = "newest", int page = 1)
     {
         const int pageSize = 20;
@@ -1198,3 +1219,6 @@ public class ProjectTrackerController : Controller
         return View(logs);
     }
 }
+
+
+

@@ -59,26 +59,12 @@
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="role" class="form-label">Role</label>
-                                <select class="form-control" id="role" asp-for="Role">
-                                    <option value="">Select Role</option>
-                                    <option value="Admin">Admin</option>
-                                    <option value="Manager">Manager</option>
-                                    <option value="User">User</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-6 mb-3">
-                                <label for="position" class="form-label">Position</label>
-                                <input type="text" class="form-control" id="position" asp-for="Position" />
-                            </div>
-                        </div>
-
                         <div class="mb-3">
-                            <label for="workLocation" class="form-label">Work Location</label>
-                            <input type="text" class="form-control" id="workLocation" asp-for="WorkLocation" placeholder="e.g., Floor 2, Desk 5" />
+                            <label for="role" class="form-label">Role</label>
+                            <select class="form-control" id="role" asp-for="Role">
+                                <option value="User">User (Viewer)</option>
+                                <option value="Admin">Admin (Can Edit)</option>
+                            </select>
                         </div>
 
                         <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">

@@ -1,4 +1,4 @@
-* {
+﻿* {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -1316,3 +1316,93 @@ body {
     background-color: var(--color-accent-hover) !important;
     border-color: var(--color-accent-hover) !important;
 }
+
+/* Date urgency chip colors */
+.kanban-quick-btn.date-today {
+    color: #fd7e14;
+    background: #fff3e6;
+    border-color: #fd7e14;
+    font-weight: 600;
+}
+.kanban-quick-btn.date-soon {
+    color: #b45309;
+    background: #fff8e6;
+    border-color: #ffd78a;
+}
+.kanban-quick-btn.date-overdue {
+    color: #dc3545;
+    background: #fdecee;
+    border-color: #f5c6cb;
+}
+
+/* Bulk select mode */
+.bulk-cb {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    z-index: 5;
+    accent-color: var(--color-accent);
+}
+.kanban-board.select-mode .kanban-card {
+    position: relative;
+    cursor: pointer;
+}
+.kanban-board.select-mode .kanban-card:has(.bulk-cb:checked) {
+    outline: 2px solid var(--color-accent);
+    background: #fff8f0;
+}
+/* Fixed bottom bulk action bar */
+.bulk-bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1040;
+    background: #fff;
+    padding: 12px 24px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,.15);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-top: 3px solid #dc3545;
+}
+/* FAB bulk action icons */
+.bulk-fab-bar {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.bulk-fab-count {
+    background: rgba(0,0,0,.65);
+    color: #fff;
+    font-size: .75rem;
+    padding: 2px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+}
+.bulk-fab-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,.3);
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+.bulk-fab-btn:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+.bulk-fab-delete { background: #dc3545; color: #fff; }
+.bulk-fab-archive { background: #198754; color: #fff; }
+.bulk-fab-cancel { background: #fff; color: #6c757d; }

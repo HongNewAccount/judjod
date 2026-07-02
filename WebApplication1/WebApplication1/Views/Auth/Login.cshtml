@@ -10,13 +10,12 @@
                 <div class="card-body p-5">
                     <h2 class="card-title text-center mb-4">Judjod Dashboard</h2>
                     <h5 class="card-subtitle text-muted text-center mb-4">Login to your Judjod account</h5>
-                    @if (!ViewData.ModelState.IsValid && ViewData.ModelState.Count > 0)
+                    @if (!ViewData.ModelState.IsValid && ViewData.ModelState.Values.Any(v => v.Errors.Count > 0))
                     {
                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <strong>Login Failed!</strong>
                             @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
                             {
-                                <p>@error.ErrorMessage</p>
+                                <div>@error.ErrorMessage</div>
                             }
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
@@ -24,10 +23,6 @@
 
                     <form method="post" asp-controller="Auth" asp-action="Login">
                         @Html.AntiForgeryToken()
-                        @if (!ViewData.ModelState.IsValid)
-                        {
-                            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
-                        }
 
                         <div class="mb-3">
                             <label for="username" class="form-label">Username</label>

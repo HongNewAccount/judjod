@@ -22,7 +22,13 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
+// Force Gregorian calendar so DateTime.Parse / model binding never uses ThaiBuddhistCalendar
+var gregorianCulture = new System.Globalization.CultureInfo("en-US");
+System.Globalization.CultureInfo.DefaultThreadCurrentCulture = gregorianCulture;
+System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = gregorianCulture;
+
 var app = builder.Build();
+app.UseRequestLocalization("en-US");
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

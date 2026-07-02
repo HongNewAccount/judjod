@@ -3,22 +3,6 @@
 @{
     ViewData["Title"] = "Users";
     var userRole = Context.Session.GetString("UserRole");
-
-    string GetRoleClass(string role) => role switch
-    {
-        "Admin" => "bg-danger",
-        "Manager" => "bg-warning text-dark",
-        "User" => "bg-info",
-        _ => "bg-secondary"
-    };
-
-    string GetStatusClass(string status) => status switch
-    {
-        "Available" => "bg-success",
-        "Unavailable" => "bg-warning text-dark",
-        "Absent" => "bg-danger",
-        _ => "bg-secondary"
-    };
 }
 
 <div class="container-fluid">
@@ -39,70 +23,69 @@
 
     @if (Model.Any())
     {
-        <div class="card">
-            <div class="list-group list-group-flush">
-                @foreach (var user in Model)
-                {
-                    <a asp-action="Details" asp-route-id="@user.Id" class="list-group-item list-group-item-action user-row d-flex align-items-center gap-3 text-decoration-none text-reset">
+        <div class="row g-2">
+            @foreach (var user in Model)
+            {
+                <div class="col-12 col-md-4">
+                    <a asp-action="Details" asp-route-id="@user.Id"
+                       class="user-row card border-0 shadow-sm text-decoration-none text-reset d-flex flex-row align-items-center gap-3 p-3">
+
                         @if (!string.IsNullOrEmpty(user.ProfileImagePath))
                         {
-                            <img src="@user.ProfileImagePath" alt="@user.FirstName" class="user-row-avatar" style="object-fit: cover;" />
+                            <img src="@user.ProfileImagePath" alt="@user.FirstName" class="user-row-avatar" style="object-fit:cover;" />
                         }
                         else
                         {
                             <div class="user-row-avatar d-flex align-items-center justify-content-center">
-                                @user.FirstName[0]@user.LastName[0]
+                                @user.FirstName[0]@(string.IsNullOrEmpty(user.LastName) ? "" : user.LastName[0].ToString())
                             </div>
                         }
-                        <div class="flex-grow-1" style="min-width: 0;">
-                            <div class="d-flex align-items-center flex-wrap gap-2">
-                                <span class="fw-semibold">@user.FirstName @user.LastName</span>
-                                <span class="badge @GetRoleClass(user.Role)">@(user.Role ?? "User")</span>
-                                <span class="badge @GetStatusClass(user.Status)">@(user.Status ?? "Available")</span>
+
+                        <div class="flex-grow-1" style="min-width:0;">
+                            <div class="fw-semibold text-truncate">@user.FirstName @user.LastName</div>
+                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                <span class="badge @(user.Role == "Admin" ? "bg-danger" : "bg-secondary")" style="font-size:.68rem;">
+                                    @(user.Role == "Admin" ? "Admin" : "User")
+                                </span>
                                 @if (!user.IsActive)
                                 {
-                                    <span class="badge bg-danger"><i class="fas fa-ban me-1"></i>Banned</span>
+                                    <span class="badge bg-danger" style="font-size:.68rem;"><i class="fas fa-ban me-1"></i>Banned</span>
                                 }
                                 @if (user.ProjectAccessSuspended)
                                 {
-                                    <span class="badge bg-warning text-dark"><i class="fas fa-pause-circle me-1"></i>Project Suspended</span>
+                                    <span class="badge bg-warning text-dark" style="font-size:.68rem;">Suspended</span>
                                 }
                             </div>
-                            <small class="text-muted">@(user.Position ?? "N/A")</small>
                         </div>
-                        <i class="fas fa-chevron-right text-muted flex-shrink-0"></i>
+
+                        <i class="fas fa-chevron-right text-muted flex-shrink-0" style="font-size:.75rem;"></i>
                     </a>
-                }
-            </div>
+                </div>
+            }
         </div>
     }
     else
     {
-        <div class="alert alert-info" role="alert">
-            No users found. <a asp-action="Create" class="alert-link">Add one now</a>
-        </div>
+        <div class="alert alert-info">No users found.</div>
     }
 </div>
 
 <style>
-    .user-row-avatar {
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        font-size: 16px;
-        font-weight: bold;
-        flex-shrink: 0;
-    }
-
-    .user-row {
-        padding: 0.75rem 1.25rem;
-        transition: background-color 0.15s ease;
-    }
-
-    .user-row:hover {
-        background-color: #f8f9fb;
-        color: inherit;
-    }
+.user-row-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+.user-row {
+    transition: box-shadow 0.15s ease;
+    cursor: pointer;
+}
+.user-row:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,.1) !important;
+}
 </style>

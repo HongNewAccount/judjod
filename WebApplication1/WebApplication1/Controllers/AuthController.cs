@@ -24,8 +24,13 @@ public class AuthController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(string username, string password)
     {
-        var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Username == username && u.IsActive);
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+
+        if (user != null && !user.IsActive)
+        {
+            ModelState.AddModelError("", "This account has been banned. Please contact an administrator.");
+            return View();
+        }
 
         if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
         {
@@ -102,7 +107,6 @@ public class AuthController : Controller
             LastName = "",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
             Role = canEdit ? "Admin" : "User",
-            Status = "Available",
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
