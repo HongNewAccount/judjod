@@ -1149,71 +1149,23 @@ public class ProjectTrackerController : Controller
         return View(projects);
     }
 
-    public async Task<IActionResult> ActivityLog(string filter = "all", string searchTerm = "", string searchType = "all", string sortBy = "newest", int page = 1)
+    public async Task<IActionResult> ActivityLog(int page = 1)
     {
-        const int pageSize = 20;
+        const int pageSize = 30;
 
-        var query = _context.ActivityLogs as IQueryable<WebApplication1.Models.ActivityLog>;
-
-        // Filter by action type
-        if (filter != "all")
-        {
-            query = query.Where(al => al.ActionType == filter);
-        }
-
-        // Search by user or project
-        if (!string.IsNullOrWhiteSpace(searchTerm))
-        {
-            var lowerSearchTerm = searchTerm.ToLower();
-            if (searchType == "user")
-            {
-                query = query.Where(al =>
-                    al.User.FirstName.ToLower().Contains(lowerSearchTerm) ||
-                    al.User.LastName.ToLower().Contains(lowerSearchTerm)
-                );
-            }
-            else if (searchType == "project")
-            {
-                query = query.Where(al =>
-                    al.Project.Name.ToLower().Contains(lowerSearchTerm)
-                );
-            }
-            else
-            {
-                query = query.Where(al =>
-                    al.User.FirstName.ToLower().Contains(lowerSearchTerm) ||
-                    al.User.LastName.ToLower().Contains(lowerSearchTerm) ||
-                    (al.Project != null && al.Project.Name.ToLower().Contains(lowerSearchTerm))
-                );
-            }
-        }
-
-        var queryWithIncludes = query
+        var query = _context.ActivityLogs
             .Include(al => al.Project)
-            .Include(al => al.User);
+            .Include(al => al.User)
+            .OrderByDescending(al => al.CreatedAt);
 
-        IOrderedQueryable<WebApplication1.Models.ActivityLog> sortedQuery = sortBy switch
-        {
-            "oldest" => queryWithIncludes.OrderBy(al => al.CreatedAt),
-            "user" => queryWithIncludes.OrderBy(al => al.User.FirstName).ThenBy(al => al.User.LastName),
-            "project" => queryWithIncludes.OrderBy(al => al.Project.Name),
-            _ => queryWithIncludes.OrderByDescending(al => al.CreatedAt)
-        };
-
-        var totalCount = await sortedQuery.CountAsync();
-        var logs = await sortedQuery
+        var totalCount = await query.CountAsync();
+        var logs = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 
-        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
-
-        ViewBag.FilterType = filter;
-        ViewBag.SearchTerm = searchTerm;
-        ViewBag.SearchType = searchType;
-        ViewBag.SortBy = sortBy;
         ViewBag.CurrentPage = page;
-        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalPages = (int)Math.Ceiling((double)totalCount / pageSize);
         ViewBag.TotalCount = totalCount;
 
         return View(logs);

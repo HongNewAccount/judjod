@@ -44,9 +44,11 @@
                         <div class="flex-grow-1" style="min-width:0;">
                             <div class="fw-semibold text-truncate">@user.FirstName @user.LastName</div>
                             <div class="d-flex flex-wrap gap-1 mt-1">
-                                <span class="badge @(user.Role == "Admin" ? "bg-danger" : "bg-secondary")" style="font-size:.68rem;">
-                                    @(user.Role == "Admin" ? "Admin" : "User")
-                                </span>
+                                <span class="badge bg-secondary" style="font-size:.68rem;">User</span>
+                                @if (user.Role == "Admin")
+                                {
+                                    <span class="badge bg-success" style="font-size:.68rem;">Can Edit</span>
+                                }
                                 @if (!user.IsActive)
                                 {
                                     <span class="badge bg-danger" style="font-size:.68rem;"><i class="fas fa-ban me-1"></i>Banned</span>

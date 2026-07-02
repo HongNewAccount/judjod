@@ -425,7 +425,6 @@
                 </div>
             </div>
             <div class="modal-footer py-2 px-3">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-modal-action btn-sm" onclick="saveDetailModal()">
                     <i class="fas fa-save me-1"></i>Save
                 </button>
@@ -567,6 +566,13 @@ document.querySelectorAll('.owner-checkbox').forEach(cb => {
             setTimeout(() => location.reload(), 300);
         } catch (e) { console.error(e); }
     });
+});
+
+// ===== DROPDOWN OVERFLOW FIX (temporary overflow:visible on column while dropdown open) =====
+document.querySelectorAll('.kanban-card .dropdown').forEach(dd => {
+    const col = dd.closest('.kanban-column');
+    dd.addEventListener('show.bs.dropdown', () => { if (col) col.style.overflow = 'visible'; });
+    dd.addEventListener('hide.bs.dropdown', () => { if (col) col.style.overflow = ''; });
 });
 
 // ===== OWNER SEARCH =====
