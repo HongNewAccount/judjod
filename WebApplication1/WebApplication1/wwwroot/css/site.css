@@ -1422,3 +1422,26 @@ body {
 }
 .calendar-item:hover { background: rgba(0,0,0,.06); color: inherit; }
 .calendar-day-items { overflow: hidden; }
+/* Activity log clickable row */
+.log-row-clickable:hover { background: #fff8f0; }
+.log-row-clickable:hover td { color: var(--color-accent); }
+/* Kanban card description preview */
+.kanban-card-desc {
+    font-size: .72rem;
+    color: #888;
+    margin: 3px 0 5px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+}
+/* Kanban card owner names */
+.kanban-card-owners {
+    font-size: .68rem;
+    color: #aaa;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

@@ -25,7 +25,12 @@
     string DateLabel(DateTime? date) {
         if (!date.HasValue) return "Date";
         var days = (int)(date.Value.Date - DateTime.Today).TotalDays;
-        return days switch { 0 => "today", > 0 => $"{days}d", _ => $"{-days}d late" };
+        var dateStr = date.Value.ToString("dd MMM ") + (date.Value.Year + 543);
+        return days switch {
+            0 => $"today · {dateStr}",
+            > 0 => $"{days}d · {dateStr}",
+            _ => $"{-days}d late · {dateStr}"
+        };
     }
     string DateUrgencyCls(DateTime? date) {
         if (!date.HasValue) return "";
@@ -180,6 +185,11 @@
                             }
 
                             <span class="kanban-card-title d-block">@project.Name</span>
+
+                            @if (!string.IsNullOrWhiteSpace(project.Description))
+                            {
+                                <p class="kanban-card-desc">@project.Description</p>
+                            }
 
                             <div class="kanban-quick-row">
                                 @if (isAdmin)

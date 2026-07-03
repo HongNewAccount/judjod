@@ -1,4 +1,4 @@
-@model IEnumerable<WebApplication1.Models.User>
+﻿@model IEnumerable<WebApplication1.Models.User>
 
 @{
     ViewData["Title"] = "Users";
@@ -44,10 +44,17 @@
                         <div class="flex-grow-1" style="min-width:0;">
                             <div class="fw-semibold text-truncate">@user.FirstName @user.LastName</div>
                             <div class="d-flex flex-wrap gap-1 mt-1">
-                                <span class="badge bg-secondary" style="font-size:.68rem;">User</span>
-                                @if (user.Role == "Admin")
+                                @if (user.Id == 1)
                                 {
-                                    <span class="badge bg-success" style="font-size:.68rem;">Can Edit</span>
+                                    <span class="badge bg-danger" style="font-size:.68rem;">Admin</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary" style="font-size:.68rem;">User</span>
+                                    @if (user.Role == "Admin")
+                                    {
+                                        <span class="badge bg-success" style="font-size:.68rem;">Can Edit</span>
+                                    }
                                 }
                                 @if (!user.IsActive)
                                 {

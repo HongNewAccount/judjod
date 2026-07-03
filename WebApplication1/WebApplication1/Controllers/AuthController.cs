@@ -42,6 +42,8 @@ public class AuthController : Controller
         HttpContext.Session.SetString("Username", user.Username);
         HttpContext.Session.SetString("UserName", $"{user.FirstName} {user.LastName}");
         HttpContext.Session.SetString("UserRole", user.Role ?? "User");
+        // SuperAdmin = first user (ID=1), has full control (ban, toggle edit)
+        HttpContext.Session.SetString("IsSuperAdmin", user.Id == 1 ? "true" : "false");
 
         return RedirectToAction("Index", "ProjectTracker");
     }

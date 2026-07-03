@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApplication1.Data;
 using WebApplication1.Models;
@@ -149,11 +149,8 @@ public class UserController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ToggleBan(int id)
     {
-        var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin")
-        {
-            return Forbid();
-        }
+        var isSuperAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
+        if (!isSuperAdmin) return Forbid();
 
         var user = await _context.Users.FindAsync(id);
         if (user == null)
@@ -173,8 +170,8 @@ public class UserController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ToggleCanEdit(int id)
     {
-        var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin") return Forbid();
+        var isSuperAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
+        if (!isSuperAdmin) return Forbid();
 
         var currentUserId = HttpContext.Session.GetInt32("UserId");
         if (currentUserId == id)

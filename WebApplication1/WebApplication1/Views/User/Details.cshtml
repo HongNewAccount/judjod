@@ -4,6 +4,7 @@
     ViewData["Title"] = "User";
     var viewerRole = Context.Session.GetString("UserRole");
     var isAdminViewer = viewerRole == "Admin";
+    var isSuperAdminViewer = Context.Session.GetString("IsSuperAdmin") == "true";
     var ownedProjects = (List<WebApplication1.Models.Project>)(ViewBag.OwnedProjects ?? new List<WebApplication1.Models.Project>());
 
     var todoProjects      = ownedProjects.Where(p => p.Status == "Planning").ToList();
@@ -39,10 +40,17 @@
                 <div class="flex-grow-1" style="min-width:0;">
                     <h4 class="mb-1 fw-bold">@Model.FirstName @Model.LastName</h4>
                     <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-                        <span class="badge bg-secondary">User</span>
-                        @if (Model.Role == "Admin")
+                        @if (Model.Id == 1)
                         {
-                            <span class="badge bg-success ms-1">Can Edit</span>
+                            <span class="badge bg-danger">Admin</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">User</span>
+                            @if (Model.Role == "Admin")
+                            {
+                                <span class="badge bg-success ms-1">Can Edit</span>
+                            }
                         }
                         @if (!Model.IsActive)
                         {
@@ -70,7 +78,7 @@
                 </div>
 
                 <div class="d-flex gap-2 flex-wrap flex-shrink-0 align-items-center">
-                    @if (isAdminViewer)
+                    @if (isSuperAdminViewer)
                     {
                         <form asp-action="ToggleCanEdit" asp-route-id="@Model.Id" method="post" class="d-inline">
                             @Html.AntiForgeryToken()
@@ -93,7 +101,7 @@
                     }
                     @{
                         var currentSessionId = Context.Session.GetInt32("UserId");
-                        var canEditProfile = isAdminViewer || currentSessionId == Model.Id;
+                        var canEditProfile = isSuperAdminViewer || isAdminViewer || currentSessionId == Model.Id;
                     }
                     @if (canEditProfile)
                     {

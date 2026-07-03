@@ -5,16 +5,9 @@
 }
 
 <div class="container-fluid">
-    <div class="row mb-4 page-header">
-        <div class="col">
-            <h1 class="page-title">Activity Log</h1>
-            <p class="page-subtitle">Track all project changes and activities</p>
-        </div>
-        <div class="col-auto">
-            <a asp-action="Index" class="btn btn-sm btn-secondary" title="Back to Project List">
-                <i class="fas fa-arrow-left me-1"></i>Back
-            </a>
-        </div>
+    <div class="page-header">
+        <h1 class="page-title">Activity Log</h1>
+        <p class="page-subtitle">Track all project changes and activities</p>
     </div>
 
     @if (TempData["ErrorMessage"] != null)
@@ -66,14 +59,16 @@
                         <tbody>
                             @foreach (var log in Model)
                             {
-                                <tr class="align-middle">
+                                var hasProject = log.Project != null;
+                                var rowClick = hasProject
+                                    ? $"openLogTaskModal({log.ProjectId}, '{log.Project!.Name.Replace("'", "\\'")}')"
+                                    : "";
+                                <tr class="align-middle @(hasProject ? "log-row-clickable" : "")"
+                                    @(hasProject ? $"onclick=\"{rowClick}\" style=\"cursor:pointer;\"" : "")>
                                     <td>
-                                        @if (log.Project != null)
+                                        @if (hasProject)
                                         {
-                                            <a href="#" onclick="openLogTaskModal(@log.ProjectId, '@log.Project.Name.Replace("'","\\'")')"
-                                               style="cursor:pointer;" title="View task">
-                                                @log.Project.Name
-                                            </a>
+                                            <span>@log.Project!.Name</span>
                                         }
                                         else
                                         {
@@ -81,7 +76,7 @@
                                         }
                                     </td>
                                     <td>
-                                        <span class="badge @GetActionBadgeClass(log.ActionType)">
+                                        <span class="badge text-white @GetActionBadgeClass(log.ActionType)">
                                             @GetActionLabel(log.ActionType)
                                         </span>
                                     </td>
@@ -121,22 +116,27 @@
         </div>
         @if (ViewBag.TotalPages > 1)
         {
-            <div class="card-footer bg-light d-flex justify-content-between align-items-center">
-                <small class="text-muted">Page @ViewBag.CurrentPage of @ViewBag.TotalPages</small>
-                <div class="d-flex gap-2">
-                    @if (ViewBag.CurrentPage > 1)
+            int cur = (int)ViewBag.CurrentPage;
+            int total = (int)ViewBag.TotalPages;
+            // Always exactly 3 consecutive numbers (or fewer if total < 3)
+            int pageCount = Math.Min(3, total);
+            int pStart = Math.Max(1, Math.Min(cur - 1, total - pageCount + 1));
+            int pEnd = pStart + pageCount - 1;
+            <div class="card-footer bg-light d-flex justify-content-center">
+                <ul class="pagination mb-0">
+                    <li class="page-item @(cur <= 1 ? "disabled" : "")">
+                        <a class="page-link" asp-action="ActivityLog" asp-route-page="@(cur - 1)">&lsaquo;</a>
+                    </li>
+                    @for (int p = pStart; p <= pEnd; p++)
                     {
-                        <a class="btn btn-sm btn-outline-secondary" asp-action="ActivityLog" asp-route-page="@(ViewBag.CurrentPage - 1)">
-                            <i class="fas fa-chevron-left me-1"></i>Previous
-                        </a>
+                        <li class="page-item @(p == cur ? "active" : "")">
+                            <a class="page-link" asp-action="ActivityLog" asp-route-page="@p">@p</a>
+                        </li>
                     }
-                    @if (ViewBag.CurrentPage < ViewBag.TotalPages)
-                    {
-                        <a class="btn btn-sm btn-outline-secondary" asp-action="ActivityLog" asp-route-page="@(ViewBag.CurrentPage + 1)">
-                            Next<i class="fas fa-chevron-right ms-1"></i>
-                        </a>
-                    }
-                </div>
+                    <li class="page-item @(cur >= total ? "disabled" : "")">
+                        <a class="page-link" asp-action="ActivityLog" asp-route-page="@(cur + 1)">&rsaquo;</a>
+                    </li>
+                </ul>
             </div>
         }
     </div>
