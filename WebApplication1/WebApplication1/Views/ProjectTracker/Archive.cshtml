@@ -4,23 +4,30 @@
     ViewData["Title"] = "Archive";
     var userRole = Context.Session.GetString("UserRole") ?? "User";
     var searchTerm = ViewBag.SearchTerm ?? "";
+    var canEdit = userRole == "Admin" || userRole == "Editor";
+
+    string Initials(WebApplication1.Models.User? u) {
+        if (u == null) return "?";
+        var f = u.FirstName?.Length > 0 ? u.FirstName[0].ToString() : "";
+        var l = u.LastName?.Length > 0 ? u.LastName[0].ToString() : "";
+        return f + l;
+    }
+
+    string PriorityCls(string? p) => p switch {
+        "High" => "priority-high", "Medium" => "priority-medium", "Low" => "priority-low", _ => "priority-none"
+    };
 }
 
 <div class="container-fluid">
-    <div class="row mb-4 page-header">
-        <div class="col">
-            <div class="d-flex align-items-baseline gap-3">
-                <h1 class="page-title mb-0"><i class="fas fa-archive me-2 text-success"></i>Archive</h1>
-                <span class="badge bg-success">@Model.Count() Completed</span>
-            </div>
-            <p class="page-subtitle">All completed projects</p>
-        </div>
+    <div class="page-header mb-3">
+        <h1 class="page-title mb-0"><i class="fas fa-archive me-2 text-success"></i>Archive</h1>
+        <p class="page-subtitle">All archived tasks</p>
     </div>
 
-    <div class="card mb-4">
+    <div class="card mb-3">
         <div class="card-body py-2">
             <form method="get" asp-action="Archive" class="d-flex gap-2">
-                <input type="text" name="searchTerm" class="form-control" placeholder="Search archived projects..." value="@searchTerm" />
+                <input type="text" name="searchTerm" class="form-control" placeholder="Search..." value="@searchTerm" />
                 <button type="submit" class="btn btn-modal-action btn-sm" style="white-space:nowrap;">Search</button>
                 @if (!string.IsNullOrEmpty(searchTerm))
                 {
@@ -32,82 +39,142 @@
 
     @if (!Model.Any())
     {
-        <div class="card">
-            <div class="p-5 text-center">
-                <i class="fas fa-archive" style="font-size:48px;color:#ccc;"></i>
-                <p class="text-muted mt-3">No completed projects yet.</p>
-            </div>
+        <div class="card p-5 text-center border-0 shadow-sm">
+            <i class="fas fa-archive" style="font-size:48px;color:#ccc;"></i>
+            <p class="text-muted mt-3">No archived tasks yet.</p>
         </div>
     }
     else
     {
-        <div class="row g-3">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.75rem;">
             @foreach (var project in Model)
             {
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h6 class="card-title fw-bold mb-0">@project.Name</h6>
-                                <span class="badge bg-secondary ms-2 flex-shrink-0">Archived</span>
-                            </div>
+                var safeName = project.Name.Replace("\\", "\\\\").Replace("'", "\\'");
+                <div class="kanban-card" style="cursor:pointer;"
+                     onclick="openArchiveTaskModal(@project.Id, '@safeName')">
+                    <span class="badge bg-secondary mb-1" style="font-size:.65rem;">Archived</span>
 
-                            @if (project.Group != null)
-                            {
-                                <span class="badge mb-2" style="background: @(project.Group.Color ?? "#6c757d")22; color: @(project.Group.Color ?? "#6c757d"); border: 1px solid @(project.Group.Color ?? "#6c757d"); font-weight:600; font-size:.7rem;">
-                                    @project.Group.Name
-                                </span>
-                            }
+                    <span class="kanban-card-title d-block">@project.Name</span>
 
-                            @if (!string.IsNullOrEmpty(project.Description))
-                            {
-                                <p class="card-text text-muted small mb-2" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
-                                    @project.Description
-                                </p>
-                            }
+                    @if (!string.IsNullOrWhiteSpace(project.Description))
+                    {
+                        <p class="kanban-card-desc">@project.Description</p>
+                    }
 
-                            <div class="d-flex flex-wrap gap-2 mb-3 text-muted" style="font-size:.8rem;">
-                                @if (project.Owners.Any())
-                                {
-                                    <span><i class="fas fa-users me-1"></i>@string.Join(", ", project.Owners.Select(o => o.User?.FirstName + " " + o.User?.LastName).Where(n => !string.IsNullOrWhiteSpace(n)))</span>
-                                }
-                                @if (project.EndDate.HasValue)
-                                {
-                                    <span><i class="fas fa-calendar-check me-1"></i>Due @project.EndDate.Value.ToString("dd MMM yyyy")</span>
-                                }
-                                @if (!string.IsNullOrEmpty(project.Priority) && project.Priority != "None")
-                                {
-                                    <span class="badge @(project.Priority switch { "High"=>"bg-danger","Medium"=>"bg-warning text-dark","Low"=>"bg-success",_=>"bg-secondary" })">@project.Priority</span>
-                                }
-                            </div>
-
-                            <div class="d-flex justify-content-between align-items-center">
-                                <small class="text-muted">
-                                    Completed @((project.UpdatedAt ?? project.CreatedAt).ToString("dd MMM yyyy"))
-                                </small>
-                                <div class="d-flex gap-2">
-                                    <a asp-action="Details" asp-route-id="@project.Id" class="btn btn-sm btn-outline-success">
-                                        <i class="fas fa-eye me-1"></i>View
-                                    </a>
-                                    @if (userRole == "Admin")
+                    <div class="kanban-quick-row mt-1">
+                        @if (project.Owners.Any())
+                        {
+                            <span class="kanban-quick-btn kanban-quick-btn-empty" style="cursor:default;">
+                                <div class="kanban-avatars">
+                                    @foreach (var owner in project.Owners.Take(3))
                                     {
-                                        <button type="button" class="btn btn-sm btn-outline-secondary reopen-btn"
-                                                data-project-id="@project.Id" title="Reopen project">
-                                            <i class="fas fa-undo me-1"></i>Reopen
-                                        </button>
+                                        <span class="kanban-card-avatar" title="@owner.User?.FirstName @owner.User?.LastName">
+                                            @Initials(owner.User)
+                                        </span>
                                     }
                                 </div>
-                            </div>
-                        </div>
+                            </span>
+                        }
+
+                        @if (project.Group?.Color != null)
+                        {
+                            <span class="kanban-quick-btn kanban-quick-btn-group" style="cursor:default;">
+                                <span style="width:8px;height:8px;border-radius:50%;background:@project.Group.Color;display:inline-block;margin-right:4px;"></span>
+                                <span>@project.Group.Name</span>
+                            </span>
+                        }
+
+                        @if (project.EndDate.HasValue)
+                        {
+                            <span class="kanban-quick-btn kanban-quick-btn-empty" style="cursor:default;"
+                                  title="@project.EndDate.Value.ToString("dd MMM ") @(project.EndDate.Value.Year + 543)">
+                                <i class="fas fa-calendar-alt me-1"></i>
+                                @project.EndDate.Value.ToString("dd MMM ") @(project.EndDate.Value.Year + 543)
+                            </span>
+                        }
+
+                        @if (!string.IsNullOrEmpty(project.Priority) && project.Priority != "None")
+                        {
+                            <span class="kanban-quick-btn kanban-priority-btn @PriorityCls(project.Priority)" style="cursor:default;">
+                                <i class="fas fa-flag me-1"></i>@project.Priority
+                            </span>
+                        }
                     </div>
+
+                    @if (canEdit)
+                    {
+                        <div class="mt-2 d-flex justify-content-end">
+                            <button type="button" class="btn btn-sm btn-outline-secondary reopen-btn"
+                                    data-project-id="@project.Id" title="Reopen task"
+                                    onclick="event.stopPropagation()">
+                                <i class="fas fa-undo me-1"></i>Reopen
+                            </button>
+                        </div>
+                    }
                 </div>
             }
         </div>
     }
 </div>
 
+<div class="modal fade" id="archiveTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2 px-3">
+                <input type="text" id="archTaskTitle" class="form-control form-control-sm fw-bold border-0 p-0"
+                       style="font-size:1rem;box-shadow:none;" readonly />
+                <button type="button" class="btn-close ms-2" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3" style="max-height:70vh;overflow-y:auto;">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Description</label>
+                        <div id="archTaskDesc" class="text-muted small p-2 rounded bg-light" style="min-height:80px;white-space:pre-wrap;"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Activity Log</label>
+                        <div id="archTaskLog" style="max-height:250px;overflow-y:auto;font-size:.8rem;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer py-2 px-3">
+                <a id="archTaskBoardLink" href="#" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-columns me-1"></i>Open in Board
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <script>
+function openArchiveTaskModal(id, name) {
+    document.getElementById('archTaskTitle').value = name;
+    document.getElementById('archTaskDesc').textContent = '';
+    document.getElementById('archTaskLog').innerHTML = '<div class="text-muted small">Loading...</div>';
+    document.getElementById('archTaskBoardLink').href = '@Url.Action("Index", "ProjectTracker")' + '?openTask=' + id;
+    new bootstrap.Modal(document.getElementById('archiveTaskModal')).show();
+    fetch('/ProjectTracker/GetProjectDetails?id=' + id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => {
+            if (data.name) document.getElementById('archTaskTitle').value = data.name;
+            document.getElementById('archTaskDesc').textContent = data.description || '(No description)';
+            const el = document.getElementById('archTaskLog');
+            if (!data.logs || data.logs.length === 0) {
+                el.innerHTML = '<div class="text-muted small">No activity yet</div>';
+            } else {
+                el.innerHTML = data.logs.map(l => `
+                    <div style="padding:4px 0;border-bottom:1px solid #f0f0f0;">
+                        <span style="font-size:.7rem;font-weight:600;background:#e9ecef;padding:1px 5px;border-radius:3px;margin-right:4px;">${l.actionType}</span>
+                        ${l.description || ''}
+                        ${l.oldValue && l.newValue ? `<small class="text-muted"> ${l.oldValue} &rarr; ${l.newValue}</small>` : ''}
+                        <div style="font-size:.7rem;color:#999;">${l.userName} &middot; ${l.createdAt}</div>
+                    </div>`).join('');
+            }
+        })
+        .catch(() => { document.getElementById('archTaskLog').innerHTML = '<div class="text-danger small">Failed to load</div>'; });
+}
+
 const archiveToken = document.querySelector('input[name="__RequestVerificationToken"]').value;
 document.querySelectorAll('.reopen-btn').forEach(btn => {
     btn.addEventListener('click', async function () {

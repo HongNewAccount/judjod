@@ -842,7 +842,10 @@ public class ProjectTrackerController : Controller
         if (action == "delete")
             _context.Projects.RemoveRange(projects);
         else if (action == "archive")
-            foreach (var p in projects) p.Status = "Closed";
+        {
+            var completedOnly = projects.Where(p => p.Status == "Completed").ToList();
+            foreach (var p in completedOnly) p.Status = "Closed";
+        }
         else
             return BadRequest();
 

@@ -88,24 +88,24 @@
     </div>
 
     <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
-        <a asp-action="Index" class="group-tab @(selectedGroupId == null ? "group-tab-active" : "")">
+        <button type="button" class="group-tab group-tab-active" id="filterAll" onclick="filterByGroup(null, this)">
             <i class="fas fa-th me-1"></i>All
-        </a>
+        </button>
         @foreach (var g in groups)
         {
-            <a asp-action="Index" asp-route-groupId="@g.Id"
-               class="group-tab @(selectedGroupId == g.Id ? "group-tab-active" : "")"
-               style="@(g.Color != null ? $"--group-color: {g.Color};" : "")">
+            <button type="button" class="group-tab" data-filter-group="@g.Id"
+                    onclick="filterByGroup(@g.Id, this)"
+                    style="@(g.Color != null ? $"--group-color: {g.Color};" : "")">
                 <i class="fas fa-users me-1"></i>@g.Name
                 @if (userRole == "Admin" || userRole == "Editor")
                 {
                     <form asp-action="DeleteGroup" asp-route-id="@g.Id" method="post" class="d-inline ms-1"
                           onsubmit="return confirm('Delete group &quot;@g.Name&quot;?');">
                         @Html.AntiForgeryToken()
-                        <button type="submit" class="group-tab-delete" title="Delete group">&times;</button>
+                        <button type="submit" class="group-tab-delete" title="Delete group" onclick="event.stopPropagation()">&times;</button>
                     </form>
                 }
-            </a>
+            </button>
         }
         @if (userRole == "Admin" || userRole == "Editor")
         {
@@ -170,7 +170,7 @@
                         <div class="kanban-card"
                              data-project-id="@project.Id"
                              data-status="@project.Status"
-                             data-sort-order="@project.SortOrder"
+                             data-sort-order="@project.SortOrder" data-group-id="@(project.GroupId?.ToString() ?? "")"
                              data-search="@($"{project.Name} {string.Join(' ', project.Owners.Select(o => o.User != null ? o.User.FirstName + ' ' + o.User.LastName : ""))}".ToLower())"
                              draggable="@(isAdmin ? "true" : "false")"
                              onclick="cardClicked(event, @project.Id, '@project.Name.Replace("'","\\'")')">
@@ -207,8 +207,11 @@
                                             }
                                             else { <i class="fas fa-user-plus"></i> }
                                         </button>
-                                        <div class="dropdown-menu p-2 owner-picker" style="min-width:230px;max-height:280px;overflow-y:auto;" data-project-id="@project.Id">
-                                            <input type="text" class="form-control form-control-sm mb-2 owner-search" placeholder="Search..." onclick="event.stopPropagation()" />
+                                        <div class="dropdown-menu p-0 owner-picker" style="min-width:230px;" data-project-id="@project.Id">
+                                            <div style="padding:.4rem .5rem;position:sticky;top:0;background:#fff;z-index:2;border-bottom:1px solid #f0f0f0;">
+                                                <input type="text" class="form-control form-control-sm owner-search" placeholder="Search..." onclick="event.stopPropagation()" />
+                                            </div>
+                                            <div class="owner-scroll-list" style="max-height:220px;overflow-y:auto;padding:.25rem .5rem .5rem;">
                                             @foreach (var user in allUsers)
                                             {
                                                 var isAssigned = project.Owners.Any(o => o.UserId == user.Id);
@@ -232,6 +235,7 @@
                                                     </label>
                                                 </div>
                                             }
+                                            </div>
                                         </div>
                                     </div>
 
@@ -249,18 +253,32 @@
                                             }
                                             <span>@(project.Group?.Name ?? "Group")</span>
                                         </button>
-                                        <div class="dropdown-menu p-2" style="min-width:170px;" data-project-id="@project.Id">
-                                            <button class="dropdown-item small group-assign-btn" type="button" data-project-id="@project.Id" data-group-id="">
-                                                <i class="fas fa-times me-1"></i>None
-                                            </button>
-                                            <div class="dropdown-divider"></div>
-                                            @foreach (var g in groups)
-                                            {
-                                                <button class="dropdown-item small group-assign-btn" type="button"
-                                                        data-project-id="@project.Id" data-group-id="@g.Id">
-                                                    <i class="fas fa-circle me-1" style="@(g.Color != null ? $"color:{g.Color};" : "")"></i>@g.Name
-                                                </button>
-                                            }
+                                        <div class="dropdown-menu p-0 group-picker" style="min-width:190px;" data-project-id="@project.Id">
+                                            <div style="padding:.4rem .5rem;position:sticky;top:0;background:#fff;z-index:2;border-bottom:1px solid #f0f0f0;">
+                                                <input type="text" class="form-control form-control-sm group-search" placeholder="Search team..." onclick="event.stopPropagation()" />
+                                            </div>
+                                            <div style="max-height:200px;overflow-y:auto;padding:.25rem .5rem .5rem;">
+                                                <div class="group-item py-1">
+                                                    <label class="d-flex align-items-center gap-2" style="cursor:pointer;margin:0;font-size:.85rem;">
+                                                        <input type="radio" class="form-check-input flex-shrink-0 group-radio" name="grp_@project.Id"
+                                                               value="" @(project.GroupId == null ? "checked" : "") data-project-id="@project.Id" style="margin:0;" />
+                                                        <i class="fas fa-times" style="color:#aaa;font-size:.75rem;"></i>
+                                                        <span class="small">None</span>
+                                                    </label>
+                                                </div>
+                                                @foreach (var g in groups)
+                                                {
+                                                    <div class="group-item py-1">
+                                                        <label class="d-flex align-items-center gap-2" style="cursor:pointer;margin:0;font-size:.85rem;">
+                                                            <input type="radio" class="form-check-input flex-shrink-0 group-radio" name="grp_@project.Id"
+                                                                   value="@g.Id" @(project.GroupId == g.Id ? "checked" : "") data-project-id="@project.Id"
+                                                                   data-group-id="@g.Id" style="margin:0;" />
+                                                            <span style="width:10px;height:10px;border-radius:50%;background:@(g.Color ?? "#6c757d");flex-shrink:0;display:inline-block;"></span>
+                                                            <span class="small">@g.Name</span>
+                                                        </label>
+                                                    </div>
+                                                }
+                                            </div>
                                         </div>
                                     </div>
 
@@ -456,6 +474,10 @@ function enterSelectMode(mode) {
         document.getElementById('btnDelete')?.classList.replace('btn-danger', 'btn-outline-danger');
     }
     document.querySelectorAll('.kanban-card[data-project-id]').forEach(card => {
+        const status = card.getAttribute('data-status');
+        const isEligible = mode === 'delete' || status === 'Completed';
+        if (!isEligible) return;
+
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.className = 'bulk-cb';
@@ -506,7 +528,79 @@ function cardClicked(e, id, name) {
     if (e.target.closest('.kanban-quick-row')) return;
     const skipTags = ['BUTTON','INPUT','SELECT','TEXTAREA','A'];
     if (skipTags.includes(e.target.tagName)) return;
-    openDetailModal(id, name);
+    openDetailModal(id, name, null);
+}
+
+function updatePriorityDOM(id, priority) {
+    const card = document.querySelector('.kanban-card[data-project-id="' + id + '"]');
+    if (!card) return;
+    const btn = card.querySelector('.kanban-priority-btn');
+    const label = btn?.querySelector('.priority-label');
+    if (btn) {
+        btn.classList.remove('priority-none','priority-low','priority-medium','priority-high');
+        const m = {None:'priority-none',Low:'priority-low',Medium:'priority-medium',High:'priority-high'};
+        btn.classList.add(m[priority] || 'priority-none');
+    }
+    if (label) label.textContent = (priority === 'None') ? 'Priority' : priority;
+}
+
+function updateDateDOM(id, endDate) {
+    const card = document.querySelector('.kanban-card[data-project-id="' + id + '"]');
+    if (!card) return;
+    const label = card.querySelector('.due-date-label');
+    const dateBtn = label?.closest('button');
+    if (!label) return;
+    if (!endDate) { label.textContent = 'Date'; return; }
+    const d = new Date(endDate + 'T00:00:00');
+    const today = new Date(); today.setHours(0,0,0,0);
+    const days = Math.round((d - today) / 86400000);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const dateStr = d.getDate() + ' ' + months[d.getMonth()] + ' ' + (d.getFullYear() + 543);
+    label.textContent = days === 0 ? 'today · ' + dateStr : (days > 0 ? days + 'd · ' + dateStr : (-days) + 'd late · ' + dateStr);
+    if (dateBtn) {
+        dateBtn.classList.remove('date-today','date-soon','date-overdue','kanban-quick-btn-empty');
+        dateBtn.title = dateStr;
+        if (days === 0) dateBtn.classList.add('date-today');
+        else if (days > 0 && days <= 3) dateBtn.classList.add('date-soon');
+        else if (days < 0) dateBtn.classList.add('date-overdue');
+    }
+}
+
+function updateGroupDOM(id, groupId, clickedItem) {
+    const card = document.querySelector('.kanban-card[data-project-id="' + id + '"]');
+    if (!card) return;
+    const groupDropdown = [...card.querySelectorAll('.kanban-quick-row .dropdown')]
+        .find(dd => dd.querySelector('.group-assign-btn'));
+    if (!groupDropdown) return;
+    const btn = groupDropdown.querySelector('[data-bs-toggle="dropdown"]');
+    if (!btn) return;
+    const nameSpan = btn.querySelector('span:last-child');
+    if (groupId) {
+        const colorIcon = clickedItem?.querySelector('i.fas.fa-circle');
+        const color = colorIcon ? colorIcon.style.color : '#6c757d';
+        const groupName = clickedItem ? clickedItem.textContent.trim() : 'Group';
+        btn.className = 'kanban-quick-btn kanban-quick-btn-group';
+        let dot = btn.querySelector('span[style*="border-radius:50%"]');
+        const usersIcon = btn.querySelector('i.fa-users');
+        if (usersIcon) usersIcon.remove();
+        if (!dot) {
+            dot = document.createElement('span');
+            dot.style.cssText = 'width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;flex-shrink:0;';
+            btn.insertBefore(dot, nameSpan);
+        }
+        dot.style.background = color;
+        if (nameSpan) nameSpan.textContent = groupName;
+    } else {
+        btn.className = 'kanban-quick-btn kanban-quick-btn-empty';
+        const dot = btn.querySelector('span[style*="border-radius:50%"]');
+        if (dot) dot.remove();
+        if (!btn.querySelector('i.fa-users')) {
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-users me-1';
+            btn.insertBefore(icon, nameSpan);
+        }
+        if (nameSpan) nameSpan.textContent = 'Group';
+    }
 }
 
 document.querySelectorAll('.priority-pick-btn').forEach(btn => {
@@ -518,7 +612,7 @@ document.querySelectorAll('.priority-pick-btn').forEach(btn => {
                 method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 body: new URLSearchParams({ id, priority, __RequestVerificationToken: token })
             });
-            if (res.ok) location.reload();
+            if (res.ok) updatePriorityDOM(id, priority);
         } catch (e) { console.error(e); }
     });
 });
@@ -540,11 +634,33 @@ document.querySelectorAll('.kanban-date-input').forEach(input => {
                 method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 body: new URLSearchParams({ id, endDate, __RequestVerificationToken: token })
             });
-            if (res.ok) location.reload();
+            if (res.ok) { updateDateDOM(id, endDate); }
         } catch (e) { console.error(e); }
     });
     input.addEventListener('blur', () => input.classList.add('d-none'));
 });
+
+function updateOwnerAvatars(projectId, picker) {
+    const card = document.querySelector('.kanban-card[data-project-id="' + projectId + '"]');
+    if (!card) return;
+    const checked = [...picker.querySelectorAll('.owner-checkbox:checked')];
+    const btn = picker.closest('.dropdown')?.querySelector('[data-bs-toggle="dropdown"]');
+    if (!btn) return;
+    if (checked.length === 0) {
+        btn.className = 'kanban-quick-btn kanban-quick-btn-empty';
+        btn.innerHTML = '<i class="fas fa-user-plus"></i>';
+    } else {
+        btn.className = 'kanban-quick-btn';
+        const avatarsHtml = checked.slice(0, 3).map(cb => {
+            const label = picker.querySelector('label[for="' + cb.id + '"] span.small');
+            const name = label ? label.textContent.trim() : '?';
+            const parts = name.trim().split(' ');
+            const initials = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
+            return '<span class="kanban-card-avatar">' + (initials || '?') + '</span>';
+        }).join('');
+        btn.innerHTML = '<div class="kanban-avatars">' + avatarsHtml + '</div>';
+    }
+}
 
 document.querySelectorAll('.owner-checkbox').forEach(cb => {
     cb.addEventListener('change', async function () {
@@ -556,7 +672,7 @@ document.querySelectorAll('.owner-checkbox').forEach(cb => {
                 method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 body: new URLSearchParams({ id, ownerIds: checked.join(','), __RequestVerificationToken: token })
             });
-            setTimeout(() => location.reload(), 300);
+            updateOwnerAvatars(id, picker);
         } catch (e) { console.error(e); }
     });
 });
@@ -570,7 +686,8 @@ document.querySelectorAll('.kanban-card .dropdown').forEach(dd => {
 document.querySelectorAll('.owner-search').forEach(input => {
     input.addEventListener('input', function () {
         const term = this.value.toLowerCase();
-        this.closest('.owner-picker').querySelectorAll('.owner-item').forEach(item => {
+        const list = this.closest('.owner-picker').querySelector('.owner-scroll-list');
+        (list || this.closest('.owner-picker')).querySelectorAll('.owner-item').forEach(item => {
             const name = item.querySelector('span.small')?.textContent?.toLowerCase() ?? '';
             item.style.display = name.includes(term) ? '' : 'none';
         });
@@ -578,18 +695,32 @@ document.querySelectorAll('.owner-search').forEach(input => {
     input.addEventListener('keydown', e => e.stopPropagation());
 });
 
-document.querySelectorAll('.group-assign-btn').forEach(btn => {
-    btn.addEventListener('click', async function () {
+document.querySelectorAll('.group-radio').forEach(radio => {
+    radio.addEventListener('change', async function () {
         const id = this.getAttribute('data-project-id');
-        const groupId = this.getAttribute('data-group-id') || '';
+        const groupId = this.value || '';
         try {
             await fetch('/ProjectTracker/AssignGroup', {
                 method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 body: new URLSearchParams({ id, groupId, __RequestVerificationToken: token })
             });
-            location.reload();
+            const colorDot = this.closest('.group-item')?.querySelector('span[style*="border-radius:50%"]');
+            updateGroupDOM(id, groupId, colorDot ? { querySelector: () => colorDot } : null);
+            this.closest('.dropdown')?.querySelector('[data-bs-toggle="dropdown"]')?.click();
         } catch (e) { console.error(e); }
     });
+});
+
+document.querySelectorAll('.group-search').forEach(input => {
+    input.addEventListener('input', function () {
+        const term = this.value.toLowerCase();
+        const picker = this.closest('.group-picker');
+        picker?.querySelectorAll('.group-item').forEach(item => {
+            const name = item.querySelector('span.small')?.textContent?.toLowerCase() ?? '';
+            item.style.display = name.includes(term) ? '' : 'none';
+        });
+    });
+    input.addEventListener('keydown', e => e.stopPropagation());
 });
 
 let currentAddStatus = 'Planning';
@@ -654,9 +785,13 @@ async function submitAddTask() {
 }
 
 let currentDetailId = null;
-function openDetailModal(id, name) {
+let currentDetailStatus = null;
+function openDetailModal(id, name, status) {
     currentDetailId = id;
+    currentDetailStatus = status || null;
     document.getElementById('taskDetailTitle').value = name;
+    const archiveBtn = document.getElementById('modalArchiveBtn');
+    if (archiveBtn) archiveBtn.style.display = (status === 'Completed') ? '' : 'none';
     document.getElementById('taskDetailDesc').value = '';
     document.getElementById('taskDetailLog').innerHTML = '<div class="text-muted small">Loading...</div>';
 
@@ -666,6 +801,7 @@ function openDetailModal(id, name) {
         .then(r => r.json())
         .then(data => {
             if (data.name) document.getElementById('taskDetailTitle').value = data.name;
+            if (data.status) { currentDetailStatus = data.status; const ab=document.getElementById('modalArchiveBtn'); if(ab) ab.style.display=(data.status==='Completed'?'':'none'); }
             document.getElementById('taskDetailDesc').value = data.description || '';
             const logEl = document.getElementById('taskDetailLog');
             if (!data.logs || data.logs.length === 0) {
@@ -702,7 +838,6 @@ async function saveDetailModal() {
     ]);
 
     bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')).hide();
-    location.reload();
 }
 
 async function archiveCurrentTask() {
@@ -817,7 +952,7 @@ document.querySelectorAll('.kanban-column-body').forEach(body => {
                 });
                 await saveReorder();
             } catch {  }
-            location.reload();
+            updateColumnCounts();
         } else {
             saveReorder(); // fire-and-forget, no reload
         }

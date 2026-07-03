@@ -12,8 +12,11 @@
     var lateProjects      = ownedProjects.Where(p => p.Status == "Late").ToList();
     var completedProjects = ownedProjects.Where(p => p.Status == "Completed").ToList();
 
-    var totalCompleted = completedProjects.Count;
-    var totalLate      = lateProjects.Count;
+    var totalCompleted = ownedProjects.Count(p => p.Status == "Completed" || p.Status == "Closed");
+    var totalLate = ownedProjects.Count(p =>
+        p.Status == "Late" ||
+        (p.EndDate.HasValue && p.EndDate.Value.Date < DateTime.Today &&
+         (p.Status == "Completed" || p.Status == "Closed")));
 }
 
 <div class="container-fluid">
