@@ -1,7 +1,7 @@
 ﻿@model IEnumerable<WebApplication1.Models.Project>
 @inject WebApplication1.Data.ApplicationDbContext DbContext
 @{
-    ViewData["Title"] = "Project Tracker";
+    ViewData["Title"] = "Board";
     var userRole = Context.Session.GetString("UserRole") ?? "User";
     var allUsers = DbContext.Users.Where(u => u.IsActive).ToList();
     var currentUserId = Context.Session.GetInt32("UserId") ?? 1;
@@ -62,19 +62,16 @@
 <div class="container-fluid">
     <div class="row mb-3 page-header align-items-start">
         <div class="col">
-            <div class="d-flex align-items-baseline gap-3">
-                <h1 class="page-title mb-0">Project Tracker</h1>
-                <span class="text-muted" style="font-size:.9rem;">@DateTime.Now.ToString("dddd, dd MMMM yyyy")</span>
-            </div>
+            <h1 class="page-title mb-0">Board</h1>
             <p class="page-subtitle">Track and manage all organization projects</p>
         </div>
         @if (userRole == "Admin")
         {
             <div class="col-auto d-flex gap-2 align-items-center">
-                <button type="button" class="btn btn-sm btn-outline-danger" onclick="enterSelectMode('delete')">
+                <button type="button" id="btnDelete" class="btn btn-sm btn-outline-danger" onclick="enterSelectMode('delete')">
                     <i class="fas fa-trash me-1"></i>Delete
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-success" onclick="enterSelectMode('archive')">
+                <button type="button" id="btnArchive" class="btn btn-sm btn-outline-success" onclick="enterSelectMode('archive')">
                     <i class="fas fa-archive me-1"></i>Archive
                 </button>
             </div>
@@ -455,9 +452,13 @@ function enterSelectMode(mode) {
     if (mode === 'delete') {
         applyBtn.className = 'bulk-fab-btn bulk-fab-apply bulk-fab-delete';
         applyBtn.title = 'Delete selected';
+        document.getElementById('btnDelete')?.classList.replace('btn-outline-danger', 'btn-danger');
+        document.getElementById('btnArchive')?.classList.replace('btn-success', 'btn-outline-success');
     } else {
         applyBtn.className = 'bulk-fab-btn bulk-fab-apply bulk-fab-archive';
         applyBtn.title = 'Archive selected';
+        document.getElementById('btnArchive')?.classList.replace('btn-outline-success', 'btn-success');
+        document.getElementById('btnDelete')?.classList.replace('btn-danger', 'btn-outline-danger');
     }
     document.querySelectorAll('.kanban-card[data-project-id]').forEach(card => {
         const cb = document.createElement('input');
@@ -473,10 +474,11 @@ function enterSelectMode(mode) {
 
 function exitSelectMode() {
     selectMode = null;
-    const bar2 = document.getElementById('bulkBottomBar');
-    bar2.classList.add('d-none');
+    document.getElementById('bulkBottomBar').classList.add('d-none');
     document.querySelectorAll('.bulk-cb').forEach(cb => cb.remove());
     document.getElementById('kanbanBoard').classList.remove('select-mode');
+    document.getElementById('btnDelete')?.classList.replace('btn-danger', 'btn-outline-danger');
+    document.getElementById('btnArchive')?.classList.replace('btn-success', 'btn-outline-success');
 }
 
 function updateBulkCount() {

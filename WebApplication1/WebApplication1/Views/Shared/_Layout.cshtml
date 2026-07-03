@@ -1,4 +1,4 @@
-@inject WebApplication1.Data.ApplicationDbContext DbContext
+﻿@inject WebApplication1.Data.ApplicationDbContext DbContext
 @{
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
@@ -37,9 +37,9 @@
 
             <ul class="sidebar-nav">
                 <li class="sidebar-item">
-                    <a class="@NavClass("ProjectTracker", "Index")" asp-controller="ProjectTracker" asp-action="Index" title="Projects">
-                        <i class="fas fa-project-diagram"></i>
-                        <span>Projects</span>
+                    <a class="@NavClass("ProjectTracker", "Index")" asp-controller="ProjectTracker" asp-action="Index" title="Board">
+                        <i class="fas fa-columns"></i>
+                        <span>Board</span>
                     </a>
                 </li>
                 <li class="sidebar-item">
@@ -110,7 +110,7 @@
                     <button type="button" class="topbar-toggle" data-sidebar-toggle aria-label="Toggle sidebar">
                         <i class="fas fa-bars"></i>
                     </button>
-                    <span class="topbar-title">@ViewData["Title"]</span>
+                    <span class="topbar-title">@DateTime.Now.ToString("dd MMM yyyy")</span>
                 </div>
                 @if (userId != null)
                 {
