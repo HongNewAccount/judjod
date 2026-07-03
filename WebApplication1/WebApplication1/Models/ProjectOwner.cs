@@ -1,4 +1,4 @@
-namespace WebApplication1.Models;
+﻿namespace WebApplication1.Models;
 
 public class ProjectOwner
 {
@@ -6,7 +6,6 @@ public class ProjectOwner
     public int ProjectId { get; set; }
     public int UserId { get; set; }
 
-    // Navigation properties
     public Project? Project { get; set; }
     public User? User { get; set; }
 }

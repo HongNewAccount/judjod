@@ -1,4 +1,4 @@
-@model IList<WebApplication1.Models.ActivityLog>
+﻿@model IList<WebApplication1.Models.ActivityLog>
 
 @{
     ViewData["Title"] = "Activity Log";
@@ -18,7 +18,6 @@
         </div>
     }
 
-    @* Search removed *@
     @if (false)
     {
         <div class="d-none">
@@ -118,7 +117,6 @@
         {
             int cur = (int)ViewBag.CurrentPage;
             int total = (int)ViewBag.TotalPages;
-            // Always exactly 3 consecutive numbers (or fewer if total < 3)
             int pageCount = Math.Min(3, total);
             int pStart = Math.Max(1, Math.Min(cur - 1, total - pageCount + 1));
             int pEnd = pStart + pageCount - 1;
@@ -142,7 +140,6 @@
     </div>
 </div>
 
-<!-- Task detail modal -->
 <div class="modal fade" id="logTaskModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">

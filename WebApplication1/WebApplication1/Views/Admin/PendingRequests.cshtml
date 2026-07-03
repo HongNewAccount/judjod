@@ -1,4 +1,4 @@
-@model IEnumerable<WebApplication1.Models.ProjectApprovalRequest>
+﻿@model IEnumerable<WebApplication1.Models.ProjectApprovalRequest>
 @{
     ViewData["Title"] = "Pending Approvals";
     var users = ViewBag.Users as IEnumerable<WebApplication1.Models.User> ?? new List<WebApplication1.Models.User>();
@@ -141,7 +141,6 @@
                             }
                             else
                             {
-                                <!-- UPDATE REQUEST DIFF VIEW -->
                                 <div class="table-responsive bg-white rounded border">
                                     <table class="table table-bordered align-middle mb-0">
                                         <thead class="table-light">
@@ -152,7 +151,6 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <!-- Name -->
                                             <tr class="@(request.Project?.Name != request.Name ? "table-warning-diff" : "")">
                                                 <th>Project Name</th>
                                                 <td class="text-muted">@request.Project?.Name</td>
@@ -160,7 +158,6 @@
                                                     @request.Name
                                                 </td>
                                             </tr>
-                                            <!-- Description -->
                                             <tr class="@(request.Project?.Description != request.Description ? "table-warning-diff" : "")">
                                                 <th>Description</th>
                                                 <td class="text-muted small text-truncate" style="max-width: 300px;">@request.Project?.Description</td>
@@ -168,7 +165,6 @@
                                                     @request.Description
                                                 </td>
                                             </tr>
-                                            <!-- Start Date -->
                                             <tr class="@(request.Project?.StartDate != request.StartDate ? "table-warning-diff" : "")">
                                                 <th>Start Date</th>
                                                 <td class="text-muted">@request.Project?.StartDate.ToString("MMM dd, yyyy")</td>
@@ -176,7 +172,6 @@
                                                     @request.StartDate.ToString("MMM dd, yyyy")
                                                 </td>
                                             </tr>
-                                            <!-- End Date -->
                                             <tr class="@(request.Project?.EndDate != request.EndDate ? "table-warning-diff" : "")">
                                                 <th>End Date</th>
                                                 <td class="text-muted">@(request.Project?.EndDate?.ToString("MMM dd, yyyy") ?? "Ongoing")</td>
@@ -184,7 +179,6 @@
                                                     @(request.EndDate?.ToString("MMM dd, yyyy") ?? "Ongoing")
                                                 </td>
                                             </tr>
-                                            <!-- Status -->
                                             <tr class="@(request.Project?.Status != request.Status ? "table-warning-diff" : "")">
                                                 <th>Status</th>
                                                 <td class="text-muted">@request.Project?.Status</td>
@@ -192,7 +186,6 @@
                                                     @request.Status
                                                 </td>
                                             </tr>
-                                            <!-- Owners -->
                                             @{
                                                 var currentOwners = GetProjectOwnerNames(request.Project);
                                                 var proposedOwners = GetUserNames(request.OwnerIds);
@@ -204,7 +197,6 @@
                                                     @proposedOwners
                                                 </td>
                                             </tr>
-                                            <!-- Issues -->
                                             <tr class="@(request.Project?.Issues != request.Issues ? "table-warning-diff" : "")">
                                                 <th>Issues / Notes</th>
                                                 <td class="text-muted small">@request.Project?.Issues</td>
@@ -220,7 +212,6 @@
                     </div>
                 </div>
 
-                <!-- Reject Modal -->
                 <div class="modal fade" id="rejectModal-@request.Id" tabindex="-1" aria-labelledby="rejectModalLabel-@request.Id" aria-hidden="true">
                     <div class="modal-dialog">
                         <div class="modal-content">

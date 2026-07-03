@@ -42,7 +42,6 @@ public class AuthController : Controller
         HttpContext.Session.SetString("Username", user.Username);
         HttpContext.Session.SetString("UserName", $"{user.FirstName} {user.LastName}");
         HttpContext.Session.SetString("UserRole", user.Role ?? "User");
-        // SuperAdmin = first user (ID=1), has full control (ban, toggle edit)
         HttpContext.Session.SetString("IsSuperAdmin", user.Role == "Admin" ? "true" : "false");
 
         return RedirectToAction("Index", "ProjectTracker");
@@ -101,7 +100,6 @@ public class AuthController : Controller
             return View();
         }
 
-        // Only super admin (ID=1) can grant edit access
         var isSuperAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
         var user = new User
         {

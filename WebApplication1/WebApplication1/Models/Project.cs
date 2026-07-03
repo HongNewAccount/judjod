@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace WebApplication1.Models;
 
@@ -11,7 +11,6 @@ public class Project
     public string Name { get; set; }
 
     public string? Description { get; set; }
-
 
     public DateTime StartDate { get; set; }
 
@@ -36,7 +35,6 @@ public class Project
 
     public DateTime? UpdatedAt { get; set; }
 
-    // Navigation properties
     public ProjectGroup? Group { get; set; }
     public User? CreatedByUser { get; set; }
     public ICollection<ProjectOwner> Owners { get; set; } = new List<ProjectOwner>();

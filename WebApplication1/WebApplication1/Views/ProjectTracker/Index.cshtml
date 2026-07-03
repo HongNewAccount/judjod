@@ -40,12 +40,10 @@
         if (days <= 3) return "date-soon";
         return "";
     }
-    // Show date with Buddhist Era year (CE+543)
     string ToBE(DateTime? date) {
         if (!date.HasValue) return "";
         return date.Value.ToString("dd MMM ") + (date.Value.Year + 543);
     }
-    // Safe initials — handles null/empty LastName
     string Initials(WebApplication1.Models.User? u) {
         if (u == null) return "?";
         var f = u.FirstName?.Length > 0 ? u.FirstName[0].ToString() : "";
@@ -89,7 +87,6 @@
         </div>
     </div>
 
-    <!-- Group filter bar -->
     <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
         <a asp-action="Index" class="group-tab @(selectedGroupId == null ? "group-tab-active" : "")">
             <i class="fas fa-th me-1"></i>All
@@ -125,7 +122,6 @@
         }
     </div>
 
-    <!-- Kanban board -->
     <div class="kanban-board" id="kanbanBoard">
         @foreach (var col in columns)
         {
@@ -194,7 +190,6 @@
                             <div class="kanban-quick-row">
                                 @if (isAdmin)
                                 {
-                                    @* Assignee - interactive *@
                                     <div class="dropdown">
                                         <button type="button"
                                                 class="kanban-quick-btn @(project.Owners.Any() ? "" : "kanban-quick-btn-empty")"
@@ -240,7 +235,6 @@
                                         </div>
                                     </div>
 
-                                    @* Group - interactive *@
                                     <div class="dropdown">
                                         <button type="button"
                                                 class="kanban-quick-btn @(project.GroupId.HasValue ? "kanban-quick-btn-group" : "kanban-quick-btn-empty")"
@@ -270,7 +264,6 @@
                                         </div>
                                     </div>
 
-                                    @* Due Date - interactive *@
                                     <div class="kanban-date-wrap">
                                         <button type="button"
                                                 class="kanban-quick-btn @(project.EndDate.HasValue ? DateUrgencyCls(project.EndDate) : "kanban-quick-btn-empty")"
@@ -285,7 +278,6 @@
                                                data-project-id="@project.Id" />
                                     </div>
 
-                                    @* Priority - interactive dropdown *@
                                     <div class="dropdown">
                                         <button type="button"
                                                 class="kanban-quick-btn kanban-priority-btn @PriorityCls(project.Priority)"
@@ -306,7 +298,6 @@
                                 }
                                 else
                                 {
-                                    @* Non-admin: read-only display *@
                                     @if (project.Owners.Any())
                                     {
                                         <span class="kanban-quick-btn kanban-quick-btn-empty" style="cursor:default;" title="Assignees">
@@ -341,8 +332,6 @@
     </div>
 </div>
 
-
-<!-- FAB bulk actions (center bottom, shown in select mode) -->
 <div id="bulkBottomBar" class="bulk-fab-bar d-none">
     <div class="bulk-fab-count" id="bulkSelectionCount">0 selected</div>
     <div class="d-flex gap-3 justify-content-center">
@@ -355,7 +344,6 @@
     </div>
 </div>
 
-<!-- ===== ADD TASK MODAL ===== -->
 <div class="modal fade" id="addTaskModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" style="max-width:460px;">
         <div class="modal-content">
@@ -407,7 +395,6 @@
     </div>
 </div>
 
-<!-- ===== TASK DETAIL MODAL ===== -->
 <div class="modal fade" id="taskDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -443,7 +430,6 @@
 <script>
 const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
 
-// ===== BOARD SEARCH =====
 document.getElementById('boardSearch').addEventListener('keyup', function () {
     const term = this.value.toLowerCase();
     document.querySelectorAll('.kanban-card[data-search]').forEach(card => {
@@ -451,7 +437,6 @@ document.getElementById('boardSearch').addEventListener('keyup', function () {
     });
 });
 
-// ===== BULK SELECT MODE =====
 let selectMode = null;
 
 function enterSelectMode(mode) {
@@ -511,7 +496,6 @@ async function applyBulkAction() {
     } catch { alert('Error occurred.'); }
 }
 
-// ===== CARD CLICK - OPEN DETAIL MODAL =====
 function cardClicked(e, id, name) {
     if (selectMode) {
         const card = e.currentTarget;
@@ -525,7 +509,6 @@ function cardClicked(e, id, name) {
     openDetailModal(id, name);
 }
 
-// ===== PRIORITY DROPDOWN =====
 document.querySelectorAll('.priority-pick-btn').forEach(btn => {
     btn.addEventListener('click', async function () {
         const id = this.getAttribute('data-project-id');
@@ -540,7 +523,6 @@ document.querySelectorAll('.priority-pick-btn').forEach(btn => {
     });
 });
 
-// ===== DUE DATE =====
 function toggleDatePicker(btn) {
     const wrap = btn.closest('.kanban-date-wrap');
     const input = wrap.querySelector('.kanban-date-input');
@@ -564,7 +546,6 @@ document.querySelectorAll('.kanban-date-input').forEach(input => {
     input.addEventListener('blur', () => input.classList.add('d-none'));
 });
 
-// ===== ASSIGNEE PICKER =====
 document.querySelectorAll('.owner-checkbox').forEach(cb => {
     cb.addEventListener('change', async function () {
         const id = this.getAttribute('data-project-id');
@@ -580,14 +561,12 @@ document.querySelectorAll('.owner-checkbox').forEach(cb => {
     });
 });
 
-// ===== DROPDOWN OVERFLOW FIX (temporary overflow:visible on column while dropdown open) =====
 document.querySelectorAll('.kanban-card .dropdown').forEach(dd => {
     const col = dd.closest('.kanban-column');
     dd.addEventListener('show.bs.dropdown', () => { if (col) col.style.overflow = 'visible'; });
     dd.addEventListener('hide.bs.dropdown', () => { if (col) col.style.overflow = ''; });
 });
 
-// ===== OWNER SEARCH =====
 document.querySelectorAll('.owner-search').forEach(input => {
     input.addEventListener('input', function () {
         const term = this.value.toLowerCase();
@@ -599,7 +578,6 @@ document.querySelectorAll('.owner-search').forEach(input => {
     input.addEventListener('keydown', e => e.stopPropagation());
 });
 
-// ===== GROUP ASSIGN =====
 document.querySelectorAll('.group-assign-btn').forEach(btn => {
     btn.addEventListener('click', async function () {
         const id = this.getAttribute('data-project-id');
@@ -614,7 +592,6 @@ document.querySelectorAll('.group-assign-btn').forEach(btn => {
     });
 });
 
-// ===== ADD TASK MODAL =====
 let currentAddStatus = 'Planning';
 let currentAddGroupId = null;
 
@@ -676,7 +653,6 @@ async function submitAddTask() {
     }
 }
 
-// ===== TASK DETAIL MODAL =====
 let currentDetailId = null;
 function openDetailModal(id, name) {
     currentDetailId = id;
@@ -744,7 +720,6 @@ async function archiveCurrentTask() {
     } catch (e) { console.error(e); }
 }
 
-// ===== DRAG AND DROP =====
 let draggedCard = null;
 let placeholder = null;
 
@@ -771,7 +746,6 @@ document.querySelectorAll('.kanban-card[draggable="true"]').forEach(card => {
     });
 });
 
-// Track target card independently of placeholder (placeholder can be removed by dragleave)
 let lastDropTarget = null; // card to insertBefore, or null = append at end
 let lastDropBody = null;   // which column body was last hovered
 
@@ -796,7 +770,6 @@ document.querySelectorAll('.kanban-column-body').forEach(body => {
         body.classList.remove('drag-over');
         placeholder?.remove();
         placeholder = null;
-        // Keep lastDropTarget/lastDropBody — drop may still fire on this body
     });
 
     body.addEventListener('drop', async e => {
@@ -808,23 +781,19 @@ document.querySelectorAll('.kanban-column-body').forEach(body => {
         const oldStatus = draggedCard.getAttribute('data-status');
         const projectId = draggedCard.getAttribute('data-project-id');
 
-        // Determine insert position — use placeholder if still in DOM, else use lastDropTarget
         const insertBefore = (placeholder && body.contains(placeholder))
             ? placeholder
             : (lastDropTarget && body.contains(lastDropTarget) ? lastDropTarget : null);
 
-        // Move card in DOM
         if (insertBefore) {
             body.insertBefore(draggedCard, insertBefore);
         } else {
             body.appendChild(draggedCard);
         }
 
-        // Clean up placeholder
         if (placeholder) { placeholder.remove(); placeholder = null; }
         lastDropTarget = null; lastDropBody = null;
 
-        // Compute orderedIds from current DOM state (card already moved)
         const orderedIds = [...body.querySelectorAll('.kanban-card[data-project-id]')]
             .map(c => parseInt(c.getAttribute('data-project-id')))
             .filter(id => id > 0);
@@ -840,7 +809,6 @@ document.querySelectorAll('.kanban-column-body').forEach(body => {
         };
 
         if (newStatus !== oldStatus) {
-            // Cross-column: update status + save order + reload
             draggedCard.setAttribute('data-status', newStatus);
             try {
                 await fetch('/ProjectTracker/UpdateStatus', {
@@ -848,10 +816,9 @@ document.querySelectorAll('.kanban-column-body').forEach(body => {
                     body: new URLSearchParams({ id: projectId, status: newStatus, __RequestVerificationToken: token })
                 });
                 await saveReorder();
-            } catch { /* fall through */ }
+            } catch {  }
             location.reload();
         } else {
-            // Same-column: save silently, card stays in new visual position
             saveReorder(); // fire-and-forget, no reload
         }
     });
@@ -869,14 +836,12 @@ function getDragAfterCard(container, y) {
     }, {}).element;
 }
 
-// Auto-open modal if ?openTask=ID is in URL (e.g. coming from User Details page)
 (function () {
     const taskId = new URLSearchParams(window.location.search).get('openTask');
     if (!taskId) return;
     const card = document.querySelector(`.kanban-card[data-project-id="${taskId}"]`);
     const name = card ? (card.querySelector('.kanban-card-title')?.textContent?.trim() || '') : '';
     openDetailModal(parseInt(taskId), name);
-    // Clean URL without reloading
     history.replaceState(null, '', window.location.pathname + (window.location.search.replace(/[?&]openTask=\d+/, '') || ''));
 })();
 
@@ -891,7 +856,4 @@ function updateColumnCounts() {
     });
 }
 </script>
-
-
-
 

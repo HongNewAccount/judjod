@@ -1,5 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // Sidebar collapse / mobile drawer
+﻿document.addEventListener('DOMContentLoaded', function() {
     const shell = document.querySelector('[data-sidebar]');
     const toggleBtn = document.querySelector('[data-sidebar-toggle]');
     const overlay = document.querySelector('[data-sidebar-overlay]');
@@ -42,7 +41,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Bootstrap form validation
     const forms = document.querySelectorAll('.needs-validation');
     Array.from(forms).forEach(form => {
         form.addEventListener('submit', event => {
@@ -54,7 +52,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }, false);
     });
 
-    // Auto-hide alerts after 5 seconds
     const alerts = document.querySelectorAll('.alert');
     alerts.forEach(alert => {
         if (!alert.classList.contains('alert-permanent')) {
@@ -65,7 +62,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Initialize tooltips if Bootstrap tooltips are available
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 });

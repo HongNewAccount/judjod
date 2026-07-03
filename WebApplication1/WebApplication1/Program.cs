@@ -1,12 +1,10 @@
-using WebApplication1.Data;
+﻿using WebApplication1.Data;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllersWithViews();
 
-// Configure MySQL Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? "Server=localhost;Port=3306;Database=OrganizationDashboard;User=root;Password=1234;";
 
@@ -14,7 +12,6 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString))
 );
 
-// Configure session
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
@@ -22,7 +19,6 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-// Force Gregorian calendar so DateTime.Parse / model binding never uses ThaiBuddhistCalendar
 var gregorianCulture = new System.Globalization.CultureInfo("en-US");
 System.Globalization.CultureInfo.DefaultThreadCurrentCulture = gregorianCulture;
 System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = gregorianCulture;
@@ -30,11 +26,9 @@ System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = gregorianCultur
 var app = builder.Build();
 app.UseRequestLocalization("en-US");
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -45,13 +39,11 @@ app.UseSession();
 
 app.UseAuthorization();
 
-// Middleware to require login for all pages except Auth and static files
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path.ToString().ToLower();
     var userId = context.Session.GetInt32("UserId");
 
-    // Allow Auth, static files, and home without login
     if (path.StartsWith("/auth") ||
         path.StartsWith("/css") || path.StartsWith("/js") ||
         path.StartsWith("/lib") || path.StartsWith("/images") ||
@@ -61,7 +53,6 @@ app.Use(async (context, next) =>
         return;
     }
 
-    // Redirect to login if not authenticated
     if (userId == null)
     {
         context.Response.Redirect("/Auth/Login");
@@ -83,7 +74,6 @@ app.MapControllerRoute(
     pattern: "{controller}/{action}/{id?}")
     .WithStaticAssets();
 
-// Apply migrations
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -91,16 +81,13 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
-        // Apply pending migrations
         context.Database.Migrate();
     }
     catch
     {
-        // If migration fails, create database from scratch
         context.Database.EnsureCreated();
     }
 
-    // Seed initial data
     SeedData.Initialize(context);
 }
 

@@ -69,7 +69,6 @@ public class UserController : Controller
         if (user == null)
             return NotFound();
 
-        // Allow admin to edit anyone, or user to edit own profile
         if (userRole != "Admin" && currentUserId != id)
         {
             TempData["ErrorMessage"] = "You can only edit your own profile";
@@ -89,13 +88,11 @@ public class UserController : Controller
         if (id != user.Id)
             return NotFound();
 
-        // Allow admin to edit anyone, or user to edit own profile
         if (userRole != "Admin" && currentUserId != id)
         {
             return Forbid();
         }
 
-        // Only FirstName is required; other fields are optional
         ModelState.Remove(nameof(WebApplication1.Models.User.Username));
         ModelState.Remove(nameof(WebApplication1.Models.User.PasswordHash));
         ModelState.Remove(nameof(WebApplication1.Models.User.LastName));

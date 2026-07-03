@@ -18,7 +18,6 @@
 
 <div class="container-fluid">
 
-    <!-- Profile header -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-4">
             <div class="d-flex align-items-center gap-4 flex-wrap">
@@ -120,7 +119,6 @@
         </div>
     </div>
 
-    <!-- Summary stats -->
     <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
             <div class="stat-card stat-card-success">
@@ -142,7 +140,6 @@
         </div>
     </div>
 
-    <!-- Projects by status -->
     <div class="row g-3">
         @foreach (var col in new (string Label, string Cls, string Icon, List<WebApplication1.Models.Project> Items)[]
         {
@@ -191,7 +188,6 @@
     </div>
 </div>
 
-<!-- Task detail modal (same as Kanban board) -->
 <div class="modal fade" id="userTaskModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">

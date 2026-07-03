@@ -1,4 +1,4 @@
-using WebApplication1.Models;
+﻿using WebApplication1.Models;
 using BCrypt.Net;
 
 namespace WebApplication1.Data;
@@ -7,13 +7,11 @@ public static class SeedData
 {
     public static void Initialize(ApplicationDbContext context)
     {
-        // Check if data already exists
         if (context.Users.Any())
         {
             return;
         }
 
-        // Create sample users
         var users = new[]
         {
             new User
@@ -57,7 +55,6 @@ public static class SeedData
         context.Users.AddRange(users);
         context.SaveChanges();
 
-        // Create sample projects
         var projects = new[]
         {
             new Project
@@ -97,7 +94,6 @@ public static class SeedData
         context.Projects.AddRange(projects);
         context.SaveChanges();
 
-        // Add project owners
         var projectOwners = new[]
         {
             new ProjectOwner { ProjectId = projects[0].Id, UserId = users[1].Id },
@@ -109,7 +105,6 @@ public static class SeedData
         context.ProjectOwners.AddRange(projectOwners);
         context.SaveChanges();
 
-        // Create activity logs
         var activityLogs = new[]
         {
             new ActivityLog

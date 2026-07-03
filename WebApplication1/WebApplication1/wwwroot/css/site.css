@@ -34,7 +34,6 @@ body {
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* App Shell */
 .app-shell {
     display: flex;
     min-height: 100vh;
@@ -55,7 +54,6 @@ body {
     pointer-events: auto;
 }
 
-/* Sidebar Styles */
 .sidebar {
     width: var(--sidebar-width);
     height: 100vh;
@@ -150,7 +148,6 @@ body {
     overflow: hidden;
 }
 
-/* Collapsed (desktop rail) state */
 @media (min-width: 769px) {
     [data-sidebar].collapsed .sidebar {
         width: var(--sidebar-width-collapsed);
@@ -190,7 +187,6 @@ body {
     }
 }
 
-/* App Main / Topbar / Content */
 .app-main {
     flex: 1;
     min-width: 0;
@@ -358,7 +354,6 @@ body {
     }
 }
 
-/* Filter/sort button groups must be width-constrained for flex-wrap to take effect */
 .btn-group.flex-wrap {
     width: 100%;
 }
@@ -380,15 +375,12 @@ body {
     border-radius: var(--radius-sm);
 }
 
-/* Bootstrap's .btn-info defaults to black text (cyan bg); enforce white everywhere
-   so button text color is consistent regardless of whether a page remembers text-white */
 .btn-info,
 .btn-info:hover,
 .btn-info:focus {
     color: #fff;
 }
 
-/* Shared pagination styling (Project/Event/Report/Activity Log) */
 .pagination .page-link {
     color: var(--color-accent);
     border-color: #e9ecef;
@@ -407,7 +399,6 @@ body {
     font-weight: bold;
 }
 
-/* Stat card component (shared across dashboard pages) */
 .stat-card {
     background: #fff;
     border-radius: var(--radius-md);
@@ -492,7 +483,6 @@ body {
     --stat-bg: #e9eaeb;
 }
 
-/* Kanban board (Project Tracker) */
 .kanban-board {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -696,13 +686,11 @@ body {
     color: #1f2937;
 }
 
-/* Column status color accents — tint only, no top border */
 .kanban-col-secondary { background: #f8f9fa; }
 .kanban-col-primary   { background: #f0f5ff; }
 .kanban-col-danger    { background: #fff8f8; }
 .kanban-col-success   { background: #f3faf5; }
 
-/* Drag-to-delete trash zone */
 .kanban-delete-zone {
     position: fixed;
     bottom: -80px;
@@ -734,13 +722,11 @@ body {
     background: #b02a37;
 }
 
-/* Cards stay white on top of tinted column bg */
 .kanban-col-secondary .kanban-column-body,
 .kanban-col-primary .kanban-column-body,
 .kanban-col-danger .kanban-column-body,
 .kanban-col-success .kanban-column-body { background: transparent; }
 
-/* Modal action button — same height as btn-sm */
 .btn-modal-action {
     background-color: var(--color-accent);
     border-color: var(--color-accent);
@@ -767,7 +753,6 @@ body {
     background: #fffaf0;
 }
 
-/* Drag placeholder */
 .kanban-drag-placeholder {
     background: #fff7ec;
     border: 2px dashed var(--color-accent);
@@ -778,7 +763,6 @@ body {
     transition: height 0.15s ease;
 }
 
-/* Task detail modal log entries */
 .task-log-entry {
     padding: 0.4rem 0;
     border-bottom: 1px solid #f1f2f3;
@@ -819,7 +803,6 @@ body {
     padding: 6px;
 }
 
-/* Better drag-over column */
 .kanban-column-body.drag-over {
     background-color: #fff7ec;
     outline: 2px dashed var(--color-accent);
@@ -827,7 +810,6 @@ body {
     border-radius: 0 0 var(--radius-sm) var(--radius-sm);
 }
 
-/* Group filter tabs */
 .group-tab {
     display: inline-flex;
     align-items: center;
@@ -896,7 +878,6 @@ body {
     opacity: 1;
 }
 
-/* Group chip on card */
 .group-chip {
     display: inline-flex;
     align-items: center;
@@ -922,7 +903,6 @@ body {
     outline-offset: 2px;
 }
 
-/* Inline title rename */
 .kanban-card-title-wrap {
     font-weight: 600;
     font-size: 0.875rem;
@@ -947,7 +927,6 @@ body {
     box-shadow: 0 0 0 2px var(--color-accent);
 }
 
-/* Quick-action row at bottom of card */
 .kanban-quick-row {
     display: flex;
     align-items: center;
@@ -1010,7 +989,6 @@ body {
     color: #dc3545;
 }
 
-/* Priority chip colors */
 .kanban-priority-btn.priority-none {
     color: #adb5bd;
     border-color: #e9ecef;
@@ -1034,12 +1012,10 @@ body {
     border-color: #f5c6cb;
 }
 
-/* Assignee avatars inside quick-btn */
 .kanban-avatars {
     display: flex;
 }
 
-/* Inline date input (toggleable) */
 .kanban-date-input {
     max-width: 140px;
 }
@@ -1181,7 +1157,6 @@ body {
     background-color: #17a2b8;
 }
 
-/* Standardized Page Headings */
 .page-header {
     margin-top: 0;
     margin-bottom: 2rem;
@@ -1205,7 +1180,6 @@ body {
     line-height: 1.5;
 }
 
-/* Create/Edit Form Buttons */
 .btn-create,
 .btn-edit,
 .btn-delete,
@@ -1242,7 +1216,6 @@ body {
     box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
 }
 
-/* Standard Primary Button Styling */
 .btn-primary {
     font-weight: 600;
     padding: 0.5rem 1.5rem;
@@ -1263,13 +1236,11 @@ body {
     border-color: #0b5ed7;
 }
 
-/* Form Button Group Styling */
 .d-grid.gap-2 .btn {
     font-weight: 600;
     padding: 0.6rem 1.5rem;
 }
 
-/* Standard Action Buttons (Create, Register, Pending, Logout) */
 .btn-action {
     font-weight: 600;
     font-size: 0.95rem;
@@ -1297,14 +1268,12 @@ body {
     box-shadow: 0 4px 12px rgba(253, 126, 20, 0.35);
 }
 
-/* Badge for Pending Count */
 .badge.bg-danger {
     font-size: 0.75rem;
     padding: 0.35rem 0.65rem;
     font-weight: 600;
 }
 
-/* Override Bootstrap btn-info for action buttons */
 .btn.btn-action.btn-info,
 .btn.btn-action {
     background-color: var(--color-accent) !important;
@@ -1317,7 +1286,6 @@ body {
     border-color: var(--color-accent-hover) !important;
 }
 
-/* Date urgency chip colors */
 .kanban-quick-btn.date-today {
     color: #fd7e14;
     background: #fff3e6;
@@ -1335,7 +1303,6 @@ body {
     border-color: #f5c6cb;
 }
 
-/* Bulk select mode */
 .bulk-cb {
     position: absolute;
     top: 8px;
@@ -1354,7 +1321,7 @@ body {
     outline: 2px solid var(--color-accent);
     background: #fff8f0;
 }
-/* Fixed bottom bulk action bar */
+
 .bulk-bottom-bar {
     position: fixed;
     bottom: 0;
@@ -1369,7 +1336,7 @@ body {
     gap: 8px;
     border-top: 3px solid #dc3545;
 }
-/* FAB bulk action icons */
+
 .bulk-fab-bar {
     position: fixed;
     bottom: 28px;
@@ -1406,7 +1373,7 @@ body {
 .bulk-fab-delete { background: #dc3545; color: #fff; }
 .bulk-fab-archive { background: #198754; color: #fff; }
 .bulk-fab-cancel { background: #fff; color: #6c757d; }
-/* Calendar project item truncation */
+
 .calendar-item {
     display: block;
     white-space: nowrap;
@@ -1422,10 +1389,10 @@ body {
 }
 .calendar-item:hover { background: rgba(0,0,0,.06); color: inherit; }
 .calendar-day-items { overflow: hidden; }
-/* Activity log clickable row */
+
 .log-row-clickable:hover { background: #fff8f0; }
 .log-row-clickable:hover td { color: var(--color-accent); }
-/* Kanban card description preview */
+
 .kanban-card-desc {
     font-size: .72rem;
     color: #888;
@@ -1436,7 +1403,7 @@ body {
     overflow: hidden;
     line-height: 1.4;
 }
-/* Kanban card owner names */
+
 .kanban-card-owners {
     font-size: .68rem;
     color: #aaa;

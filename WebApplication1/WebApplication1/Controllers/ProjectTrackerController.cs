@@ -50,7 +50,6 @@ public class ProjectTrackerController : Controller
         ViewBag.PendingCreations = pendingCreations;
         ViewBag.PendingUpdates = pendingUpdateIds;
 
-        // Auto-convert to Late: only Planning/InProgress with past due date
         foreach (var project in allProjects)
         {
             if (project.EndDate.HasValue &&
@@ -62,7 +61,6 @@ public class ProjectTrackerController : Controller
         }
         await _context.SaveChangesAsync();
 
-        // Board shows everything at once; only exclude archived (Closed) projects, sorted by SortOrder
         var projects = allProjects
             .Where(p => p.Status != "Closed")
             .Where(p => groupId == null || p.GroupId == groupId)
@@ -154,7 +152,6 @@ public class ProjectTrackerController : Controller
             {
                 project.CreatedByUserId = userId;
 
-                // Add owners
                 if (ownerIds != null && ownerIds.Length > 0)
                 {
                     foreach (var ownerId in ownerIds.Distinct())
@@ -169,7 +166,6 @@ public class ProjectTrackerController : Controller
                 _context.Add(project);
                 await _context.SaveChangesAsync();
 
-                // Log activity
                 _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
                 {
                     ProjectId = project.Id,
@@ -226,7 +222,6 @@ public class ProjectTrackerController : Controller
         if (project == null)
             return NotFound();
 
-        // Check permission: Admin or Owner only
         bool isOwner = project.Owners.Any(o => o.UserId == userId);
         if (userRole != "Admin" && userRole != "Editor" && !isOwner)
         {
@@ -266,7 +261,6 @@ public class ProjectTrackerController : Controller
                 if (existingProject == null)
                     return NotFound();
 
-                // Check permission: Admin or Owner only
                 bool isOwner = existingProject.Owners.Any(o => o.UserId == userId);
                 if (userRole != "Admin" && userRole != "Editor" && !isOwner)
                 {
@@ -282,7 +276,6 @@ public class ProjectTrackerController : Controller
 
                 if (userRole == "Admin" || userRole == "Editor")
                 {
-                    // Track changes
                     if (existingProject.Status != project.Status)
                     {
                         _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
@@ -359,7 +352,6 @@ public class ProjectTrackerController : Controller
                     existingProject.Issues = project.Issues;
                     existingProject.UpdatedAt = DateTime.UtcNow;
 
-                    // Update owners
                     var oldOwnerIds = existingProject.Owners.Select(o => o.UserId).ToList();
                     var newOwnerIds = ownerIds ?? Array.Empty<int>();
 
@@ -419,7 +411,6 @@ public class ProjectTrackerController : Controller
                 }
                 else
                 {
-                    // Create update request for non-admin
                     var existingPendingRequest = await _context.ProjectApprovalRequests
                         .FirstOrDefaultAsync(r => r.ProjectId == id && r.RequestType == "Update" && r.ApprovalStatus == "Pending");
 
@@ -489,7 +480,6 @@ public class ProjectTrackerController : Controller
         if (request == null)
             return NotFound();
 
-        // Check permission: Request creator or Admin
         if (request.RequestedByUserId != userId && userRole != "Admin" && userRole != "Editor")
         {
             TempData["ErrorMessage"] = "You do not have permission to cancel this request.";
@@ -524,7 +514,6 @@ public class ProjectTrackerController : Controller
         if (project == null)
             return NotFound();
 
-        // Check permission: Admin or Owner only
         bool isOwner = project.Owners.Any(o => o.UserId == userId);
         if (userRole != "Admin" && userRole != "Editor" && !isOwner)
         {
@@ -542,7 +531,6 @@ public class ProjectTrackerController : Controller
 
         if (userRole == "Admin" || userRole == "Editor")
         {
-            // Admin can delete immediately
             _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
             {
                 ProjectId = id,
@@ -559,7 +547,6 @@ public class ProjectTrackerController : Controller
         }
         else
         {
-            // Non-admin owner must request approval
             var approvalRequest = new WebApplication1.Models.ProjectApprovalRequest
             {
                 ProjectId = id,
@@ -583,7 +570,6 @@ public class ProjectTrackerController : Controller
 
         return RedirectToAction(nameof(Index));
     }
-
 
     private static readonly string[] ValidBoardStatuses = { "Planning", "InProgress", "Late", "Completed" };
 
@@ -828,7 +814,6 @@ public class ProjectTrackerController : Controller
             .Select(s => int.TryParse(s.Trim(), out var id) ? id : 0)
             .Where(x => x > 0).ToArray();
 
-        // Use raw SQL so EF change tracking cannot skip "unchanged" values
         for (int i = 0; i < ids.Length; i++)
         {
             await _context.Database.ExecuteSqlRawAsync(
@@ -837,8 +822,6 @@ public class ProjectTrackerController : Controller
 
         return Ok(new { success = true });
     }
-
-    // ===== BULK ACTION =====
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -867,8 +850,6 @@ public class ProjectTrackerController : Controller
         return Ok(new { success = true, count = projects.Count });
     }
 
-    // ===== QUICK CREATE (inline popup) =====
-
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateQuick(string name, string status = "Planning",
@@ -890,7 +871,6 @@ public class ProjectTrackerController : Controller
         DateTime? dueDate = string.IsNullOrWhiteSpace(endDate) ? null :
             (DateTime.TryParse(endDate, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d) ? (DateTime?)d : null);
 
-        // New tasks go to the bottom of their column
         var maxSort = await _context.Projects
             .Where(p => p.Status == validStatus)
             .Select(p => (int?)p.SortOrder)
@@ -940,8 +920,6 @@ public class ProjectTrackerController : Controller
             return Ok(new { success = true, requiresApproval = true });
         }
     }
-
-    // ===== TASK DETAIL (description + activity log) =====
 
     [HttpGet]
     public async Task<IActionResult> GetProjectDetails(int id)
@@ -1049,8 +1027,6 @@ public class ProjectTrackerController : Controller
 
         return Ok(new { success = true });
     }
-
-    // ===== GROUP MANAGEMENT =====
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -1171,6 +1147,4 @@ public class ProjectTrackerController : Controller
         return View(logs);
     }
 }
-
-
 

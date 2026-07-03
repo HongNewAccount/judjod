@@ -65,7 +65,6 @@ public class AdminController : Controller
             {
                 if (request.RequestType == "Create")
                 {
-                    // Create new project
                     var project = new Project
                     {
                         Name = request.Name,
@@ -81,7 +80,6 @@ public class AdminController : Controller
                     _context.Projects.Add(project);
                     await _context.SaveChangesAsync();
 
-                    // Parse and add owners
                     if (!string.IsNullOrEmpty(request.OwnerIds))
                     {
                         var ownerIds = request.OwnerIds.Split(',')
@@ -100,7 +98,6 @@ public class AdminController : Controller
                         }
                     }
 
-                    // Log activity
                     _context.ActivityLogs.Add(new ActivityLog
                     {
                         ProjectId = project.Id,
@@ -131,7 +128,6 @@ public class AdminController : Controller
 
                     var projectName = project.Name;
 
-                    // Log the deletion
                     _context.ActivityLogs.Add(new ActivityLog
                     {
                         ProjectId = project.Id,
@@ -141,7 +137,6 @@ public class AdminController : Controller
                         CreatedAt = DateTime.UtcNow
                     });
 
-                    // Delete the project
                     _context.Projects.Remove(project);
 
                     request.ApprovalStatus = "Approved";
@@ -164,7 +159,6 @@ public class AdminController : Controller
                         return RedirectToAction(nameof(PendingRequests));
                     }
 
-                    // Track changes in ActivityLogs
                     if (project.Status != request.Status)
                     {
                         _context.ActivityLogs.Add(new ActivityLog
@@ -233,7 +227,6 @@ public class AdminController : Controller
                         });
                     }
 
-                    // Update project properties
                     project.Name = request.Name;
                     project.Description = request.Description;
                     project.StartDate = request.StartDate;
@@ -242,7 +235,6 @@ public class AdminController : Controller
                     project.Issues = request.Issues;
                     project.UpdatedAt = DateTime.UtcNow;
 
-                    // Update owners
                     var oldOwnerIds = project.Owners.Select(o => o.UserId).ToList();
                     var newOwnerIds = string.IsNullOrEmpty(request.OwnerIds)
                         ? new List<int>()
@@ -352,7 +344,6 @@ public class AdminController : Controller
 
         _context.ProjectApprovalRequests.Update(request);
 
-        // Log rejection
         _context.ActivityLogs.Add(new ActivityLog
         {
             ProjectId = request.ProjectId,

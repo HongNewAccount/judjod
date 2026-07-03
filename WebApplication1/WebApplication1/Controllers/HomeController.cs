@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 using WebApplication1.Models;
 using WebApplication1.Data;
@@ -19,7 +19,6 @@ public class HomeController : Controller
     {
         return RedirectToAction("Index", "ProjectTracker");
     }
-
 
     public IActionResult Privacy()
     {
