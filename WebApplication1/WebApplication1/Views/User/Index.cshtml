@@ -11,7 +11,7 @@
             <h1 class="page-title">Users</h1>
             <p class="page-subtitle">All organization members</p>
         </div>
-        @if (userRole == "Admin")
+        @if (Context.Session.GetString("IsSuperAdmin") == "true")
         {
             <div class="col-auto">
                 <a asp-controller="Auth" asp-action="Register" class="btn btn-action">

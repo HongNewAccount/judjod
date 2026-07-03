@@ -3,51 +3,194 @@
     Layout = "_LayoutAuth";
 }
 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body p-5">
-                    <h2 class="card-title text-center mb-4">Judjod Dashboard</h2>
-                    <h5 class="card-subtitle text-muted text-center mb-4">Login to your Judjod account</h5>
-                    @if (!ViewData.ModelState.IsValid && ViewData.ModelState.Values.Any(v => v.Errors.Count > 0))
-                    {
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-                            {
-                                <div>@error.ErrorMessage</div>
-                            }
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    }
-
-                    <form method="post" asp-controller="Auth" asp-action="Login">
-                        @Html.AntiForgeryToken()
-
-                        <div class="mb-3">
-                            <label for="username" class="form-label">Username</label>
-                            <input type="text" class="form-control" id="username" name="username" required />
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="password" name="password" required />
-                        </div>
-
-                        <button type="submit" class="btn btn-action w-100">Login</button>
-                    </form>
-
-                    <hr />
-
-                    <p class="text-center text-muted small mt-3">
-                        For account access, please contact your administrator
-                    </p>
-                </div>
+<div class="login-page">
+    <!-- Left panel — branding -->
+    <div class="login-left">
+        <div class="login-brand">
+            <div class="login-logo">
+                <i class="fas fa-square-parking"></i>
             </div>
+            <h1 class="login-app-name">JUDJOD</h1>
+            <p class="login-tagline">จุดจอด · Parking Management</p>
+        </div>
+        <div class="login-deco">
+            <div class="login-deco-circle c1"></div>
+            <div class="login-deco-circle c2"></div>
+            <div class="login-deco-circle c3"></div>
+        </div>
+    </div>
+
+    <!-- Right panel — form -->
+    <div class="login-right">
+        <div class="login-form-wrap">
+            <div class="mb-4">
+                <h2 class="fw-bold mb-1" style="color:#161b2c;">Welcome back</h2>
+                <p class="text-muted" style="font-size:.9rem;">Sign in to your account</p>
+            </div>
+
+            @if (!ViewData.ModelState.IsValid && ViewData.ModelState.Values.Any(v => v.Errors.Count > 0))
+            {
+                <div class="alert alert-danger alert-dismissible fade show py-2 small" role="alert">
+                    @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        <div>@error.ErrorMessage</div>
+                    }
+                    <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            <form method="post" asp-controller="Auth" asp-action="Login">
+                @Html.AntiForgeryToken()
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small" style="color:#444;">Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text login-input-icon"><i class="fas fa-user"></i></span>
+                        <input type="text" class="form-control login-input" name="username"
+                               placeholder="Enter username" required autocomplete="username" />
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold small" style="color:#444;">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text login-input-icon"><i class="fas fa-lock"></i></span>
+                        <input type="password" class="form-control login-input" name="password"
+                               id="loginPassword" placeholder="Enter password" required autocomplete="current-password" />
+                        <button type="button" class="input-group-text login-input-icon" id="togglePwd"
+                                style="cursor:pointer;" onclick="togglePassword()">
+                            <i class="fas fa-eye" id="eyeIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-action w-100 py-2" style="font-size:1rem;font-weight:600;">
+                    <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                </button>
+            </form>
+
+            <p class="text-center text-muted mt-4" style="font-size:.8rem;">
+                <i class="fas fa-shield-alt me-1"></i>Contact your administrator for access
+            </p>
         </div>
     </div>
 </div>
 
+<style>
+.login-page {
+    min-height: 100vh;
+    display: flex;
+}
+
+/* Left branding panel */
+.login-left {
+    width: 420px;
+    flex-shrink: 0;
+    background: #161b2c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.login-brand {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: 2rem;
+}
+
+.login-logo {
+    width: 90px;
+    height: 90px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #fd7e14, #e85d00);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: white;
+    margin: 0 auto 1.5rem;
+    box-shadow: 0 8px 24px rgba(253,126,20,.4);
+}
+
+.login-app-name {
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: white;
+    letter-spacing: 4px;
+    margin-bottom: .5rem;
+}
+
+.login-tagline {
+    color: rgba(255,255,255,.5);
+    font-size: .9rem;
+    letter-spacing: 1px;
+}
+
+/* Decorative circles */
+.login-deco { position: absolute; inset: 0; z-index: 1; }
+.login-deco-circle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(253,126,20,.08);
+}
+.c1 { width: 300px; height: 300px; top: -80px; right: -80px; }
+.c2 { width: 200px; height: 200px; bottom: 40px; left: -60px; background: rgba(253,126,20,.06); }
+.c3 { width: 120px; height: 120px; bottom: 180px; right: 20px; background: rgba(255,255,255,.03); }
+
+/* Right form panel */
+.login-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f4f6fb;
+    padding: 2rem;
+}
+
+.login-form-wrap {
+    width: 100%;
+    max-width: 380px;
+}
+
+.login-input-icon {
+    background: white;
+    border-color: #dee2e6;
+    color: #aaa;
+}
+
+.login-input {
+    border-color: #dee2e6;
+    padding: .6rem .9rem;
+}
+
+.login-input:focus {
+    border-color: #fd7e14;
+    box-shadow: 0 0 0 .2rem rgba(253,126,20,.15);
+}
+
+/* Mobile */
+@@media (max-width: 640px) {
+    .login-left { display: none; }
+    .login-right { background: white; }
+    .login-form-wrap { max-width: 100%; }
+}
+</style>
+
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+<script>
+function togglePassword() {
+    const input = document.getElementById('loginPassword');
+    const icon = document.getElementById('eyeIcon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
+}
+</script>
 }

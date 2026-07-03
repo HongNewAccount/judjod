@@ -56,11 +56,10 @@ public class AuthController : Controller
 
     public async Task<IActionResult> Register()
     {
-        var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin")
+        var isSuperAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
+        if (!isSuperAdmin)
         {
-            ViewBag.ErrorMessage = "Only Admin can register new users";
-            return View();
+            return RedirectToAction("Index", "User");
         }
 
         var users = await _context.Users.Where(u => u.IsActive).ToListAsync();
@@ -72,8 +71,8 @@ public class AuthController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(string username, string password, string confirmPassword, bool canEdit = false)
     {
-        var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin")
+        var isSuperAdmin2 = HttpContext.Session.GetString("IsSuperAdmin") == "true";
+        if (!isSuperAdmin2)
         {
             return RedirectToAction(nameof(Login));
         }
@@ -102,13 +101,15 @@ public class AuthController : Controller
             return View();
         }
 
+        // Only super admin (ID=1) can grant edit access
+        var isSuperAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
         var user = new User
         {
             Username = username.Trim(),
             FirstName = username.Trim(),
             LastName = "",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-            Role = canEdit ? "Admin" : "User",
+            Role = (canEdit && isSuperAdmin) ? "Admin" : "User",
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
