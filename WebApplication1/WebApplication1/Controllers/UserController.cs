@@ -168,7 +168,7 @@ public class UserController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ToggleCanEdit(int id)
+    public async Task<IActionResult> SetRole(int id, string role)
     {
         var isSuperAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
         if (!isSuperAdmin) return Forbid();
@@ -180,10 +180,12 @@ public class UserController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        if (role != "Editor" && role != "User") return BadRequest();
+
         var user = await _context.Users.FindAsync(id);
         if (user == null) return NotFound();
 
-        user.Role = user.Role == "Admin" ? "User" : "Admin";
+        user.Role = role;
         await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Details), new { id });
     }

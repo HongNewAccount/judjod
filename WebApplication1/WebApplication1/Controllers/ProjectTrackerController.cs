@@ -115,7 +115,7 @@ public class ProjectTrackerController : Controller
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var userRole = HttpContext.Session.GetString("UserRole");
 
-        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId))
+        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId))
         {
             TempData["ErrorMessage"] = "Your project management access has been suspended by an Admin.";
             return RedirectToAction(nameof(Index));
@@ -150,7 +150,7 @@ public class ProjectTrackerController : Controller
             var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
             var userRole = HttpContext.Session.GetString("UserRole");
 
-            if (userRole == "Admin")
+            if (userRole == "Admin" || userRole == "Editor")
             {
                 project.CreatedByUserId = userId;
 
@@ -228,13 +228,13 @@ public class ProjectTrackerController : Controller
 
         // Check permission: Admin or Owner only
         bool isOwner = project.Owners.Any(o => o.UserId == userId);
-        if (userRole != "Admin" && !isOwner)
+        if (userRole != "Admin" && userRole != "Editor" && !isOwner)
         {
             TempData["ErrorMessage"] = "You can only edit projects where you are an owner";
             return RedirectToAction(nameof(Index));
         }
 
-        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId))
+        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId))
         {
             TempData["ErrorMessage"] = "Your project management access has been suspended by an Admin.";
             return RedirectToAction(nameof(Index));
@@ -268,19 +268,19 @@ public class ProjectTrackerController : Controller
 
                 // Check permission: Admin or Owner only
                 bool isOwner = existingProject.Owners.Any(o => o.UserId == userId);
-                if (userRole != "Admin" && !isOwner)
+                if (userRole != "Admin" && userRole != "Editor" && !isOwner)
                 {
                     TempData["ErrorMessage"] = "You can only edit projects where you are an owner";
                     return RedirectToAction(nameof(Index));
                 }
 
-                if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId))
+                if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId))
                 {
                     TempData["ErrorMessage"] = "Your project management access has been suspended by an Admin.";
                     return RedirectToAction(nameof(Index));
                 }
 
-                if (userRole == "Admin")
+                if (userRole == "Admin" || userRole == "Editor")
                 {
                     // Track changes
                     if (existingProject.Status != project.Status)
@@ -490,7 +490,7 @@ public class ProjectTrackerController : Controller
             return NotFound();
 
         // Check permission: Request creator or Admin
-        if (request.RequestedByUserId != userId && userRole != "Admin")
+        if (request.RequestedByUserId != userId && userRole != "Admin" && userRole != "Editor")
         {
             TempData["ErrorMessage"] = "You do not have permission to cancel this request.";
             return RedirectToAction(nameof(Index));
@@ -526,13 +526,13 @@ public class ProjectTrackerController : Controller
 
         // Check permission: Admin or Owner only
         bool isOwner = project.Owners.Any(o => o.UserId == userId);
-        if (userRole != "Admin" && !isOwner)
+        if (userRole != "Admin" && userRole != "Editor" && !isOwner)
         {
             TempData["ErrorMessage"] = "You can only delete projects where you are an owner";
             return RedirectToAction(nameof(Index));
         }
 
-        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId))
+        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId))
         {
             TempData["ErrorMessage"] = "Your project management access has been suspended by an Admin.";
             return RedirectToAction(nameof(Index));
@@ -540,7 +540,7 @@ public class ProjectTrackerController : Controller
 
         var projectName = project.Name;
 
-        if (userRole == "Admin")
+        if (userRole == "Admin" || userRole == "Editor")
         {
             // Admin can delete immediately
             _context.ActivityLogs.Add(new WebApplication1.Models.ActivityLog
@@ -612,17 +612,17 @@ public class ProjectTrackerController : Controller
             return NotFound();
 
         bool isOwner = existingProject.Owners.Any(o => o.UserId == userId);
-        if (userRole != "Admin" && !isOwner)
+        if (userRole != "Admin" && userRole != "Editor" && !isOwner)
         {
             return Forbid();
         }
 
-        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId))
+        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId))
         {
             return Forbid();
         }
 
-        if (userRole == "Admin")
+        if (userRole == "Admin" || userRole == "Editor")
         {
             if (existingProject.Status != status)
             {
@@ -704,10 +704,10 @@ public class ProjectTrackerController : Controller
         if (project == null) return NotFound();
 
         bool isOwner = project.Owners.Any(o => o.UserId == userId);
-        if (userRole != "Admin" && !isOwner) return Forbid();
-        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
+        if (userRole != "Admin" && userRole != "Editor" && !isOwner) return Forbid();
+        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
 
-        if (userRole == "Admin")
+        if (userRole == "Admin" || userRole == "Editor")
         {
             _context.ActivityLogs.Add(new ActivityLog { ProjectId = id, UserId = userId, ActionType = "NameChanged", Description = $"Project renamed from '{project.Name}' to '{name}'", OldValue = project.Name, NewValue = name, CreatedAt = DateTime.UtcNow });
             project.Name = name.Trim();
@@ -741,8 +741,8 @@ public class ProjectTrackerController : Controller
         if (project == null) return NotFound();
 
         bool isOwner = project.Owners.Any(o => o.UserId == userId);
-        if (userRole != "Admin" && !isOwner) return Forbid();
-        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
+        if (userRole != "Admin" && userRole != "Editor" && !isOwner) return Forbid();
+        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
 
         project.Priority = priority == "None" ? null : priority;
         project.UpdatedAt = DateTime.UtcNow;
@@ -763,13 +763,13 @@ public class ProjectTrackerController : Controller
         if (project == null) return NotFound();
 
         bool isOwner = project.Owners.Any(o => o.UserId == userId);
-        if (userRole != "Admin" && !isOwner) return Forbid();
-        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
+        if (userRole != "Admin" && userRole != "Editor" && !isOwner) return Forbid();
+        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
 
         DateTime? newDate = string.IsNullOrWhiteSpace(endDate) ? null :
             (DateTime.TryParse(endDate, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d2) ? d2 : project.EndDate);
 
-        if (userRole == "Admin")
+        if (userRole == "Admin" || userRole == "Editor")
         {
             _context.ActivityLogs.Add(new ActivityLog { ProjectId = id, UserId = userId, ActionType = "EndDateChanged", Description = $"End date changed to {newDate?.ToString("dd MMM yyyy") ?? "Ongoing"}", OldValue = project.EndDate?.ToString("dd MMM yyyy") ?? "Ongoing", NewValue = newDate?.ToString("dd MMM yyyy") ?? "Ongoing", CreatedAt = DateTime.UtcNow });
             project.EndDate = newDate;
@@ -797,7 +797,7 @@ public class ProjectTrackerController : Controller
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var userRole = HttpContext.Session.GetString("UserRole");
 
-        if (userRole != "Admin") return Forbid();
+        if (userRole != "Admin" && userRole != "Editor") return Forbid();
 
         var project = await _context.Projects.Include(p => p.Owners).FirstOrDefaultAsync(p => p.Id == id);
         if (project == null) return NotFound();
@@ -820,7 +820,7 @@ public class ProjectTrackerController : Controller
         if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
 
         var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin") return Forbid();
+        if (userRole != "Admin" && userRole != "Editor") return Forbid();
 
         if (string.IsNullOrEmpty(orderedIds)) return BadRequest();
 
@@ -846,7 +846,7 @@ public class ProjectTrackerController : Controller
     {
         if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
         var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin") return Forbid();
+        if (userRole != "Admin" && userRole != "Editor") return Forbid();
         if (string.IsNullOrWhiteSpace(projectIds) || string.IsNullOrWhiteSpace(action)) return BadRequest();
 
         var ids = projectIds.Split(',')
@@ -880,7 +880,7 @@ public class ProjectTrackerController : Controller
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var userRole = HttpContext.Session.GetString("UserRole");
 
-        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId))
+        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId))
             return Forbid();
 
         var ownerIdList = (ownerIds ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -896,7 +896,7 @@ public class ProjectTrackerController : Controller
             .Select(p => (int?)p.SortOrder)
             .MaxAsync() ?? -1;
 
-        if (userRole == "Admin")
+        if (userRole == "Admin" || userRole == "Editor")
         {
             var project = new WebApplication1.Models.Project
             {
@@ -986,10 +986,10 @@ public class ProjectTrackerController : Controller
         if (project == null) return NotFound();
 
         bool isOwner = project.Owners.Any(o => o.UserId == userId);
-        if (userRole != "Admin" && !isOwner) return Forbid();
-        if (userRole != "Admin" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
+        if (userRole != "Admin" && userRole != "Editor" && !isOwner) return Forbid();
+        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
 
-        if (userRole == "Admin")
+        if (userRole == "Admin" || userRole == "Editor")
         {
             project.Description = description?.Trim();
             project.UpdatedAt = DateTime.UtcNow;
@@ -1032,7 +1032,7 @@ public class ProjectTrackerController : Controller
         if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
 
         var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin") return Forbid();
+        if (userRole != "Admin" && userRole != "Editor") return Forbid();
 
         var project = await _context.Projects.FindAsync(id);
         if (project == null) return NotFound();
@@ -1057,7 +1057,7 @@ public class ProjectTrackerController : Controller
     public async Task<IActionResult> CreateGroup(string name, string? color)
     {
         var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin") return Forbid();
+        if (userRole != "Admin" && userRole != "Editor") return Forbid();
         if (string.IsNullOrWhiteSpace(name)) return BadRequest();
 
         var group = new ProjectGroup
@@ -1077,7 +1077,7 @@ public class ProjectTrackerController : Controller
     public async Task<IActionResult> DeleteGroup(int id)
     {
         var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin") return Forbid();
+        if (userRole != "Admin" && userRole != "Editor") return Forbid();
 
         var group = await _context.ProjectGroups.FindAsync(id);
         if (group == null) return NotFound();
@@ -1095,7 +1095,7 @@ public class ProjectTrackerController : Controller
         if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
 
         var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin") return Forbid();
+        if (userRole != "Admin" && userRole != "Editor") return Forbid();
 
         var project = await _context.Projects.FindAsync(id);
         if (project == null) return NotFound();
@@ -1113,7 +1113,7 @@ public class ProjectTrackerController : Controller
     {
         if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
         var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin") return Forbid();
+        if (userRole != "Admin" && userRole != "Editor") return Forbid();
 
         var project = await _context.Projects.FindAsync(id);
         if (project == null) return NotFound();

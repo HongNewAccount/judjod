@@ -50,10 +50,13 @@
                                 }
                                 else
                                 {
-                                    <span class="badge bg-secondary" style="font-size:.68rem;">User</span>
-                                    @if (user.Role == "Admin")
+                                    @if (user.Role == "Editor")
                                     {
-                                        <span class="badge bg-success" style="font-size:.68rem;">Can Edit</span>
+                                        <span class="badge bg-primary" style="font-size:.68rem;">Editor</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary" style="font-size:.68rem;">User</span>
                                     }
                                 }
                                 @if (!user.IsActive)

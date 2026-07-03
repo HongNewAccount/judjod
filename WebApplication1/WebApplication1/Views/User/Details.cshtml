@@ -1,4 +1,4 @@
-@model WebApplication1.Models.User
+﻿@model WebApplication1.Models.User
 @Html.AntiForgeryToken()
 @{
     ViewData["Title"] = "User";
@@ -46,10 +46,13 @@
                         }
                         else
                         {
-                            <span class="badge bg-secondary">User</span>
-                            @if (Model.Role == "Admin")
+                            @if (Model.Role == "Editor")
                             {
-                                <span class="badge bg-success ms-1">Can Edit</span>
+                                <span class="badge bg-primary">Editor</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">User</span>
                             }
                         }
                         @if (!Model.IsActive)
@@ -80,14 +83,14 @@
                 <div class="d-flex gap-2 flex-wrap flex-shrink-0 align-items-center">
                     @if (isSuperAdminViewer)
                     {
-                        <form asp-action="ToggleCanEdit" asp-route-id="@Model.Id" method="post" class="d-inline">
+                        <form asp-action="SetRole" asp-route-id="@Model.Id" method="post" class="d-flex align-items-center gap-1">
                             @Html.AntiForgeryToken()
-                            <button type="submit"
-                                    class="btn btn-sm @(Model.Role == "Admin" ? "btn-outline-secondary" : "btn-modal-action")"
-                                    title="@(Model.Role == "Admin" ? "Remove edit access" : "Grant edit access")">
-                                <i class="fas fa-edit me-1"></i>
-                                @(Model.Role == "Admin" ? "Remove Edit" : "Can Edit")
-                            </button>
+                            <i class="fas fa-user-tag text-muted" style="font-size:.8rem;"></i>
+                            <select name="role" class="form-select form-select-sm" style="width:110px;font-size:.82rem;"
+                                    onchange="this.form.submit()">
+                                <option value="Editor" selected="@(Model.Role == "Editor")">Editor</option>
+                                <option value="User" selected="@(Model.Role != "Editor")">User</option>
+                            </select>
                         </form>
 
                         <form asp-action="ToggleBan" asp-route-id="@Model.Id" method="post" class="d-inline"

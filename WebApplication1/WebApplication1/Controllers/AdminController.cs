@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApplication1.Data;
 using WebApplication1.Models;
@@ -17,7 +17,7 @@ public class AdminController : Controller
     public async Task<IActionResult> PendingRequests()
     {
         var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin")
+        if (userRole != "Admin" && userRole != "Editor")
         {
             return Forbid();
         }
@@ -40,7 +40,7 @@ public class AdminController : Controller
     public async Task<IActionResult> ApproveRequest(int id)
     {
         var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin")
+        if (userRole != "Admin" && userRole != "Editor")
             return Forbid();
 
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
@@ -328,7 +328,7 @@ public class AdminController : Controller
     public async Task<IActionResult> RejectRequest(int id, string rejectionReason)
     {
         var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin")
+        if (userRole != "Admin" && userRole != "Editor")
             return Forbid();
 
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;

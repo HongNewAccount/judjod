@@ -60,11 +60,11 @@
                             @foreach (var log in Model)
                             {
                                 var hasProject = log.Project != null;
-                                var rowClick = hasProject
-                                    ? $"openLogTaskModal({log.ProjectId}, '{log.Project!.Name.Replace("'", "\\'")}')"
-                                    : "";
+                                var safeName = hasProject ? log.Project!.Name.Replace("\\", "\\\\").Replace("'", "\\'") : "";
+                                var rowOnClick = hasProject ? $"openLogTaskModal({log.ProjectId}, '{safeName}')" : null;
                                 <tr class="align-middle @(hasProject ? "log-row-clickable" : "")"
-                                    @(hasProject ? $"onclick=\"{rowClick}\" style=\"cursor:pointer;\"" : "")>
+                                    onclick="@rowOnClick"
+                                    style="@(hasProject ? "cursor:pointer;" : null)">
                                     <td>
                                         @if (hasProject)
                                         {

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApplication1.Data;
 using WebApplication1.Models;
@@ -43,7 +43,7 @@ public class AuthController : Controller
         HttpContext.Session.SetString("UserName", $"{user.FirstName} {user.LastName}");
         HttpContext.Session.SetString("UserRole", user.Role ?? "User");
         // SuperAdmin = first user (ID=1), has full control (ban, toggle edit)
-        HttpContext.Session.SetString("IsSuperAdmin", user.Id == 1 ? "true" : "false");
+        HttpContext.Session.SetString("IsSuperAdmin", user.Role == "Admin" ? "true" : "false");
 
         return RedirectToAction("Index", "ProjectTracker");
     }
@@ -109,7 +109,7 @@ public class AuthController : Controller
             FirstName = username.Trim(),
             LastName = "",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-            Role = (canEdit && isSuperAdmin) ? "Admin" : "User",
+            Role = (canEdit && isSuperAdmin) ? "Editor" : "User",
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };

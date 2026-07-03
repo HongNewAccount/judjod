@@ -5,7 +5,7 @@
     var userRole = Context.Session.GetString("UserRole") ?? "User";
     var allUsers = DbContext.Users.Where(u => u.IsActive).ToList();
     var currentUserId = Context.Session.GetInt32("UserId") ?? 1;
-    var isSuspended = userRole != "Admin" && (DbContext.Users.Find(currentUserId)?.ProjectAccessSuspended ?? false);
+    var isSuspended = (userRole != "Admin" && userRole != "Editor") || (DbContext.Users.Find(currentUserId)?.ProjectAccessSuspended ?? false);
     var pendingUpdates = (HashSet<int>)(ViewBag.PendingUpdates ?? new HashSet<int>());
     var pendingCreations = (IEnumerable<WebApplication1.Models.ProjectApprovalRequest>)(ViewBag.PendingCreations ?? new List<WebApplication1.Models.ProjectApprovalRequest>());
     var groups = (List<WebApplication1.Models.ProjectGroup>)(ViewBag.Groups ?? new List<WebApplication1.Models.ProjectGroup>());
@@ -70,7 +70,7 @@
             <h1 class="page-title mb-0">Board</h1>
             <p class="page-subtitle">Track and manage all organization projects</p>
         </div>
-        @if (userRole == "Admin")
+        @if (userRole == "Admin" || userRole == "Editor")
         {
             <div class="col-auto d-flex gap-2 align-items-center">
                 <button type="button" id="btnDelete" class="btn btn-sm btn-outline-danger" onclick="enterSelectMode('delete')">
@@ -100,7 +100,7 @@
                class="group-tab @(selectedGroupId == g.Id ? "group-tab-active" : "")"
                style="@(g.Color != null ? $"--group-color: {g.Color};" : "")">
                 <i class="fas fa-users me-1"></i>@g.Name
-                @if (userRole == "Admin")
+                @if (userRole == "Admin" || userRole == "Editor")
                 {
                     <form asp-action="DeleteGroup" asp-route-id="@g.Id" method="post" class="d-inline ms-1"
                           onsubmit="return confirm('Delete group &quot;@g.Name&quot;?');">
@@ -110,7 +110,7 @@
                 }
             </a>
         }
-        @if (userRole == "Admin")
+        @if (userRole == "Admin" || userRole == "Editor")
         {
             <button type="button" class="group-tab group-tab-add" onclick="document.getElementById('newGroupForm').classList.toggle('d-none')">
                 <i class="fas fa-plus me-1"></i>New Group
@@ -167,7 +167,7 @@
 
                     @foreach (var project in colProjects)
                     {
-                        var isAdmin = userRole == "Admin";
+                        var isAdmin = userRole == "Admin" || userRole == "Editor";
                         var isPendingEdit = pendingUpdates.Contains(project.Id);
                         var ownerIdList = string.Join(",", project.Owners.Select(o => o.UserId));
 
