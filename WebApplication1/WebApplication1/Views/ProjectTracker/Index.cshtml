@@ -93,19 +93,20 @@
         </button>
         @foreach (var g in groups)
         {
-            <button type="button" class="group-tab" data-filter-group="@g.Id"
-                    onclick="filterByGroup(@g.Id, this)"
-                    style="@(g.Color != null ? $"--group-color: {g.Color};" : "")">
+            <span class="group-tab" data-filter-group="@g.Id"
+                  onclick="filterByGroup(@g.Id, this)"
+                  style="cursor:pointer; @(g.Color != null ? $"--group-color: {g.Color};" : "")">
                 <i class="fas fa-users me-1"></i>@g.Name
                 @if (userRole == "Admin" || userRole == "Editor")
                 {
-                    <form asp-action="DeleteGroup" asp-route-id="@g.Id" method="post" class="d-inline ms-1"
-                          onsubmit="return confirm('Delete group &quot;@g.Name&quot;?');">
+                    <form asp-action="DeleteGroup" asp-route-id="@g.Id" method="post"
+                          style="display:inline;" onsubmit="event.stopPropagation(); return confirm('Delete group &quot;@g.Name&quot;?');">
                         @Html.AntiForgeryToken()
-                        <button type="submit" class="group-tab-delete" title="Delete group" onclick="event.stopPropagation()">&times;</button>
+                        <button type="submit" class="group-tab-delete" title="Delete group"
+                                onclick="event.stopPropagation()">&times;</button>
                     </form>
                 }
-            </button>
+            </span>
         }
         @if (userRole == "Admin" || userRole == "Editor")
         {
@@ -242,7 +243,7 @@
                                     <div class="dropdown">
                                         <button type="button"
                                                 class="kanban-quick-btn @(project.GroupId.HasValue ? "kanban-quick-btn-group" : "kanban-quick-btn-empty")"
-                                                data-bs-toggle="dropdown" title="Group">
+                                                data-bs-toggle="dropdown" data-bs-auto-close="outside" title="Group">
                                             @if (project.Group?.Color != null)
                                             {
                                                 <span style="width:8px;height:8px;border-radius:50%;background:@project.Group.Color;display:inline-block;margin-right:4px;flex-shrink:0;"></span>
@@ -448,6 +449,18 @@
 <script>
 const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
 
+function filterByGroup(groupId, tabEl) {
+    document.querySelectorAll('.group-tab').forEach(t => t.classList.remove('group-tab-active'));
+    if (tabEl) tabEl.classList.add('group-tab-active');
+    document.querySelectorAll('.kanban-card[data-project-id]').forEach(card => {
+        if (!groupId) {
+            card.style.display = '';
+        } else {
+            const cg = card.getAttribute('data-group-id');
+            card.style.display = (String(cg) === String(groupId)) ? '' : 'none';
+        }
+    });
+}
 document.getElementById('boardSearch').addEventListener('keyup', function () {
     const term = this.value.toLowerCase();
     document.querySelectorAll('.kanban-card[data-search]').forEach(card => {
@@ -566,19 +579,23 @@ function updateDateDOM(id, endDate) {
     }
 }
 
-function updateGroupDOM(id, groupId, clickedItem) {
+function updateGroupDOM(id, groupId, radioEl) {
     const card = document.querySelector('.kanban-card[data-project-id="' + id + '"]');
     if (!card) return;
     const groupDropdown = [...card.querySelectorAll('.kanban-quick-row .dropdown')]
-        .find(dd => dd.querySelector('.group-assign-btn'));
+        .find(dd => dd.querySelector('.group-picker, .group-radio'));
     if (!groupDropdown) return;
     const btn = groupDropdown.querySelector('[data-bs-toggle="dropdown"]');
     if (!btn) return;
     const nameSpan = btn.querySelector('span:last-child');
+
     if (groupId) {
-        const colorIcon = clickedItem?.querySelector('i.fas.fa-circle');
-        const color = colorIcon ? colorIcon.style.color : '#6c757d';
-        const groupName = clickedItem ? clickedItem.textContent.trim() : 'Group';
+        const label = radioEl?.closest?.('.group-item') ?? radioEl?.parentElement;
+        const colorDot = label?.querySelector('span[style*="border-radius:50%"]');
+        const nameEl = label?.querySelector('span.small');
+        const color = colorDot?.style?.background || '#6c757d';
+        const groupName = nameEl?.textContent?.trim() || 'Team';
+
         btn.className = 'kanban-quick-btn kanban-quick-btn-group';
         let dot = btn.querySelector('span[style*="border-radius:50%"]');
         const usersIcon = btn.querySelector('i.fa-users');
@@ -704,9 +721,9 @@ document.querySelectorAll('.group-radio').forEach(radio => {
                 method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 body: new URLSearchParams({ id, groupId, __RequestVerificationToken: token })
             });
-            const colorDot = this.closest('.group-item')?.querySelector('span[style*="border-radius:50%"]');
-            updateGroupDOM(id, groupId, colorDot ? { querySelector: () => colorDot } : null);
-            this.closest('.dropdown')?.querySelector('[data-bs-toggle="dropdown"]')?.click();
+            updateGroupDOM(id, groupId, this);
+            const dropdownEl = this.closest('.dropdown')?.querySelector('[data-bs-toggle="dropdown"]');
+            if (dropdownEl) { const inst = bootstrap.Dropdown.getInstance(dropdownEl); if (inst) inst.hide(); }
         } catch (e) { console.error(e); }
     });
 });
