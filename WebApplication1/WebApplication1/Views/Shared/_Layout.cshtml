@@ -81,24 +81,11 @@
             </ul>
 
             <div class="sidebar-footer">
-                @if (Context.Session.GetInt32("UserId") != null)
-                {
-                    <div class="user-info-compact mb-2">
-                        <p class="mb-1">
-                            <small class="text-white">@userName</small><br />
-                            <small class="text-muted">@userRole</small>
-                        </p>
-                    </div>
-                    <a asp-controller="Auth" asp-action="Logout" class="btn btn-action w-100">
-                        <i class="fas fa-sign-out-alt me-1"></i> <span class="sidebar-logout-text">Logout</span>
-                    </a>
-                }
-                else
-                {
+                
                     <a asp-controller="Auth" asp-action="Login" class="btn btn-action w-100">
-                        <i class="fas fa-sign-in-alt me-1"></i> <span class="sidebar-logout-text">Login</span>
+                        <i class="fas fa-sign-in-alt me-1"></i> <span class="sidebar-logout-text">Logout</span>
                     </a>
-                }
+                
             </div>
         </nav>
 

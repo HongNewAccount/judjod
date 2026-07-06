@@ -471,6 +471,11 @@ document.getElementById('boardSearch').addEventListener('keyup', function () {
 let selectMode = null;
 
 function enterSelectMode(mode) {
+    // Reset any previous select state first
+    document.querySelectorAll('.bulk-cb').forEach(cb => cb.remove());
+    const board = document.getElementById('kanbanBoard');
+    board.classList.remove('select-mode', 'select-mode-delete', 'select-mode-archive');
+
     selectMode = mode;
     const bar = document.getElementById('bulkBottomBar');
     bar.classList.remove('d-none');
@@ -498,7 +503,7 @@ function enterSelectMode(mode) {
         cb.addEventListener('click', e => e.stopPropagation());
         card.prepend(cb);
     });
-    document.getElementById('kanbanBoard').classList.add('select-mode');
+    board.classList.add('select-mode', 'select-mode-' + mode);
     updateBulkCount();
 }
 
@@ -506,7 +511,8 @@ function exitSelectMode() {
     selectMode = null;
     document.getElementById('bulkBottomBar').classList.add('d-none');
     document.querySelectorAll('.bulk-cb').forEach(cb => cb.remove());
-    document.getElementById('kanbanBoard').classList.remove('select-mode');
+    const board = document.getElementById('kanbanBoard');
+    board.classList.remove('select-mode', 'select-mode-delete', 'select-mode-archive');
     document.getElementById('btnDelete')?.classList.replace('btn-danger', 'btn-outline-danger');
     document.getElementById('btnArchive')?.classList.replace('btn-success', 'btn-outline-success');
 }
