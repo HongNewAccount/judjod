@@ -900,25 +900,30 @@ async function archiveCurrentTask() {
 
 let draggedCard = null;
 let placeholder = null;
-let dragMouseY = 0;
-let autoScrollRaf = null;
+let autoScrollTimer = null;
+let lastDragY = -1;
 
-function runAutoScroll() {
-    if (draggedCard) {
-        const ZONE = 120;
-        const MAX_SPD = 28;
-        const y = dragMouseY;
+// track Y from dragover on document — clientY here is always correct
+document.addEventListener('dragover', e => { lastDragY = e.clientY; });
+
+function startAutoScroll() {
+    stopAutoScroll();
+    lastDragY = -1;
+    autoScrollTimer = setInterval(() => {
+        if (!draggedCard || lastDragY < 0) return;
+        const ZONE = 150;
+        const MAX_SPD = 50;
         const vh = window.innerHeight;
-        if (y < ZONE) {
-            window.scrollBy(0, -Math.round(MAX_SPD * (1 - y / ZONE)));
-        } else if (y > vh - ZONE) {
-            window.scrollBy(0, Math.round(MAX_SPD * (1 - (vh - y) / ZONE)));
-        }
-    }
-    autoScrollRaf = requestAnimationFrame(runAutoScroll);
+        let spd = 0;
+        if (lastDragY < ZONE)        spd = -Math.ceil(MAX_SPD * (1 - lastDragY / ZONE));
+        else if (lastDragY > vh - ZONE) spd = Math.ceil(MAX_SPD * (1 - (vh - lastDragY) / ZONE));
+        if (spd) window.scrollBy({ top: spd, behavior: 'instant' });
+    }, 16);
 }
-
-document.addEventListener('dragover', e => { if (draggedCard) dragMouseY = e.clientY; });
+function stopAutoScroll() {
+    if (autoScrollTimer) { clearInterval(autoScrollTimer); autoScrollTimer = null; }
+    lastDragY = -1;
+}
 
 function createPlaceholder() {
     const p = document.createElement('div');
@@ -932,7 +937,7 @@ document.querySelectorAll('.kanban-card[draggable="true"]').forEach(card => {
         draggedCard = card;
         setTimeout(() => { card.classList.add('dragging'); }, 0);
         e.dataTransfer.effectAllowed = 'move';
-        autoScrollRaf = requestAnimationFrame(runAutoScroll);
+        startAutoScroll();
     });
     card.addEventListener('dragend', () => {
         card.classList.remove('dragging');
@@ -941,8 +946,7 @@ document.querySelectorAll('.kanban-card[draggable="true"]').forEach(card => {
         lastDropTarget = null; lastDropBody = null;
         document.querySelectorAll('.kanban-column-body.drag-over').forEach(b => b.classList.remove('drag-over'));
         draggedCard = null;
-        cancelAnimationFrame(autoScrollRaf);
-        autoScrollRaf = null;
+        stopAutoScroll();
     });
 });
 
