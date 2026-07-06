@@ -1347,7 +1347,7 @@ body {
 .bulk-fab-bar {
     position: fixed;
     bottom: 28px;
-    left: calc(50vw + var(--sidebar-width) / 2 - 36px);
+    left: calc(50vw + var(--sidebar-width) / 2 - 7px);
     transform: translateX(-50%);
     z-index: 1050;
     display: flex;
@@ -1357,7 +1357,7 @@ body {
     transition: left .25s ease;
 }
 [data-sidebar].collapsed .bulk-fab-bar {
-    left: calc(50vw + var(--sidebar-width-collapsed) / 2 - 36px);
+    left: calc(50vw + var(--sidebar-width-collapsed) / 2 - 7px);
 }
 @media (max-width: 768px) {
     .bulk-fab-bar { left: 50%; }
