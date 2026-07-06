@@ -650,10 +650,18 @@ body {
     justify-content: center;
     border: 2px solid #fff;
     margin-left: -6px;
+    object-fit: cover;
+    flex-shrink: 0;
 }
 
 .kanban-card-avatar:first-child {
     margin-left: 0;
+}
+
+.kanban-card-avatar-more {
+    background: #adb5bd;
+    font-size: 0.55rem;
+    letter-spacing: -0.5px;
 }
 
 .kanban-card-actions {

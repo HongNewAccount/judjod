@@ -200,9 +200,21 @@
                                                 <div class="kanban-avatars">
                                                     @foreach (var owner in project.Owners.Take(3))
                                                     {
-                                                        <span class="kanban-card-avatar" title="@owner.User?.FirstName @owner.User?.LastName">
-                                                            @Initials(owner.User)
-                                                        </span>
+                                                        @if (!string.IsNullOrEmpty(owner.User?.ProfileImagePath))
+                                                        {
+                                                            <img src="@owner.User.ProfileImagePath" class="kanban-card-avatar"
+                                                                 title="@owner.User.FirstName @owner.User.LastName" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="kanban-card-avatar" title="@owner.User?.FirstName @owner.User?.LastName">
+                                                                @Initials(owner.User)
+                                                            </span>
+                                                        }
+                                                    }
+                                                    @if (project.Owners.Count() > 3)
+                                                    {
+                                                        <span class="kanban-card-avatar kanban-card-avatar-more">+@(project.Owners.Count() - 3)</span>
                                                     }
                                                 </div>
                                             }
@@ -221,6 +233,8 @@
                                                         <input class="form-check-input flex-shrink-0 owner-checkbox" type="checkbox"
                                                                id="owner_@(project.Id)_@(user.Id)" value="@user.Id"
                                                                checked="@isAssigned" data-project-id="@project.Id"
+                                                               data-profile-img="@(user.ProfileImagePath ?? "")"
+                                                               data-fullname="@user.FirstName @user.LastName"
                                                                style="margin:0;" />
                                                         @if (!string.IsNullOrEmpty(user.ProfileImagePath))
                                                         {
@@ -675,13 +689,19 @@ function updateOwnerAvatars(projectId, picker) {
     } else {
         btn.className = 'kanban-quick-btn';
         const avatarsHtml = checked.slice(0, 3).map(cb => {
-            const label = picker.querySelector('label[for="' + cb.id + '"] span.small');
-            const name = label ? label.textContent.trim() : '?';
+            const img = cb.getAttribute('data-profile-img');
+            const name = cb.getAttribute('data-fullname') || '?';
+            if (img) {
+                return `<img src="${img}" class="kanban-card-avatar" title="${name}" />`;
+            }
             const parts = name.trim().split(' ');
             const initials = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
-            return '<span class="kanban-card-avatar">' + (initials || '?') + '</span>';
+            return `<span class="kanban-card-avatar" title="${name}">${initials || '?'}</span>`;
         }).join('');
-        btn.innerHTML = '<div class="kanban-avatars">' + avatarsHtml + '</div>';
+        const moreHtml = checked.length > 3
+            ? `<span class="kanban-card-avatar kanban-card-avatar-more">+${checked.length - 3}</span>`
+            : '';
+        btn.innerHTML = '<div class="kanban-avatars">' + avatarsHtml + moreHtml + '</div>';
     }
 }
 
@@ -880,6 +900,25 @@ async function archiveCurrentTask() {
 
 let draggedCard = null;
 let placeholder = null;
+let dragMouseY = 0;
+let autoScrollRaf = null;
+
+function runAutoScroll() {
+    if (draggedCard) {
+        const ZONE = 120;
+        const MAX_SPD = 28;
+        const y = dragMouseY;
+        const vh = window.innerHeight;
+        if (y < ZONE) {
+            window.scrollBy(0, -Math.round(MAX_SPD * (1 - y / ZONE)));
+        } else if (y > vh - ZONE) {
+            window.scrollBy(0, Math.round(MAX_SPD * (1 - (vh - y) / ZONE)));
+        }
+    }
+    autoScrollRaf = requestAnimationFrame(runAutoScroll);
+}
+
+document.addEventListener('dragover', e => { if (draggedCard) dragMouseY = e.clientY; });
 
 function createPlaceholder() {
     const p = document.createElement('div');
@@ -893,6 +932,7 @@ document.querySelectorAll('.kanban-card[draggable="true"]').forEach(card => {
         draggedCard = card;
         setTimeout(() => { card.classList.add('dragging'); }, 0);
         e.dataTransfer.effectAllowed = 'move';
+        autoScrollRaf = requestAnimationFrame(runAutoScroll);
     });
     card.addEventListener('dragend', () => {
         card.classList.remove('dragging');
@@ -901,6 +941,8 @@ document.querySelectorAll('.kanban-card[draggable="true"]').forEach(card => {
         lastDropTarget = null; lastDropBody = null;
         document.querySelectorAll('.kanban-column-body.drag-over').forEach(b => b.classList.remove('drag-over'));
         draggedCard = null;
+        cancelAnimationFrame(autoScrollRaf);
+        autoScrollRaf = null;
     });
 });
 
