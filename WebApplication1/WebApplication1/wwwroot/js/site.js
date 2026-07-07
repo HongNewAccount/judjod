@@ -1,8 +1,13 @@
-﻿document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() {
     const shell = document.querySelector('[data-sidebar]');
+    const mainContent = document.querySelector('.main-content');
     const toggleBtn = document.querySelector('[data-sidebar-toggle]');
     const overlay = document.querySelector('[data-sidebar-overlay]');
     const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+
+    if (mainContent) {
+        mainContent.style.opacity = '1';
+    }
 
     if (shell && localStorage.getItem('sidebarCollapsed') === '1' && !isMobile()) {
         shell.classList.add('collapsed');

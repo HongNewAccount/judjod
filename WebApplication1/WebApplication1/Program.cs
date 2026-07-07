@@ -44,32 +44,19 @@ app.Use(async (context, next) =>
     var path = context.Request.Path.ToString().ToLower();
     var userId = context.Session.GetInt32("UserId");
 
-    // endpoint สำหรับ JS เช็ค session (ใช้ใน pageshow bfcache guard)
-    if (path == "/session/ping")
+    if (path.StartsWith("/auth") ||
+        path.StartsWith("/css") || path.StartsWith("/js") ||
+        path.StartsWith("/lib") || path.StartsWith("/images") ||
+        path == "/" || path == "")
     {
-        context.Response.ContentType = "application/json";
-        context.Response.Headers["Cache-Control"] = "no-store";
-        await context.Response.WriteAsync(userId.HasValue ? "true" : "false");
+        await next.Invoke();
         return;
     }
 
-    var isPublic = path.StartsWith("/auth") ||
-                   path.StartsWith("/css") || path.StartsWith("/js") ||
-                   path.StartsWith("/lib") || path.StartsWith("/images") ||
-                   path.StartsWith("/uploads") ||
-                   path == "/" || path == "";
-
-    if (!isPublic && userId == null)
+    if (userId == null)
     {
         context.Response.Redirect("/Auth/Login");
         return;
-    }
-
-    if (!isPublic)
-    {
-        context.Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private";
-        context.Response.Headers["Pragma"] = "no-cache";
-        context.Response.Headers["Expires"] = "0";
     }
 
     await next.Invoke();
