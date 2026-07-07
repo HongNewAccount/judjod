@@ -29,14 +29,14 @@
             </div>
         }
 
-        <form method="post" asp-controller="Auth" asp-action="Login">
+        <form method="post" asp-controller="Auth" asp-action="Login" autocomplete="off">
             @Html.AntiForgeryToken()
 
             <div class="mb-3">
                 <div class="glass-input-wrap">
                     <i class="fas fa-user glass-input-icon"></i>
                     <input type="text" name="username" class="glass-input"
-                           placeholder="Username" required autocomplete="username" />
+                           placeholder="Username" required autocomplete="off" />
                 </div>
             </div>
 
@@ -44,7 +44,7 @@
                 <div class="glass-input-wrap">
                     <i class="fas fa-lock glass-input-icon"></i>
                     <input type="password" name="password" id="loginPwd" class="glass-input"
-                           placeholder="Password" required autocomplete="current-password" />
+                           placeholder="Password" required autocomplete="new-password" />
                     <button type="button" class="glass-eye-btn" onclick="togglePwd()" tabindex="-1">
                         <i class="fas fa-eye" id="eyeIcon"></i>
                     </button>
@@ -153,6 +153,29 @@
 
 @section Scripts {
 <script>
+// clear form เสมอ
+function clearLoginForm() {
+    document.querySelector('input[name="username"]').value = '';
+    document.getElementById('loginPwd').value = '';
+}
+window.addEventListener('load', clearLoginForm);
+
+// bfcache guard สำหรับหน้า login:
+// - ถ้ายัง login อยู่ (กด back จาก dashboard) → redirect กลับ dashboard
+// - ถ้าไม่ได้ login → clear form แล้วอยู่หน้า login ตามปกติ
+window.addEventListener('pageshow', function(e) {
+    clearLoginForm();
+    if (!e.persisted) return;
+    document.body.style.visibility = 'hidden';
+    fetch('/session/ping', { cache: 'no-store', credentials: 'same-origin' })
+        .then(r => r.text())
+        .then(ok => {
+            if (ok === 'true') window.location.replace('/ProjectTracker/Index');
+            else document.body.style.visibility = 'visible';
+        })
+        .catch(() => { document.body.style.visibility = 'visible'; });
+});
+
 function togglePwd() {
     const inp = document.getElementById('loginPwd');
     const ico = document.getElementById('eyeIcon');

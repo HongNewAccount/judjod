@@ -17,6 +17,14 @@ public class AuthController : Controller
 
     public IActionResult Login()
     {
+        // ถ้า login อยู่แล้ว → ไป dashboard ตรงๆ ไม่ต้องผ่าน POST history
+        if (HttpContext.Session.GetInt32("UserId") != null)
+            return RedirectToAction("Index", "ProjectTracker");
+
+        Response.GetTypedHeaders().CacheControl = new Microsoft.Net.Http.Headers.CacheControlHeaderValue
+        {
+            NoCache = true, NoStore = true, MustRevalidate = true
+        };
         return View();
     }
 
@@ -44,12 +52,14 @@ public class AuthController : Controller
         HttpContext.Session.SetString("UserRole", user.Role ?? "User");
         HttpContext.Session.SetString("IsSuperAdmin", user.Role == "Admin" ? "true" : "false");
 
+        // 303 See Other — browser จะไม่ resubmit POST เมื่อกด back
         return RedirectToAction("Index", "ProjectTracker");
     }
 
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout()
     {
         HttpContext.Session.Clear();
+        await HttpContext.Session.CommitAsync(); // flush ทันทีก่อน redirect
         return RedirectToAction(nameof(Login));
     }
 
