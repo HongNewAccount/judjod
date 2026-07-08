@@ -190,9 +190,11 @@ function togglePwd() {
     }
 }
 
-window.addEventListener('load', function() {
+function clearForm() {
     document.querySelector('input[name="username"]').value = '';
     document.getElementById('loginPwd').value = '';
-});
+}
+window.addEventListener('load', clearForm);
+window.addEventListener('pageshow', clearForm);
 </script>
 }
