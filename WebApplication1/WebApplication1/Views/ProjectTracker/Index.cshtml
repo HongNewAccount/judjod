@@ -880,6 +880,32 @@ async function saveDetailModal() {
         })
     ]);
 
+    // อัปเดต DOM บน card ทันทีโดยไม่ reload
+    const card = document.querySelector('.kanban-card[data-project-id="' + currentDetailId + '"]');
+    if (card) {
+        const titleEl = card.querySelector('.kanban-card-title');
+        if (titleEl) titleEl.textContent = name;
+
+        const descEl = card.querySelector('.kanban-card-desc');
+        if (desc.trim()) {
+            if (descEl) {
+                descEl.textContent = desc;
+            } else {
+                const t = card.querySelector('.kanban-card-title');
+                const d = document.createElement('p');
+                d.className = 'kanban-card-desc';
+                d.textContent = desc;
+                t.insertAdjacentElement('afterend', d);
+            }
+        } else if (descEl) {
+            descEl.remove();
+        }
+
+        // อัปเดต data-search สำหรับ search filter
+        const owners = card.getAttribute('data-search')?.split(' ').slice(name.split(' ').length).join(' ') ?? '';
+        card.setAttribute('data-search', (name + ' ' + owners).toLowerCase());
+    }
+
     bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')).hide();
 }
 
