@@ -1,0 +1,45 @@
+@model IEnumerable<WebApplication1.Models.ChatConversationViewModel>
+@{ ViewData["Title"] = "Chat"; }
+
+<div class="container-fluid">
+    <div class="page-header mb-4">
+        <h1 class="page-title mb-0"><i class="fas fa-comments me-2" style="color:var(--color-accent);"></i>Chat</h1>
+        <p class="page-subtitle">Messages from team members</p>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="card p-5 text-center border-0 shadow-sm">
+            <i class="fas fa-comments" style="font-size:48px;color:#ccc;"></i>
+            <p class="text-muted mt-3">No messages yet.</p>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm" style="max-width:600px;">
+            @foreach (var c in Model)
+            {
+                <a href="@Url.Action("Conversation","Chat", new { userId = c.UserId })"
+                   class="d-flex align-items-center gap-3 p-3 text-decoration-none text-dark border-bottom chat-row">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0"
+                         style="width:44px;height:44px;background:linear-gradient(135deg,#667eea,#764ba2);font-size:.85rem;">
+                        @c.Initials
+                    </div>
+                    <div style="flex:1;min-width:0;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">@c.UserName</span>
+                            <small class="text-muted">@c.LastTime.ToString("dd MMM HH:mm")</small>
+                        </div>
+                        <p class="text-muted small mb-0 text-truncate">@c.LastMessage</p>
+                    </div>
+                    @if (c.UnreadCount > 0)
+                    {
+                        <span class="badge rounded-pill" style="background:var(--color-accent);">@c.UnreadCount</span>
+                    }
+                </a>
+            }
+        </div>
+    }
+</div>
+
+<style>.chat-row:hover { background:#f8f9fa; }</style>

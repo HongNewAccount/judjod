@@ -88,6 +88,26 @@ using (var scope = app.Services.CreateScope())
         context.Database.EnsureCreated();
     }
 
+    try
+    {
+        context.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS `ChatMessages` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `UserId` int NOT NULL,
+                `IsFromAdmin` tinyint(1) NOT NULL DEFAULT 0,
+                `Content` longtext CHARACTER SET utf8mb4 NOT NULL,
+                `IsRead` tinyint(1) NOT NULL DEFAULT 0,
+                `CreatedAt` datetime(6) NOT NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_ChatMessages_UserId` (`UserId`),
+                CONSTRAINT `FK_ChatMessages_Users_UserId` FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE
+            ) CHARACTER SET utf8mb4;");
+        context.Database.ExecuteSqlRaw(@"
+            INSERT IGNORE INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`)
+            VALUES ('20260709000000_AddChatMessages', '8.0.0');");
+    }
+    catch { }
+
     SeedData.Initialize(context);
 }
 

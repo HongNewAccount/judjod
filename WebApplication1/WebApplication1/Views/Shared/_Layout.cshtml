@@ -6,7 +6,6 @@
     var userRole = Context.Session.GetString("UserRole") ?? "User";
     var userId = Context.Session.GetInt32("UserId");
     var userInitials = string.Concat(userName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(p => p[0])).ToUpper();
-    var pendingCount = userRole == "Admin" ? DbContext.ProjectApprovalRequests.Count(r => r.ApprovalStatus == "Pending") : 0;
     var currentUserProfileImage = userId != null ? DbContext.Users.Where(u => u.Id == userId).Select(u => u.ProfileImagePath).FirstOrDefault() : null;
 
     string NavClass(string controller, string? action = null) =>
@@ -65,19 +64,12 @@
                         <span>Users</span>
                     </a>
                 </li>
-                @if (userRole == "Admin")
-                {
-                    <li class="sidebar-item">
-                        <a class="@NavClass("Admin")" asp-controller="Admin" asp-action="PendingRequests" title="Pending Approvals">
-                            <i class="fas fa-clipboard-check"></i>
-                            <span>Pending Approvals</span>
-                            @if (pendingCount > 0)
-                            {
-                                <span class="badge bg-danger ms-auto rounded-pill sidebar-badge">@pendingCount</span>
-                            }
-                        </a>
-                    </li>
-                }
+                <li class="sidebar-item">
+                    <a class="@NavClass("Chat")" asp-controller="Chat" asp-action="Index" title="Chat">
+                        <i class="fas fa-comments"></i>
+                        <span>Chat</span>
+                    </a>
+                </li>
             </ul>
 
             <div class="sidebar-footer">
@@ -98,16 +90,6 @@
                 @if (userId != null)
                 {
                     <div class="topbar-right">
-                        @if (userRole == "Admin")
-                        {
-                            <a asp-controller="Admin" asp-action="PendingRequests" class="topbar-icon-btn" title="Pending Approvals">
-                                <i class="fas fa-bell"></i>
-                                @if (pendingCount > 0)
-                                {
-                                    <span class="badge bg-danger rounded-pill topbar-icon-badge">@pendingCount</span>
-                                }
-                            </a>
-                        }
                         <a asp-controller="User" asp-action="Details" asp-route-id="@userId" class="topbar-user">
                             @if (!string.IsNullOrEmpty(currentUserProfileImage))
                             {

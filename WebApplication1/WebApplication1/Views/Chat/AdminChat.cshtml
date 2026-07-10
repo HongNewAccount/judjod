@@ -1,0 +1,98 @@
+@using WebApplication1.Models
+@model IEnumerable<ChatMessage>
+@{
+    ViewData["Title"] = "Chat";
+    var chatUser = ViewBag.ChatUser as WebApplication1.Models.User;
+    var messages = Model.ToList();
+    var lastId = messages.Any() ? messages.Last().Id : 0;
+}
+@Html.AntiForgeryToken()
+
+<div class="container-fluid d-flex flex-column" style="height:calc(100vh - 130px);">
+    <div class="page-header mb-3 flex-shrink-0">
+        <a href="@Url.Action("Index","Chat")" class="btn btn-sm btn-outline-secondary me-2">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h1 class="page-title mb-0 d-inline">@chatUser?.FirstName @chatUser?.LastName</h1>
+    </div>
+
+    <div id="chatBox" class="flex-1 overflow-y-auto p-3 rounded mb-3"
+         style="background:#f8f9fa;border:1px solid #e9ecef;min-height:0;">
+        @foreach (var m in messages)
+        {
+            <div class="d-flex @(m.IsFromAdmin ? "justify-content-end" : "justify-content-start") mb-2">
+                <div class="chat-bubble @(m.IsFromAdmin ? "chat-bubble-admin" : "chat-bubble-user")">
+                    <div>@m.Content</div>
+                    <small class="chat-time">@m.CreatedAt.ToString("HH:mm")</small>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="d-flex gap-2 flex-shrink-0">
+        <input type="text" id="msgInput" class="form-control" placeholder="Type a message..." />
+        <button class="btn btn-modal-action px-4" onclick="sendMsg()">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
+</div>
+
+<style>
+.chat-bubble { max-width:70%;padding:.55rem .85rem;border-radius:16px;font-size:.9rem; }
+.chat-bubble-admin { background:var(--color-accent);color:#fff;border-bottom-right-radius:4px; }
+.chat-bubble-user  { background:#fff;color:#1a1a2e;border:1px solid #e9ecef;border-bottom-left-radius:4px; }
+.chat-time { display:block;font-size:.7rem;opacity:.65;margin-top:2px;text-align:right; }
+</style>
+
+@section Scripts {
+<script>
+const token   = document.querySelector('input[name="__RequestVerificationToken"]').value;
+const userId  = @chatUser!.Id;
+let   lastId  = @lastId;
+
+function scrollBottom() {
+    const box = document.getElementById('chatBox');
+    box.scrollTop = box.scrollHeight;
+}
+scrollBottom();
+
+async function sendMsg() {
+    const input = document.getElementById('msgInput');
+    const text  = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    const res = await fetch('/Chat/Send', {
+        method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'},
+        body: new URLSearchParams({ userId, content: text, isFromAdmin: 'true', __RequestVerificationToken: token })
+    });
+    if (res.ok) {
+        const m = await res.json();
+        appendMsg(m);
+        lastId = m.id;
+    }
+}
+
+function appendMsg(m) {
+    const box  = document.getElementById('chatBox');
+    const side = m.isFromAdmin ? 'end' : 'start';
+    const cls  = m.isFromAdmin ? 'chat-bubble-admin' : 'chat-bubble-user';
+    box.insertAdjacentHTML('beforeend',
+        `<div class="d-flex justify-content-${side} mb-2">
+           <div class="chat-bubble ${cls}">
+             <div>${m.content}</div>
+             <small class="chat-time">${m.createdAt}</small>
+           </div>
+         </div>`);
+    box.scrollTop = box.scrollHeight;
+}
+
+document.getElementById('msgInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMsg(); });
+
+setInterval(async () => {
+    const res = await fetch(`/Chat/Poll?userId=${userId}&afterId=${lastId}`, { headers:{'X-Requested-With':'XMLHttpRequest'} });
+    if (!res.ok) return;
+    const msgs = await res.json();
+    msgs.forEach(m => { appendMsg(m); lastId = m.id; });
+}, 3000);
+</script>
+}
