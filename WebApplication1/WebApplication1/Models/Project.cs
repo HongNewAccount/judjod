@@ -27,6 +27,8 @@ public class Project
     [StringLength(20)]
     public string? Priority { get; set; } // None, Low, Medium, High
 
+    public int Progress { get; set; } = 0;
+
     public int SortOrder { get; set; } = 0;
 
     public int CreatedByUserId { get; set; }

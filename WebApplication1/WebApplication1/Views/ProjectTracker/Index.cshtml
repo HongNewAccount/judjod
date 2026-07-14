@@ -188,6 +188,17 @@
                                 <p class="kanban-card-desc">@project.Description</p>
                             }
 
+                            <div class="kanban-card-progress mt-2">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <div class="progress flex-grow-1" style="height: 7px;">
+                                        <div class="progress-bar bg-primary" role="progressbar"
+                                             style="width: @(Math.Clamp(project.Progress, 0, 100))%;"
+                                             aria-valuenow="@project.Progress" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                    <span class="small fw-semibold text-primary">@project.Progress%</span>
+                                </div>
+                            </div>
+
                             <div class="kanban-quick-row">
                                 @if (isAdmin)
                                 {
@@ -437,16 +448,38 @@
                 <button type="button" class="btn-close ms-2" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-3" style="max-height:70vh;overflow-y:auto;">
-                <div class="row g-3">
-                    <div class="col-md-6">
+                <div class="d-flex flex-column gap-3">
+                    <div>
                         <label class="form-label small fw-semibold">Description</label>
-                        <textarea id="taskDetailDesc" class="form-control form-control-sm" rows="8"
+                        <textarea id="taskDetailDesc" class="form-control" rows="3"
                                   placeholder="Add a description..."></textarea>
+
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label small fw-semibold">Activity Log</label>
-                        <div id="taskDetailLog" style="max-height:250px;overflow-y:auto;font-size:.8rem;">
-                            <div class="text-muted">Loading...</div>
+
+                    <div class="border rounded p-3 bg-light-subtle">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label small fw-semibold mb-0">Progress</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="range" id="taskDetailProgress" min="0" max="100" step="5" class="form-range" style="width:220px;" />
+                                <span class="badge text-bg-primary" id="taskDetailProgressValue">0%</span>
+                            </div>
+                        </div>
+                        <textarea id="taskDetailProgressNote" class="form-control form-control-sm mt-2" rows="2"
+                                  placeholder="Add progress note..."></textarea>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Progress Log</label>
+                            <div id="taskDetailProgressLog" style="max-height:220px;overflow-y:auto;font-size:.8rem;">
+                                <div class="text-muted">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Activity Log</label>
+                            <div id="taskDetailLog" style="max-height:220px;overflow-y:auto;font-size:.8rem;">
+                                <div class="text-muted">Loading...</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -460,6 +493,41 @@
     </div>
 </div>
 
+<style>
+.kanban-card-progress {
+    padding: .35rem .45rem;
+    border-radius: .5rem;
+    background: rgba(13,110,253,.06);
+}
+.task-log-entry {
+    padding: .45rem .5rem;
+    border-radius: .45rem;
+    background: #f8f9fa;
+    margin-bottom: .4rem;
+}
+.task-log-action {
+    display: inline-block;
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #6c757d;
+    margin-right: .25rem;
+}
+.task-log-desc {
+    display: block;
+    margin-top: .15rem;
+    font-size: .8rem;
+    color: #212529;
+}
+.task-log-meta {
+    font-size: .72rem;
+    color: #6c757d;
+    margin-top: .2rem;
+}
+</style>
+
+@section Scripts {
 <script>
 const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
 
@@ -829,6 +897,38 @@ async function submitAddTask() {
 
 let currentDetailId = null;
 let currentDetailStatus = null;
+let currentDetailProgress = 0;
+
+function syncProgressInputs(value) {
+    const range = document.getElementById('taskDetailProgress');
+    const badge = document.getElementById('taskDetailProgressValue');
+    const parsed = Math.max(0, Math.min(100, Number(value) || 0));
+    if (range) range.value = parsed;
+    if (badge) badge.textContent = parsed + '%';
+}
+
+function renderLogEntries(entries, containerId, emptyText) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    if (!entries || entries.length === 0) {
+        container.innerHTML = '<div class="text-muted small">' + emptyText + '</div>';
+        return;
+    }
+    container.innerHTML = entries.map(l => {
+        const detailText = l.description || '';
+        const noteText = l.note || '';
+        const mainText = detailText || noteText || '';
+        return `
+            <div class="task-log-entry">
+                <span class="task-log-action">${l.actionType}</span>
+                <span class="task-log-desc">${mainText}</span>
+                ${noteText && detailText ? `<div class="text-muted small mt-1">${noteText}</div>` : ''}
+                ${l.oldValue && l.newValue ? `<small class="text-muted ms-1">${l.oldValue} → ${l.newValue}</small>` : ''}
+                <div class="task-log-meta">${l.userName} · ${l.createdAt}</div>
+            </div>`;
+    }).join('');
+}
+
 function openDetailModal(id, name, status) {
     currentDetailId = id;
     currentDetailStatus = status || null;
@@ -836,6 +936,9 @@ function openDetailModal(id, name, status) {
     const archiveBtn = document.getElementById('modalArchiveBtn');
     if (archiveBtn) archiveBtn.style.display = (status === 'Completed') ? '' : 'none';
     document.getElementById('taskDetailDesc').value = '';
+    document.getElementById('taskDetailProgressNote').value = '';
+    syncProgressInputs(0);
+    document.getElementById('taskDetailProgressLog').innerHTML = '<div class="text-muted small">Loading...</div>';
     document.getElementById('taskDetailLog').innerHTML = '<div class="text-muted small">Loading...</div>';
 
     new bootstrap.Modal(document.getElementById('taskDetailModal')).show();
@@ -846,68 +949,109 @@ function openDetailModal(id, name, status) {
             if (data.name) document.getElementById('taskDetailTitle').value = data.name;
             if (data.status) { currentDetailStatus = data.status; const ab=document.getElementById('modalArchiveBtn'); if(ab) ab.style.display=(data.status==='Completed'?'':'none'); }
             document.getElementById('taskDetailDesc').value = data.description || '';
-            const logEl = document.getElementById('taskDetailLog');
-            if (!data.logs || data.logs.length === 0) {
-                logEl.innerHTML = '<div class="text-muted small">No activity yet</div>';
-            } else {
-                logEl.innerHTML = data.logs.map(l => `
-                    <div class="task-log-entry">
-                        <span class="task-log-action">${l.actionType}</span>
-                        <span class="task-log-desc">${l.description || ''}</span>
-                        ${l.oldValue && l.newValue ? `<small class="text-muted ms-1">${l.oldValue} â†’ ${l.newValue}</small>` : ''}
-                        <div class="task-log-meta">${l.userName} Â· ${l.createdAt}</div>
-                    </div>`).join('');
-            }
+            currentDetailProgress = data.progress ?? 0;
+            syncProgressInputs(currentDetailProgress);
+            renderLogEntries(data.progressLogs || [], 'taskDetailProgressLog', 'No progress updates yet');
+            renderLogEntries(data.logs || [], 'taskDetailLog', 'No activity yet');
         })
         .catch(() => {
             document.getElementById('taskDetailLog').innerHTML = '<div class="text-danger small">Failed to load</div>';
+            document.getElementById('taskDetailProgressLog').innerHTML = '<div class="text-danger small">Failed to load</div>';
         });
 }
 
 async function saveDetailModal() {
     const name = document.getElementById('taskDetailTitle').value.trim();
     const desc = document.getElementById('taskDetailDesc').value;
+    const progress = Number(document.getElementById('taskDetailProgress').value || 0);
+    const note = document.getElementById('taskDetailProgressNote').value.trim();
     if (!name) return;
 
-    await Promise.all([
-        fetch('/ProjectTracker/UpdateName', {
-            method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            body: new URLSearchParams({ id: currentDetailId, name, __RequestVerificationToken: token })
-        }),
-        fetch('/ProjectTracker/UpdateDescription', {
-            method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            body: new URLSearchParams({ id: currentDetailId, description: desc, __RequestVerificationToken: token })
-        })
-    ]);
-
-    // อัปเดต DOM บน card ทันทีโดยไม่ reload
-    const card = document.querySelector('.kanban-card[data-project-id="' + currentDetailId + '"]');
-    if (card) {
-        const titleEl = card.querySelector('.kanban-card-title');
-        if (titleEl) titleEl.textContent = name;
-
-        const descEl = card.querySelector('.kanban-card-desc');
-        if (desc.trim()) {
-            if (descEl) {
-                descEl.textContent = desc;
-            } else {
-                const t = card.querySelector('.kanban-card-title');
-                const d = document.createElement('p');
-                d.className = 'kanban-card-desc';
-                d.textContent = desc;
-                t.insertAdjacentElement('afterend', d);
-            }
-        } else if (descEl) {
-            descEl.remove();
-        }
-
-        // อัปเดต data-search สำหรับ search filter
-        const owners = card.getAttribute('data-search')?.split(' ').slice(name.split(' ').length).join(' ') ?? '';
-        card.setAttribute('data-search', (name + ' ' + owners).toLowerCase());
+    const saveButton = document.querySelector('#taskDetailModal .btn-modal-action');
+    if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
     }
 
-    bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')).hide();
+    try {
+        const r1 = await fetch('/ProjectTracker/UpdateName', {
+            method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: new URLSearchParams({ id: currentDetailId, name, __RequestVerificationToken: token })
+        });
+        if (!r1.ok) throw new Error('UpdateName failed: ' + r1.status);
+
+        const r2 = await fetch('/ProjectTracker/UpdateDescription', {
+            method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: new URLSearchParams({ id: currentDetailId, description: desc, __RequestVerificationToken: token })
+        });
+        if (!r2.ok) throw new Error('UpdateDescription failed: ' + r2.status);
+
+        if (note || progress !== currentDetailProgress) {
+            const r3 = await fetch('/ProjectTracker/UpdateProgress', {
+                method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: new URLSearchParams({ id: currentDetailId, progress, note, __RequestVerificationToken: token })
+            });
+            if (!r3.ok) throw new Error('UpdateProgress failed: ' + r3.status);
+        }
+
+        const card = document.querySelector('.kanban-card[data-project-id="' + currentDetailId + '"]');
+        if (card) {
+            const titleEl = card.querySelector('.kanban-card-title');
+            if (titleEl) titleEl.textContent = name;
+
+            const descEl = card.querySelector('.kanban-card-desc');
+            if (desc.trim()) {
+                if (descEl) {
+                    descEl.textContent = desc;
+                } else {
+                    const t = card.querySelector('.kanban-card-title');
+                    const d = document.createElement('p');
+                    d.className = 'kanban-card-desc';
+                    d.textContent = desc;
+                    t.insertAdjacentElement('afterend', d);
+                }
+            } else if (descEl) {
+                descEl.remove();
+            }
+
+            const progressWrap = card.querySelector('.kanban-card-progress');
+            const progressValue = card.querySelector('.kanban-card-progress .small.fw-semibold');
+            const progressBar = card.querySelector('.kanban-card-progress .progress-bar');
+            const safeProgress = Math.max(0, Math.min(100, progress));
+            if (progressWrap) {
+                if (progressValue) progressValue.textContent = safeProgress + '%';
+                if (progressBar) {
+                    progressBar.style.width = safeProgress + '%';
+                    progressBar.setAttribute('aria-valuenow', safeProgress);
+                }
+            }
+
+            const owners = card.getAttribute('data-search')?.split(' ').slice(name.split(' ').length).join(' ') ?? '';
+            card.setAttribute('data-search', (name + ' ' + owners).toLowerCase());
+        }
+
+        (bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')) || new bootstrap.Modal(document.getElementById('taskDetailModal'))).hide();
+    } catch (e) {
+        console.error(e);
+        alert('Unable to save changes. Please try again.');
+    } finally {
+        if (saveButton) {
+            saveButton.disabled = false;
+            saveButton.innerHTML = '<i class="fas fa-save me-1"></i>Save';
+        }
+    }
 }
+
+function attachProgressControls() {
+    const range = document.getElementById('taskDetailProgress');
+    if (range) {
+        range.addEventListener('input', function () {
+            syncProgressInputs(this.value);
+        });
+    }
+}
+
+attachProgressControls();
 
 async function archiveCurrentTask() {
     if (!currentDetailId) return;
@@ -1086,4 +1230,5 @@ function updateColumnCounts() {
     });
 }
 </script>
+}
 

@@ -947,10 +947,15 @@ public class ProjectTrackerController : Controller
             })
             .ToListAsync();
 
+        var progressLogs = logs.Where(l => l.ActionType == "ProgressUpdate").ToList();
+        var activityLogs = logs.Where(l => l.ActionType != "ProgressUpdate").ToList();
+
         return Ok(new {
             project.Id, project.Name,
             Description = project.Description ?? "",
-            Logs = logs
+            Progress = project.Progress,
+            Logs = activityLogs,
+            ProgressLogs = progressLogs
         });
     }
 
@@ -1003,6 +1008,43 @@ public class ProjectTrackerController : Controller
             await _context.SaveChangesAsync();
             return Ok(new { success = true, requiresApproval = true });
         }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateProgress(int id, int progress, string? note)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+
+        var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var userRole = HttpContext.Session.GetString("UserRole");
+
+        var project = await _context.Projects.Include(p => p.Owners).FirstOrDefaultAsync(p => p.Id == id);
+        if (project == null) return NotFound();
+
+        bool isOwner = project.Owners.Any(o => o.UserId == userId);
+        if (userRole != "Admin" && userRole != "Editor" && !isOwner) return Forbid();
+        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
+
+        progress = Math.Clamp(progress, 0, 100);
+        project.Progress = progress;
+        project.UpdatedAt = DateTime.UtcNow;
+
+        var description = string.IsNullOrWhiteSpace(note)
+            ? $"Progress updated to {progress}%"
+            : $"Progress updated to {progress}%: {note.Trim()}";
+
+        _context.ActivityLogs.Add(new ActivityLog
+        {
+            ProjectId = id,
+            UserId = userId,
+            ActionType = "ProgressUpdate",
+            Description = description,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true, progress });
     }
 
     [HttpPost]

@@ -90,6 +90,32 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
+        context.Database.ExecuteSqlRaw(
+            "ALTER TABLE `Projects` ADD COLUMN IF NOT EXISTS `Progress` int NOT NULL DEFAULT 0;");
+    }
+    catch { }
+
+    try
+    {
+        context.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS `ProjectProgressLogs` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `ProjectId` int NOT NULL,
+                `UserId` int NOT NULL,
+                `Progress` int NOT NULL DEFAULT 0,
+                `Note` longtext CHARACTER SET utf8mb4 NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_ProjectProgressLogs_ProjectId` (`ProjectId`),
+                KEY `IX_ProjectProgressLogs_UserId` (`UserId`),
+                CONSTRAINT `FK_ProjectProgressLogs_Projects_ProjectId` FOREIGN KEY (`ProjectId`) REFERENCES `Projects` (`Id`) ON DELETE CASCADE,
+                CONSTRAINT `FK_ProjectProgressLogs_Users_UserId` FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT
+            ) CHARACTER SET utf8mb4;");
+    }
+    catch { }
+
+    try
+    {
         context.Database.ExecuteSqlRaw(@"
             CREATE TABLE IF NOT EXISTS `ChatMessages` (
                 `Id` int NOT NULL AUTO_INCREMENT,

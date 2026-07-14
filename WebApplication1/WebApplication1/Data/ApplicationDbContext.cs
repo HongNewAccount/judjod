@@ -18,6 +18,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ActivityLog> ActivityLogs { get; set; }
     public DbSet<ProjectApprovalRequest> ProjectApprovalRequests { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
+    public DbSet<ProjectProgressLog> ProjectProgressLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -47,5 +48,9 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<ChatMessage>().HasKey(c => c.Id);
         modelBuilder.Entity<ChatMessage>().HasOne(c => c.User).WithMany().HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProjectProgressLog>().HasKey(pl => pl.Id);
+        modelBuilder.Entity<ProjectProgressLog>().HasOne(pl => pl.Project).WithMany().HasForeignKey(pl => pl.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ProjectProgressLog>().HasOne(pl => pl.User).WithMany().HasForeignKey(pl => pl.UserId).OnDelete(DeleteBehavior.Restrict);
     }
 }
