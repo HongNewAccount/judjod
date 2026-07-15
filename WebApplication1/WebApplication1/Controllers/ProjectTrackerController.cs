@@ -590,90 +590,25 @@ public class ProjectTrackerController : Controller
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var userRole = HttpContext.Session.GetString("UserRole");
 
-        var existingProject = await _context.Projects
-            .Include(p => p.Owners)
-            .FirstOrDefaultAsync(p => p.Id == id);
+        if (userRole != "Admin" && userRole != "Editor") return Forbid();
 
-        if (existingProject == null)
-            return NotFound();
+        var existingProject = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
+        if (existingProject == null) return NotFound();
 
-        bool isOwner = existingProject.Owners.Any(o => o.UserId == userId);
-        if (userRole != "Admin" && userRole != "Editor" && !isOwner)
+        if (existingProject.Status != status)
         {
-            return Forbid();
-        }
-
-        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId))
-        {
-            return Forbid();
-        }
-
-        if (userRole == "Admin" || userRole == "Editor")
-        {
-            if (existingProject.Status != status)
+            _context.ActivityLogs.Add(new ActivityLog
             {
-                _context.ActivityLogs.Add(new ActivityLog
-                {
-                    ProjectId = id,
-                    UserId = userId,
-                    ActionType = "StatusChanged",
-                    Description = $"Project status changed from '{existingProject.Status}' to '{status}'",
-                    OldValue = existingProject.Status,
-                    NewValue = status,
-                    CreatedAt = DateTime.UtcNow
-                });
-
-                existingProject.Status = status;
-                existingProject.UpdatedAt = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
-            }
-
-            return Ok(new { success = true, requiresApproval = false });
-        }
-        else
-        {
-            var existingPendingRequest = await _context.ProjectApprovalRequests
-                .FirstOrDefaultAsync(r => r.ProjectId == id && r.RequestType == "Update" && r.ApprovalStatus == "Pending");
-
-            var ownerIdsCsv = string.Join(",", existingProject.Owners.Select(o => o.UserId).Distinct());
-
-            if (existingPendingRequest != null)
-            {
-                existingPendingRequest.Name = existingProject.Name;
-                existingPendingRequest.Description = existingProject.Description;
-                existingPendingRequest.StartDate = existingProject.StartDate;
-                existingPendingRequest.EndDate = existingProject.EndDate;
-                existingPendingRequest.Status = status;
-                existingPendingRequest.Issues = existingProject.Issues;
-                existingPendingRequest.OwnerIds = ownerIdsCsv;
-                existingPendingRequest.RequestedAt = DateTime.UtcNow;
-                existingPendingRequest.RequestedByUserId = userId;
-
-                _context.Update(existingPendingRequest);
-            }
-            else
-            {
-                _context.ProjectApprovalRequests.Add(new ProjectApprovalRequest
-                {
-                    ProjectId = id,
-                    RequestType = "Update",
-                    Name = existingProject.Name,
-                    Description = existingProject.Description,
-                    StartDate = existingProject.StartDate,
-                    EndDate = existingProject.EndDate,
-                    Status = status,
-                    Issues = existingProject.Issues,
-                    OwnerIds = ownerIdsCsv,
-                    RequestedByUserId = userId,
-                    RequestedAt = DateTime.UtcNow,
-                    ApprovalStatus = "Pending"
-                });
-            }
-
+                ProjectId = id, UserId = userId, ActionType = "StatusChanged",
+                Description = $"Project status changed from '{existingProject.Status}' to '{status}'",
+                OldValue = existingProject.Status, NewValue = status, CreatedAt = DateTime.UtcNow
+            });
+            existingProject.Status = status;
+            existingProject.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
-
-            return Ok(new { success = true, requiresApproval = true });
         }
+
+        return Ok(new { success = true });
     }
 
     [HttpPost]
@@ -685,31 +620,16 @@ public class ProjectTrackerController : Controller
 
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin" && userRole != "Editor") return Forbid();
 
-        var project = await _context.Projects.Include(p => p.Owners).FirstOrDefaultAsync(p => p.Id == id);
+        var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
         if (project == null) return NotFound();
 
-        bool isOwner = project.Owners.Any(o => o.UserId == userId);
-        if (userRole != "Admin" && userRole != "Editor" && !isOwner) return Forbid();
-        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
-
-        if (userRole == "Admin" || userRole == "Editor")
-        {
-            _context.ActivityLogs.Add(new ActivityLog { ProjectId = id, UserId = userId, ActionType = "NameChanged", Description = $"Project renamed from '{project.Name}' to '{name}'", OldValue = project.Name, NewValue = name, CreatedAt = DateTime.UtcNow });
-            project.Name = name.Trim();
-            project.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true, requiresApproval = false });
-        }
-        else
-        {
-            var pending = await _context.ProjectApprovalRequests.FirstOrDefaultAsync(r => r.ProjectId == id && r.RequestType == "Update" && r.ApprovalStatus == "Pending");
-            var ownerIdsCsv = string.Join(",", project.Owners.Select(o => o.UserId).Distinct());
-            if (pending != null) { pending.Name = name.Trim(); pending.RequestedAt = DateTime.UtcNow; pending.RequestedByUserId = userId; _context.Update(pending); }
-            else { _context.ProjectApprovalRequests.Add(new ProjectApprovalRequest { ProjectId = id, RequestType = "Update", Name = name.Trim(), Description = project.Description, StartDate = project.StartDate, EndDate = project.EndDate, Status = project.Status, Issues = project.Issues, OwnerIds = ownerIdsCsv, RequestedByUserId = userId, RequestedAt = DateTime.UtcNow, ApprovalStatus = "Pending" }); }
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true, requiresApproval = true });
-        }
+        _context.ActivityLogs.Add(new ActivityLog { ProjectId = id, UserId = userId, ActionType = "NameChanged", Description = $"Project renamed from '{project.Name}' to '{name}'", OldValue = project.Name, NewValue = name, CreatedAt = DateTime.UtcNow });
+        project.Name = name.Trim();
+        project.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true });
     }
 
     [HttpPost]
@@ -723,12 +643,10 @@ public class ProjectTrackerController : Controller
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var userRole = HttpContext.Session.GetString("UserRole");
 
-        var project = await _context.Projects.Include(p => p.Owners).FirstOrDefaultAsync(p => p.Id == id);
-        if (project == null) return NotFound();
+        if (userRole != "Admin" && userRole != "Editor") return Forbid();
 
-        bool isOwner = project.Owners.Any(o => o.UserId == userId);
-        if (userRole != "Admin" && userRole != "Editor" && !isOwner) return Forbid();
-        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
+        var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
+        if (project == null) return NotFound();
 
         project.Priority = priority == "None" ? null : priority;
         project.UpdatedAt = DateTime.UtcNow;
@@ -745,33 +663,19 @@ public class ProjectTrackerController : Controller
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var userRole = HttpContext.Session.GetString("UserRole");
 
-        var project = await _context.Projects.Include(p => p.Owners).FirstOrDefaultAsync(p => p.Id == id);
-        if (project == null) return NotFound();
+        if (userRole != "Admin" && userRole != "Editor") return Forbid();
 
-        bool isOwner = project.Owners.Any(o => o.UserId == userId);
-        if (userRole != "Admin" && userRole != "Editor" && !isOwner) return Forbid();
-        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
+        var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
+        if (project == null) return NotFound();
 
         DateTime? newDate = string.IsNullOrWhiteSpace(endDate) ? null :
             (DateTime.TryParse(endDate, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d2) ? d2 : project.EndDate);
 
-        if (userRole == "Admin" || userRole == "Editor")
-        {
-            _context.ActivityLogs.Add(new ActivityLog { ProjectId = id, UserId = userId, ActionType = "EndDateChanged", Description = $"End date changed to {newDate?.ToString("dd MMM yyyy") ?? "Ongoing"}", OldValue = project.EndDate?.ToString("dd MMM yyyy") ?? "Ongoing", NewValue = newDate?.ToString("dd MMM yyyy") ?? "Ongoing", CreatedAt = DateTime.UtcNow });
-            project.EndDate = newDate;
-            project.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true, requiresApproval = false, endDate = project.EndDate?.ToString("dd MMM") ?? "Ongoing" });
-        }
-        else
-        {
-            var pending = await _context.ProjectApprovalRequests.FirstOrDefaultAsync(r => r.ProjectId == id && r.RequestType == "Update" && r.ApprovalStatus == "Pending");
-            var ownerIdsCsv = string.Join(",", project.Owners.Select(o => o.UserId).Distinct());
-            if (pending != null) { pending.EndDate = newDate; pending.RequestedAt = DateTime.UtcNow; pending.RequestedByUserId = userId; _context.Update(pending); }
-            else { _context.ProjectApprovalRequests.Add(new ProjectApprovalRequest { ProjectId = id, RequestType = "Update", Name = project.Name, Description = project.Description, StartDate = project.StartDate, EndDate = newDate, Status = project.Status, Issues = project.Issues, OwnerIds = ownerIdsCsv, RequestedByUserId = userId, RequestedAt = DateTime.UtcNow, ApprovalStatus = "Pending" }); }
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true, requiresApproval = true });
-        }
+        _context.ActivityLogs.Add(new ActivityLog { ProjectId = id, UserId = userId, ActionType = "EndDateChanged", Description = $"End date changed to {newDate?.ToString("dd MMM yyyy") ?? "Ongoing"}", OldValue = project.EndDate?.ToString("dd MMM yyyy") ?? "Ongoing", NewValue = newDate?.ToString("dd MMM yyyy") ?? "Ongoing", CreatedAt = DateTime.UtcNow });
+        project.EndDate = newDate;
+        project.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true, endDate = project.EndDate?.ToString("dd MMM") ?? "Ongoing" });
     }
 
     [HttpPost]
@@ -864,8 +768,7 @@ public class ProjectTrackerController : Controller
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var userRole = HttpContext.Session.GetString("UserRole");
 
-        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId))
-            return Forbid();
+        if (userRole != "Admin" && userRole != "Editor") return Forbid();
 
         var ownerIdList = (ownerIds ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(s => int.TryParse(s.Trim(), out var oid) ? oid : 0).Where(x => x > 0).Distinct().ToList();
@@ -879,49 +782,33 @@ public class ProjectTrackerController : Controller
             .Select(p => (int?)p.SortOrder)
             .MaxAsync() ?? -1;
 
-        if (userRole == "Admin" || userRole == "Editor")
+        var project = new WebApplication1.Models.Project
         {
-            var project = new WebApplication1.Models.Project
-            {
-                Name = name.Trim(),
-                Status = validStatus,
-                Priority = string.IsNullOrWhiteSpace(priority) || priority == "None" ? null : priority,
-                StartDate = DateTime.Today,
-                EndDate = dueDate,
-                GroupId = groupId,
-                SortOrder = maxSort + 1,
-                CreatedByUserId = userId,
-                CreatedAt = DateTime.UtcNow
-            };
+            Name = name.Trim(),
+            Status = validStatus,
+            Priority = string.IsNullOrWhiteSpace(priority) || priority == "None" ? null : priority,
+            StartDate = DateTime.Today,
+            EndDate = dueDate,
+            GroupId = groupId,
+            SortOrder = maxSort + 1,
+            CreatedByUserId = userId,
+            CreatedAt = DateTime.UtcNow
+        };
 
-            _context.Add(project);
-            await _context.SaveChangesAsync();
+        _context.Add(project);
+        await _context.SaveChangesAsync();
 
-            foreach (var oid in ownerIdList)
-                _context.ProjectOwners.Add(new ProjectOwner { ProjectId = project.Id, UserId = oid });
+        foreach (var oid in ownerIdList)
+            _context.ProjectOwners.Add(new ProjectOwner { ProjectId = project.Id, UserId = oid });
 
-            _context.ActivityLogs.Add(new ActivityLog
-            {
-                ProjectId = project.Id, UserId = userId, ActionType = "Created",
-                Description = $"Project '{project.Name}' was created", CreatedAt = DateTime.UtcNow
-            });
-
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true, requiresApproval = false, projectId = project.Id });
-        }
-        else
+        _context.ActivityLogs.Add(new ActivityLog
         {
-            var request = new ProjectApprovalRequest
-            {
-                RequestType = "Create", Name = name.Trim(), Status = validStatus,
-                StartDate = DateTime.Today, EndDate = dueDate,
-                OwnerIds = ownerIdList.Any() ? string.Join(",", ownerIdList) : null,
-                RequestedByUserId = userId, RequestedAt = DateTime.UtcNow, ApprovalStatus = "Pending"
-            };
-            _context.ProjectApprovalRequests.Add(request);
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true, requiresApproval = true });
-        }
+            ProjectId = project.Id, UserId = userId, ActionType = "Created",
+            Description = $"Project '{project.Name}' was created", CreatedAt = DateTime.UtcNow
+        });
+
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true, projectId = project.Id });
     }
 
     [HttpGet]
@@ -967,47 +854,15 @@ public class ProjectTrackerController : Controller
 
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin" && userRole != "Editor") return Forbid();
 
-        var project = await _context.Projects.Include(p => p.Owners).FirstOrDefaultAsync(p => p.Id == id);
+        var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
         if (project == null) return NotFound();
 
-        bool isOwner = project.Owners.Any(o => o.UserId == userId);
-        if (userRole != "Admin" && userRole != "Editor" && !isOwner) return Forbid();
-        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
-
-        if (userRole == "Admin" || userRole == "Editor")
-        {
-            project.Description = description?.Trim();
-            project.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true, requiresApproval = false });
-        }
-        else
-        {
-            var pending = await _context.ProjectApprovalRequests
-                .FirstOrDefaultAsync(r => r.ProjectId == id && r.RequestType == "Update" && r.ApprovalStatus == "Pending");
-            var ownerIdsCsv = string.Join(",", project.Owners.Select(o => o.UserId).Distinct());
-            if (pending != null)
-            {
-                pending.Description = description?.Trim();
-                pending.RequestedAt = DateTime.UtcNow;
-                pending.RequestedByUserId = userId;
-                _context.Update(pending);
-            }
-            else
-            {
-                _context.ProjectApprovalRequests.Add(new ProjectApprovalRequest
-                {
-                    ProjectId = id, RequestType = "Update", Name = project.Name,
-                    Description = description?.Trim(), StartDate = project.StartDate,
-                    EndDate = project.EndDate, Status = project.Status, Issues = project.Issues,
-                    OwnerIds = ownerIdsCsv, RequestedByUserId = userId,
-                    RequestedAt = DateTime.UtcNow, ApprovalStatus = "Pending"
-                });
-            }
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true, requiresApproval = true });
-        }
+        project.Description = description?.Trim();
+        project.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true });
     }
 
     [HttpPost]
@@ -1019,12 +874,10 @@ public class ProjectTrackerController : Controller
         var userId = HttpContext.Session.GetInt32("UserId") ?? 1;
         var userRole = HttpContext.Session.GetString("UserRole");
 
-        var project = await _context.Projects.Include(p => p.Owners).FirstOrDefaultAsync(p => p.Id == id);
-        if (project == null) return NotFound();
+        if (userRole != "Admin" && userRole != "Editor") return Forbid();
 
-        bool isOwner = project.Owners.Any(o => o.UserId == userId);
-        if (userRole != "Admin" && userRole != "Editor" && !isOwner) return Forbid();
-        if (userRole != "Admin" && userRole != "Editor" && await IsProjectAccessSuspendedAsync(userId)) return Forbid();
+        var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
+        if (project == null) return NotFound();
 
         progress = Math.Clamp(progress, 0, 100);
         project.Progress = progress;
