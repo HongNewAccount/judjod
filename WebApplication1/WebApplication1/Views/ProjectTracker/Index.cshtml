@@ -32,8 +32,9 @@
             _ => $"{-days}d late · {dateStr}"
         };
     }
-    string DateUrgencyCls(DateTime? date) {
+    string DateUrgencyCls(DateTime? date, string? status = null) {
         if (!date.HasValue) return "";
+        if (status == "Completed") return "";
         var days = (int)(date.Value.Date - DateTime.Today).TotalDays;
         if (days < 0) return "date-overdue";
         if (days == 0) return "date-today";
@@ -308,7 +309,7 @@
 
                                     <div class="kanban-date-wrap">
                                         <button type="button"
-                                                class="kanban-quick-btn @(project.EndDate.HasValue ? DateUrgencyCls(project.EndDate) : "kanban-quick-btn-empty")"
+                                                class="kanban-quick-btn @(project.EndDate.HasValue ? DateUrgencyCls(project.EndDate, project.Status) : "kanban-quick-btn-empty")"
                                                 title="@ToBE(project.EndDate)"
                                                 onclick="toggleDatePicker(this)"
                                                 data-project-id="@project.Id">
@@ -353,7 +354,7 @@
                                     }
                                     @if (project.EndDate.HasValue)
                                     {
-                                        <span class="kanban-quick-btn @DateUrgencyCls(project.EndDate)" style="cursor:default;"
+                                        <span class="kanban-quick-btn @DateUrgencyCls(project.EndDate, project.Status)" style="cursor:default;"
                                               title="@project.EndDate.Value.ToString("dd MMM yyyy")">
                                             <i class="fas fa-calendar-alt me-1"></i>@DateLabel(project.EndDate)
                                         </span>
