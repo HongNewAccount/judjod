@@ -982,13 +982,18 @@ async function saveDetailModal() {
         });
         if (!r2.ok) throw new Error('UpdateDescription failed: ' + r2.status);
 
+        let movedToCompleted = false;
         if (note || progress !== currentDetailProgress) {
             const r3 = await fetch('/ProjectTracker/UpdateProgress', {
                 method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 body: new URLSearchParams({ id: currentDetailId, progress, note, __RequestVerificationToken: token })
             });
             if (!r3.ok) throw new Error('UpdateProgress failed: ' + r3.status);
+            const r3data = await r3.json().catch(() => ({}));
+            movedToCompleted = r3data.movedToCompleted === true;
         }
+
+        if (movedToCompleted) { location.reload(); return; }
 
         const card = document.querySelector('.kanban-card[data-project-id="' + currentDetailId + '"]');
         if (card) {

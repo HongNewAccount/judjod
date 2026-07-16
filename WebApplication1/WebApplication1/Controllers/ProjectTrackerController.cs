@@ -61,6 +61,19 @@ public class ProjectTrackerController : Controller
         }
         await _context.SaveChangesAsync();
 
+        const int maxLogs = 300;
+        var logCount = await _context.ActivityLogs.CountAsync();
+        if (logCount > maxLogs)
+        {
+            var cutoffId = await _context.ActivityLogs
+                .OrderByDescending(l => l.CreatedAt)
+                .Skip(maxLogs)
+                .Select(l => l.Id)
+                .FirstOrDefaultAsync();
+            if (cutoffId > 0)
+                await _context.ActivityLogs.Where(l => l.Id <= cutoffId).ExecuteDeleteAsync();
+        }
+
         var projects = allProjects
             .Where(p => p.Status != "Closed")
             .Where(p => groupId == null || p.GroupId == groupId)
@@ -889,15 +902,26 @@ public class ProjectTrackerController : Controller
 
         _context.ActivityLogs.Add(new ActivityLog
         {
-            ProjectId = id,
-            UserId = userId,
-            ActionType = "ProgressUpdate",
-            Description = description,
-            CreatedAt = DateTime.UtcNow
+            ProjectId = id, UserId = userId, ActionType = "ProgressUpdate",
+            Description = description, CreatedAt = DateTime.UtcNow
         });
 
+        bool movedToCompleted = false;
+        bool isOverdue = project.EndDate.HasValue && project.EndDate.Value.Date < DateTime.Today;
+        if (progress == 100 && project.Status != "Completed" && !isOverdue)
+        {
+            _context.ActivityLogs.Add(new ActivityLog
+            {
+                ProjectId = id, UserId = userId, ActionType = "StatusChanged",
+                Description = "Task moved to Complete (progress reached 100%)",
+                OldValue = project.Status, NewValue = "Completed", CreatedAt = DateTime.UtcNow
+            });
+            project.Status = "Completed";
+            movedToCompleted = true;
+        }
+
         await _context.SaveChangesAsync();
-        return Ok(new { success = true, progress });
+        return Ok(new { success = true, progress, movedToCompleted });
     }
 
     [HttpPost]
