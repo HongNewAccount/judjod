@@ -32,12 +32,13 @@ public class ChatController : Controller
                     var lname = u?.LastName  ?? "";
                     return new ChatConversationViewModel
                     {
-                        UserId      = g.Key,
-                        UserName    = $"{fname} {lname}".Trim(),
-                        Initials    = $"{(fname.Length > 0 ? fname[0] : ' ')}{(lname.Length > 0 ? lname[0] : ' ')}".Trim(),
-                        LastMessage = last.Content,
-                        LastTime    = last.CreatedAt,
-                        UnreadCount = g.Count(m => !m.IsFromAdmin && !m.IsRead)
+                        UserId           = g.Key,
+                        UserName         = $"{fname} {lname}".Trim(),
+                        Initials         = $"{(fname.Length > 0 ? fname[0] : ' ')}{(lname.Length > 0 ? lname[0] : ' ')}".Trim(),
+                        ProfileImagePath = u?.ProfileImagePath,
+                        LastMessage      = last.Content,
+                        LastTime         = last.CreatedAt,
+                        UnreadCount      = g.Count(m => !m.IsFromAdmin && !m.IsRead)
                     };
                 })
                 .OrderByDescending(c => c.LastTime)
@@ -61,7 +62,7 @@ public class ChatController : Controller
         }
     }
 
-    public async Task<IActionResult> Conversation(int userId)
+    public async Task<IActionResult> Conversation(int userId, string? from = null)
     {
         if (HttpContext.Session.GetString("IsSuperAdmin") != "true") return Forbid();
 
@@ -77,7 +78,14 @@ public class ChatController : Controller
         unread.ForEach(m => m.IsRead = true);
         if (unread.Any()) await _context.SaveChangesAsync();
 
+        var adminId = HttpContext.Session.GetInt32("UserId");
+        var adminUser = adminId.HasValue ? await _context.Users.FindAsync(adminId.Value) : null;
+
         ViewBag.ChatUser = user;
+        ViewBag.AdminUser = adminUser;
+        ViewBag.ReturnUrl = from == "user"
+            ? Url.Action("Details", "User", new { id = userId })
+            : Url.Action("Index", "Chat");
         return View("AdminChat", messages);
     }
 

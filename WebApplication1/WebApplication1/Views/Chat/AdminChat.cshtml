@@ -2,30 +2,58 @@
 @model IEnumerable<ChatMessage>
 @{
     ViewData["Title"] = "Chat";
-    var chatUser = ViewBag.ChatUser as WebApplication1.Models.User;
-    var messages = Model.ToList();
-    var lastId = messages.Any() ? messages.Last().Id : 0;
+    var chatUser  = ViewBag.ChatUser  as WebApplication1.Models.User;
+    var adminUser = ViewBag.AdminUser as WebApplication1.Models.User;
+    var messages  = Model.ToList();
+    var lastId    = messages.Any() ? messages.Last().Id : 0;
+    var returnUrl = ViewBag.ReturnUrl as string ?? Url.Action("Index", "Chat");
+
+    string AvatarHtml(WebApplication1.Models.User? u, string size = "32px") {
+        if (u == null) return $"<div class=\"chat-avatar\" style=\"width:{size};height:{size};\"></div>";
+        if (!string.IsNullOrEmpty(u.ProfileImagePath))
+            return $"<img src=\"{u.ProfileImagePath}\" class=\"chat-avatar\" style=\"width:{size};height:{size};object-fit:cover;\" />";
+        var f = u.FirstName?.Length > 0 ? u.FirstName[0] : ' ';
+        var l = u.LastName?.Length  > 0 ? u.LastName[0]  : ' ';
+        return $"<div class=\"chat-avatar chat-avatar-initials\" style=\"width:{size};height:{size};\">{f}{l}</div>";
+    }
 }
 @Html.AntiForgeryToken()
 
 <div class="container-fluid d-flex flex-column" style="height:calc(100vh - 130px);">
-    <div class="page-header mb-3 flex-shrink-0">
-        <a href="@Url.Action("Index","Chat")" class="btn btn-sm btn-outline-secondary me-2">
-            <i class="fas fa-arrow-left"></i>
+    <div class="d-flex align-items-center mb-3 flex-shrink-0 gap-3">
+        @Html.Raw(AvatarHtml(chatUser, "42px"))
+        <div class="flex-grow-1">
+            <h5 class="mb-0 fw-semibold">@chatUser?.FirstName @chatUser?.LastName</h5>
+        </div>
+        <a href="@returnUrl" class="btn btn-sm btn-outline-secondary flex-shrink-0">
+            <i class="fas fa-arrow-left me-1"></i>Back
         </a>
-        <h1 class="page-title mb-0 d-inline">@chatUser?.FirstName @chatUser?.LastName</h1>
     </div>
 
     <div id="chatBox" class="flex-1 overflow-y-auto p-3 rounded mb-3"
          style="background:#f8f9fa;border:1px solid #e9ecef;min-height:0;">
         @foreach (var m in messages)
         {
-            <div class="d-flex @(m.IsFromAdmin ? "justify-content-end" : "justify-content-start") mb-2">
-                <div class="chat-bubble @(m.IsFromAdmin ? "chat-bubble-admin" : "chat-bubble-user")">
-                    <div>@m.Content</div>
-                    <small class="chat-time">@m.CreatedAt.ToString("HH:mm")</small>
+            if (m.IsFromAdmin)
+            {
+                <div class="d-flex justify-content-end align-items-end gap-2 mb-2">
+                    <div class="chat-bubble chat-bubble-admin">
+                        <div>@m.Content</div>
+                        <small class="chat-time">@m.CreatedAt.ToString("HH:mm")</small>
+                    </div>
+                    @Html.Raw(AvatarHtml(adminUser))
                 </div>
-            </div>
+            }
+            else
+            {
+                <div class="d-flex justify-content-start align-items-end gap-2 mb-2">
+                    @Html.Raw(AvatarHtml(chatUser))
+                    <div class="chat-bubble chat-bubble-user">
+                        <div>@m.Content</div>
+                        <small class="chat-time">@m.CreatedAt.ToString("HH:mm")</small>
+                    </div>
+                </div>
+            }
         }
     </div>
 
@@ -42,6 +70,12 @@
 .chat-bubble-admin { background:var(--color-accent);color:#fff;border-bottom-right-radius:4px; }
 .chat-bubble-user  { background:#fff;color:#1a1a2e;border:1px solid #e9ecef;border-bottom-left-radius:4px; }
 .chat-time { display:block;font-size:.7rem;opacity:.65;margin-top:2px;text-align:right; }
+.chat-avatar { border-radius:50%;flex-shrink:0; }
+.chat-avatar-initials {
+    display:inline-flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#667eea,#764ba2);
+    color:#fff;font-size:.72rem;font-weight:700;
+}
 </style>
 
 @section Scripts {
@@ -49,6 +83,9 @@
 const token   = document.querySelector('input[name="__RequestVerificationToken"]').value;
 const userId  = @chatUser!.Id;
 let   lastId  = @lastId;
+
+const userAvatarHtml  = `@Html.Raw(AvatarHtml(chatUser).Replace("`","\\`"))`;
+const adminAvatarHtml = `@Html.Raw(AvatarHtml(adminUser).Replace("`","\\`"))`;
 
 function scrollBottom() {
     const box = document.getElementById('chatBox');
@@ -73,16 +110,21 @@ async function sendMsg() {
 }
 
 function appendMsg(m) {
-    const box  = document.getElementById('chatBox');
-    const side = m.isFromAdmin ? 'end' : 'start';
-    const cls  = m.isFromAdmin ? 'chat-bubble-admin' : 'chat-bubble-user';
-    box.insertAdjacentHTML('beforeend',
-        `<div class="d-flex justify-content-${side} mb-2">
-           <div class="chat-bubble ${cls}">
-             <div>${m.content}</div>
-             <small class="chat-time">${m.createdAt}</small>
-           </div>
-         </div>`);
+    const box = document.getElementById('chatBox');
+    const cls = m.isFromAdmin ? 'chat-bubble-admin' : 'chat-bubble-user';
+    let html;
+    if (m.isFromAdmin) {
+        html = `<div class="d-flex justify-content-end align-items-end gap-2 mb-2">
+                  <div class="chat-bubble ${cls}"><div>${m.content}</div><small class="chat-time">${m.createdAt}</small></div>
+                  ${adminAvatarHtml}
+                </div>`;
+    } else {
+        html = `<div class="d-flex justify-content-start align-items-end gap-2 mb-2">
+                  ${userAvatarHtml}
+                  <div class="chat-bubble ${cls}"><div>${m.content}</div><small class="chat-time">${m.createdAt}</small></div>
+                </div>`;
+    }
+    box.insertAdjacentHTML('beforeend', html);
     box.scrollTop = box.scrollHeight;
 }
 

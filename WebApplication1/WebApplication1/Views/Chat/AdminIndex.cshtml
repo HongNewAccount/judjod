@@ -21,10 +21,19 @@
             {
                 <a href="@Url.Action("Conversation","Chat", new { userId = c.UserId })"
                    class="d-flex align-items-center gap-3 p-3 text-decoration-none text-dark border-bottom chat-row">
-                    <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0"
-                         style="width:44px;height:44px;background:linear-gradient(135deg,#667eea,#764ba2);font-size:.85rem;">
-                        @c.Initials
-                    </div>
+                    @if (!string.IsNullOrEmpty(c.ProfileImagePath))
+                    {
+                        <img src="@c.ProfileImagePath" alt="@c.UserName"
+                             class="rounded-circle flex-shrink-0"
+                             style="width:44px;height:44px;object-fit:cover;" />
+                    }
+                    else
+                    {
+                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0"
+                             style="width:44px;height:44px;background:linear-gradient(135deg,#667eea,#764ba2);font-size:.85rem;">
+                            @c.Initials
+                        </div>
+                    }
                     <div style="flex:1;min-width:0;">
                         <div class="d-flex justify-content-between align-items-center">
                             <span class="fw-semibold">@c.UserName</span>
