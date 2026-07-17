@@ -57,6 +57,11 @@ public class ChatController : Controller
             unread.ForEach(m => m.IsRead = true);
             if (unread.Any()) await _context.SaveChangesAsync();
 
+            var currentUser = await _context.Users.FindAsync(userId);
+            var adminUser   = await _context.Users.FirstOrDefaultAsync(u => u.Role == "Admin");
+
+            ViewBag.CurrentUser   = currentUser;
+            ViewBag.AdminUser     = adminUser;
             ViewBag.CurrentUserId = userId;
             return View("UserChat", messages);
         }
@@ -78,12 +83,18 @@ public class ChatController : Controller
         unread.ForEach(m => m.IsRead = true);
         if (unread.Any()) await _context.SaveChangesAsync();
 
-        var adminId = HttpContext.Session.GetInt32("UserId");
+        var adminId   = HttpContext.Session.GetInt32("UserId");
         var adminUser = adminId.HasValue ? await _context.Users.FindAsync(adminId.Value) : null;
 
-        ViewBag.ChatUser = user;
-        ViewBag.AdminUser = adminUser;
-        ViewBag.ReturnUrl = from == "user"
+        var pendingRequests = await _context.ProjectApprovalRequests
+            .Where(r => r.RequestedByUserId == userId && r.ApprovalStatus == "Pending" && r.RequestType == "RoleRequest")
+            .OrderBy(r => r.RequestedAt)
+            .ToListAsync();
+
+        ViewBag.ChatUser       = user;
+        ViewBag.AdminUser      = adminUser;
+        ViewBag.PendingRequests = pendingRequests;
+        ViewBag.ReturnUrl      = from == "user"
             ? Url.Action("Details", "User", new { id = userId })
             : Url.Action("Index", "Chat");
         return View("AdminChat", messages);
@@ -106,7 +117,41 @@ public class ChatController : Controller
         _context.ChatMessages.Add(msg);
         await _context.SaveChangesAsync();
 
-        return Ok(new { id = msg.Id, content = msg.Content, isFromAdmin = msg.IsFromAdmin, createdAt = msg.CreatedAt.ToString("HH:mm") });
+        return Ok(new { id = msg.Id, content = msg.Content, isFromAdmin = msg.IsFromAdmin, createdAt = msg.CreatedAt.ToString("HH:mm"), imagePath = (string?)null });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendFile(int userId, bool isFromAdmin, IFormFile file)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+        if (file == null || file.Length == 0) return BadRequest();
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var allowed = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+        if (!allowed.Contains(ext)) return BadRequest("Only image files are allowed");
+
+        var folder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "chat");
+        if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+
+        var fileName = $"{Guid.NewGuid()}{ext}";
+        var filePath = Path.Combine(folder, fileName);
+        using (var fs = new FileStream(filePath, FileMode.Create))
+            await file.CopyToAsync(fs);
+
+        var imagePath = $"/uploads/chat/{fileName}";
+        var msg = new ChatMessage
+        {
+            UserId      = userId,
+            IsFromAdmin = isFromAdmin,
+            Content     = "",
+            ImagePath   = imagePath,
+            CreatedAt   = DateTime.UtcNow
+        };
+        _context.ChatMessages.Add(msg);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { id = msg.Id, content = msg.Content, isFromAdmin = msg.IsFromAdmin, createdAt = msg.CreatedAt.ToString("HH:mm"), imagePath });
     }
 
     [HttpGet]
@@ -124,7 +169,121 @@ public class ChatController : Controller
         unread.ForEach(m => m.IsRead = true);
         if (unread.Any()) await _context.SaveChangesAsync();
 
-        return Ok(msgs.Select(m => new { id = m.Id, content = m.Content, isFromAdmin = m.IsFromAdmin, createdAt = m.CreatedAt.ToString("HH:mm") }));
+        return Ok(msgs.Select(m => new {
+            id          = m.Id,
+            content     = m.Content,
+            isFromAdmin = m.IsFromAdmin,
+            createdAt   = m.CreatedAt.ToString("HH:mm"),
+            imagePath   = m.ImagePath
+        }));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RequestRoleChange()
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null) return Unauthorized();
+
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return NotFound();
+        if (user.Role == "Editor") return BadRequest("Already an Editor");
+
+        var existing = await _context.ProjectApprovalRequests
+            .AnyAsync(r => r.RequestedByUserId == userId.Value && r.ApprovalStatus == "Pending" && r.RequestType == "RoleRequest");
+        if (existing) return Ok(new { alreadyPending = true });
+
+        var req = new ProjectApprovalRequest
+        {
+            ProjectId         = null,
+            RequestType       = "RoleRequest",
+            Name              = "Role",
+            Description       = "Editor",
+            Issues            = $"{user.FirstName} {user.LastName}",
+            StartDate         = DateTime.UtcNow,
+            RequestedByUserId = userId.Value,
+            ApprovalStatus    = "Pending",
+            RequestedAt       = DateTime.UtcNow
+        };
+        _context.ProjectApprovalRequests.Add(req);
+
+        var msg = new ChatMessage
+        {
+            UserId      = userId.Value,
+            IsFromAdmin = false,
+            Content     = "🔑 ขอสิทธิ์ Editor เพื่อแก้ไข Task",
+            IsRead      = true,   // don't double-count with the PendingRoleRequest badge
+            CreatedAt   = DateTime.UtcNow
+        };
+        _context.ChatMessages.Add(msg);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { id = msg.Id, content = msg.Content, isFromAdmin = false, createdAt = msg.CreatedAt.ToString("HH:mm"), imagePath = (string?)null });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ApproveRoleRequest(int requestId)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+        if (HttpContext.Session.GetString("IsSuperAdmin") != "true") return Forbid();
+
+        var adminId = HttpContext.Session.GetInt32("UserId");
+        var req = await _context.ProjectApprovalRequests.FindAsync(requestId);
+        if (req == null) return NotFound();
+
+        req.ApprovalStatus   = "Approved";
+        req.ApprovedByUserId = adminId;
+        req.ApprovedAt       = DateTime.UtcNow;
+
+        var targetUser = await _context.Users.FindAsync(req.RequestedByUserId);
+        if (targetUser != null)
+        {
+            targetUser.Role = "Editor";
+            _context.ActivityLogs.Add(new ActivityLog
+            {
+                UserId      = adminId,
+                ActionType  = "RoleChanged",
+                Description = $"{targetUser.FirstName} {targetUser.LastName} promoted to Editor via chat request",
+                OldValue    = "User",
+                NewValue    = "Editor",
+                CreatedAt   = DateTime.UtcNow
+            });
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RejectRoleRequest(int requestId)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+        if (HttpContext.Session.GetString("IsSuperAdmin") != "true") return Forbid();
+
+        var req = await _context.ProjectApprovalRequests.FindAsync(requestId);
+        if (req == null) return NotFound();
+
+        req.ApprovalStatus = "Rejected";
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> PendingRoleRequests(int userId)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+        if (HttpContext.Session.GetString("IsSuperAdmin") != "true") return Forbid();
+
+        var reqs = await _context.ProjectApprovalRequests
+            .Where(r => r.RequestedByUserId == userId && r.ApprovalStatus == "Pending" && r.RequestType == "RoleRequest")
+            .OrderBy(r => r.RequestedAt)
+            .Select(r => new { r.Id, displayName = r.Issues })
+            .ToListAsync();
+
+        return Ok(reqs);
     }
 
     [HttpGet]

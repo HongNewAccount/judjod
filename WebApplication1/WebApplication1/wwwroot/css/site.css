@@ -1481,6 +1481,7 @@ body {
     line-height: 1.3;
 }
 .calendar-item:hover { background: rgba(0,0,0,.06); color: inherit; }
+.calendar-day { height: 110px; vertical-align: top !important; }
 .calendar-day-items { overflow: hidden; }
 
 .log-row-clickable:hover { background: #fff8f0; }

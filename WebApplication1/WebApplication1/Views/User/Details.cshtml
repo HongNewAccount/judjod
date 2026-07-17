@@ -13,11 +13,6 @@
     var lateProjects      = ownedProjects.Where(p => p.Status == "Late").ToList();
     var completedProjects = ownedProjects.Where(p => p.Status == "Completed").ToList();
 
-    var totalCompleted = ownedProjects.Count(p => p.Status == "Completed" || p.Status == "Closed");
-    var totalLate = ownedProjects.Count(p =>
-        p.Status == "Late" ||
-        (p.EndDate.HasValue && p.EndDate.Value.Date < DateTime.Today &&
-         (p.Status == "Completed" || p.Status == "Closed")));
 }
 
 <div class="container-fluid">
@@ -124,27 +119,6 @@
                     <a asp-action="Index" class="btn btn-sm btn-secondary">
                         <i class="fas fa-arrow-left me-1"></i>Back
                     </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-card-success">
-                <div class="stat-card-icon"><i class="fas fa-check-circle"></i></div>
-                <div>
-                    <div class="stat-card-value">@totalCompleted</div>
-                    <div class="stat-card-label">Total Completed</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card stat-card-danger">
-                <div class="stat-card-icon"><i class="fas fa-exclamation-circle"></i></div>
-                <div>
-                    <div class="stat-card-value">@totalLate</div>
-                    <div class="stat-card-label">Total Late</div>
                 </div>
             </div>
         </div>

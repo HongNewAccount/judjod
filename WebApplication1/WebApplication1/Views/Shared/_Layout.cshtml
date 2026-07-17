@@ -8,6 +8,20 @@
     var userInitials = string.Concat(userName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(p => p[0])).ToUpper();
     var currentUserProfileImage = userId != null ? DbContext.Users.Where(u => u.Id == userId).Select(u => u.ProfileImagePath).FirstOrDefault() : null;
 
+    var chatBadge = 0;
+    if (userId != null)
+    {
+        if (userRole == "Admin")
+        {
+            chatBadge = DbContext.ChatMessages.Count(m => !m.IsFromAdmin && !m.IsRead)
+                      + DbContext.ProjectApprovalRequests.Count(r => r.ApprovalStatus == "Pending" && r.RequestType == "RoleRequest");
+        }
+        else
+        {
+            chatBadge = DbContext.ChatMessages.Count(m => m.UserId == userId && m.IsFromAdmin && !m.IsRead);
+        }
+    }
+
     string NavClass(string controller, string? action = null) =>
         "sidebar-link" + (currentController == controller && (action == null || currentAction == action) ? " active" : "");
 }
@@ -67,7 +81,7 @@
                 <li class="sidebar-item">
                     <a class="@NavClass("Chat")" asp-controller="Chat" asp-action="Index" title="Chat">
                         <i class="fas fa-comments"></i>
-                        <span>Chat</span>
+                        <span>Chat @if (chatBadge > 0) { <span class="badge rounded-pill ms-1" style="background:var(--color-accent);font-size:.6rem;padding:2px 5px;vertical-align:middle;">@chatBadge</span> }</span>
                     </a>
                 </li>
             </ul>

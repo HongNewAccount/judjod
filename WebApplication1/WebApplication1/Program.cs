@@ -79,6 +79,59 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<ApplicationDbContext>();
 
+    static void EnsureColumn(ApplicationDbContext dbContext, string tableName, string columnName, string columnDefinition)
+    {
+        using var command = dbContext.Database.GetDbConnection().CreateCommand();
+        command.CommandText = @"SELECT COUNT(*)
+FROM information_schema.columns
+WHERE table_schema = DATABASE()
+  AND table_name = @tableName
+  AND column_name = @columnName";
+
+        var tableParam = command.CreateParameter();
+        tableParam.ParameterName = "@tableName";
+        tableParam.Value = tableName;
+        command.Parameters.Add(tableParam);
+
+        var columnParam = command.CreateParameter();
+        columnParam.ParameterName = "@columnName";
+        columnParam.Value = columnName;
+        command.Parameters.Add(columnParam);
+
+        dbContext.Database.OpenConnection();
+        try
+        {
+            var exists = Convert.ToInt32(command.ExecuteScalar());
+            if (exists == 0)
+            {
+                dbContext.Database.ExecuteSqlRaw($"ALTER TABLE `{tableName}` ADD COLUMN `{columnName}` {columnDefinition}");
+            }
+        }
+        finally
+        {
+            dbContext.Database.CloseConnection();
+        }
+    }
+
+    // Patch missing columns BEFORE Migrate() so EF Core can read these tables
+    try
+    {
+        EnsureColumn(context, "Projects", "Progress", "int NOT NULL DEFAULT 0");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Projects column patch failed: {ex.Message}");
+    }
+
+    try
+    {
+        EnsureColumn(context, "ChatMessages", "ImagePath", "varchar(500) NULL");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"ChatMessages column patch failed: {ex.Message}");
+    }
+
     try
     {
         context.Database.Migrate();
@@ -87,13 +140,6 @@ using (var scope = app.Services.CreateScope())
     {
         context.Database.EnsureCreated();
     }
-
-    try
-    {
-        context.Database.ExecuteSqlRaw(
-            "ALTER TABLE `Projects` ADD COLUMN IF NOT EXISTS `Progress` int NOT NULL DEFAULT 0;");
-    }
-    catch { }
 
     try
     {
@@ -122,6 +168,7 @@ using (var scope = app.Services.CreateScope())
                 `UserId` int NOT NULL,
                 `IsFromAdmin` tinyint(1) NOT NULL DEFAULT 0,
                 `Content` longtext CHARACTER SET utf8mb4 NOT NULL,
+                `ImagePath` varchar(500) NULL,
                 `IsRead` tinyint(1) NOT NULL DEFAULT 0,
                 `CreatedAt` datetime(6) NOT NULL,
                 PRIMARY KEY (`Id`),
