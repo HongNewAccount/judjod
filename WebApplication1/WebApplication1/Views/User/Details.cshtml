@@ -172,15 +172,16 @@
                             <div class="d-flex flex-column gap-1">
                                 @foreach (var p in col.Items)
                                 {
-                                    <a href="#" onclick="openTaskModal(@p.Id, '@p.Name.Replace("'", "\\'")')"
-                                       class="text-decoration-none d-flex align-items-start gap-2 p-2 rounded hover-bg"
-                                       style="font-size:.85rem;">
+                                    <span class="text-decoration-none d-flex align-items-start gap-2 p-2 rounded hover-bg"
+                                          style="font-size:.85rem;cursor:pointer;"
+                                          data-id="@p.Id" data-name="@p.Name" data-status="@p.Status"
+                                          onclick="openDetailModal(this.dataset.id, this.dataset.name, this.dataset.status)">
                                         @if (p.Group != null)
                                         {
                                             <span class="flex-shrink-0 mt-1" style="width:8px;height:8px;border-radius:50%;background:@(p.Group.Color ?? "#6c757d");display:inline-block;"></span>
                                         }
                                         <span class="text-dark">@p.Name</span>
-                                    </a>
+                                    </span>
                                 }
                             </div>
                         }
@@ -191,32 +192,52 @@
     </div>
 </div>
 
-<div class="modal fade" id="userTaskModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="taskDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <div class="modal-header py-2 px-3">
-                <input type="text" id="uTaskTitle" class="form-control form-control-sm fw-bold border-0 p-0"
-                       style="font-size:1rem;box-shadow:none;" placeholder="Task name" readonly />
+                <input type="text" id="taskDetailTitle" class="form-control form-control-sm fw-bold border-0 p-0"
+                       style="font-size:1rem;box-shadow:none;" placeholder="Task name" />
                 <button type="button" class="btn-close ms-2" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-3" style="max-height:70vh;overflow-y:auto;">
-                <div class="row g-3">
-                    <div class="col-md-6">
+                <div class="d-flex flex-column gap-3">
+                    <div>
                         <label class="form-label small fw-semibold">Description</label>
-                        <div id="uTaskDesc" class="text-muted small p-2 rounded bg-light" style="min-height:80px;white-space:pre-wrap;"></div>
+                        <textarea id="taskDetailDesc" class="form-control" rows="2"
+                                  placeholder="Add a description..."></textarea>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label small fw-semibold">Activity Log</label>
-                        <div id="uTaskLog" style="max-height:250px;overflow-y:auto;font-size:.8rem;">
-                            <div class="text-muted">Loading...</div>
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label small fw-semibold mb-0">Progress</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="range" id="taskDetailProgress" min="0" max="100" step="5" class="form-range flex-grow-1" />
+                                <span class="badge text-bg-primary" id="taskDetailProgressValue">0%</span>
+                            </div>
+                        </div>
+                        <textarea id="taskDetailProgressNote" class="form-control mt-2" rows="2"
+                                  placeholder="Add progress note..."></textarea>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Progress Log</label>
+                            <div id="taskDetailProgressLog" style="max-height:220px;overflow-y:auto;font-size:.8rem;">
+                                <div class="text-muted">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Activity Log</label>
+                            <div id="taskDetailLog" style="max-height:220px;overflow-y:auto;font-size:.8rem;">
+                                <div class="text-muted">Loading...</div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer py-2 px-3">
-                <a id="uTaskBoardLink" href="#" class="btn btn-sm btn-outline-secondary">
-                    <i class="fas fa-columns me-1"></i>Open in Board
-                </a>
+                <button type="button" class="btn btn-modal-action btn-sm" onclick="saveDetailModal()">
+                    <i class="fas fa-save me-1"></i>Save
+                </button>
             </div>
         </div>
     </div>
@@ -224,46 +245,151 @@
 
 <style>
 .hover-bg:hover { background: #f4f6fb; }
-.task-log-entry { padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
-.task-log-entry:last-child { border-bottom: none; }
-.task-log-action { font-size:.7rem; font-weight:600; background:#e9ecef; padding:1px 5px; border-radius:3px; margin-right:4px; }
-.task-log-meta { font-size:.7rem; color:#999; margin-top:1px; }
+.task-log-entry {
+    padding: .45rem .5rem;
+    border-radius: .45rem;
+    background: #f8f9fa;
+    margin-bottom: .4rem;
+}
+.task-log-action {
+    display: inline-block;
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #6c757d;
+    margin-right: .25rem;
+}
+.task-log-desc {
+    display: block;
+    margin-top: .15rem;
+    font-size: .8rem;
+    color: #212529;
+}
+.task-log-meta {
+    font-size: .72rem;
+    color: #6c757d;
+    margin-top: .2rem;
+}
 </style>
 
 @section Scripts {
 <script>
-function openTaskModal(id, name) {
-    document.getElementById('uTaskTitle').value = name;
-    document.getElementById('uTaskDesc').textContent = '';
-    document.getElementById('uTaskLog').innerHTML = '<div class="text-muted small">Loading...</div>';
-    document.getElementById('uTaskBoardLink').href = '@Url.Action("Index", "ProjectTracker")' + '?openTask=' + id;
+const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
 
-    new bootstrap.Modal(document.getElementById('userTaskModal')).show();
+let currentDetailId = null;
+let currentDetailProgress = 0;
 
-    fetch('/ProjectTracker/GetProjectDetails?id=' + id, {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.name) document.getElementById('uTaskTitle').value = data.name;
-        document.getElementById('uTaskDesc').textContent = data.description || '(No description)';
-        const logEl = document.getElementById('uTaskLog');
-        if (!data.logs || data.logs.length === 0) {
-            logEl.innerHTML = '<div class="text-muted small">No activity yet</div>';
-        } else {
-            logEl.innerHTML = data.logs.map(l => `
-                <div class="task-log-entry">
-                    <span class="task-log-action">${l.actionType}</span>
-                    <span>${l.description || ''}</span>
-                    ${l.oldValue && l.newValue ? `<small class="text-muted"> ${l.oldValue} &rarr; ${l.newValue}</small>` : ''}
-                    <div class="task-log-meta">${l.userName} &middot; ${l.createdAt}</div>
-                </div>`).join('');
-        }
-    })
-    .catch(() => {
-        document.getElementById('uTaskLog').innerHTML = '<div class="text-danger small">Failed to load</div>';
-    });
-    return false;
+function syncProgressInputs(value) {
+    const range = document.getElementById('taskDetailProgress');
+    const badge = document.getElementById('taskDetailProgressValue');
+    const parsed = Math.max(0, Math.min(100, Number(value) || 0));
+    if (range) range.value = parsed;
+    if (badge) badge.textContent = parsed + '%';
 }
+
+function renderLogEntries(entries, containerId, emptyText) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    if (!entries || entries.length === 0) {
+        container.innerHTML = '<div class="text-muted small">' + emptyText + '</div>';
+        return;
+    }
+    container.innerHTML = entries.map(l => {
+        const detailText = l.description || '';
+        const noteText = l.note || '';
+        const mainText = detailText || noteText || '';
+        return `
+            <div class="task-log-entry">
+                <span class="task-log-action">${l.actionType}</span>
+                <span class="task-log-desc">${mainText}</span>
+                ${noteText && detailText ? `<div class="text-muted small mt-1">${noteText}</div>` : ''}
+                ${l.oldValue && l.newValue ? `<small class="text-muted ms-1">${l.oldValue} → ${l.newValue}</small>` : ''}
+                <div class="task-log-meta">${l.userName} · ${l.createdAt}</div>
+            </div>`;
+    }).join('');
+}
+
+function openDetailModal(id, name, status) {
+    currentDetailId = id;
+    document.getElementById('taskDetailTitle').value = name;
+    document.getElementById('taskDetailDesc').value = '';
+    document.getElementById('taskDetailProgressNote').value = '';
+    syncProgressInputs(0);
+    document.getElementById('taskDetailProgressLog').innerHTML = '<div class="text-muted small">Loading...</div>';
+    document.getElementById('taskDetailLog').innerHTML = '<div class="text-muted small">Loading...</div>';
+
+    new bootstrap.Modal(document.getElementById('taskDetailModal')).show();
+
+    fetch('/ProjectTracker/GetProjectDetails?id=' + id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => {
+            if (data.name) document.getElementById('taskDetailTitle').value = data.name;
+            document.getElementById('taskDetailDesc').value = data.description || '';
+            currentDetailProgress = data.progress ?? 0;
+            syncProgressInputs(currentDetailProgress);
+            renderLogEntries(data.progressLogs || [], 'taskDetailProgressLog', 'No progress updates yet');
+            renderLogEntries(data.logs || [], 'taskDetailLog', 'No activity yet');
+        })
+        .catch(() => {
+            document.getElementById('taskDetailLog').innerHTML = '<div class="text-danger small">Failed to load</div>';
+            document.getElementById('taskDetailProgressLog').innerHTML = '<div class="text-danger small">Failed to load</div>';
+        });
+}
+
+async function saveDetailModal() {
+    const name = document.getElementById('taskDetailTitle').value.trim();
+    const desc = document.getElementById('taskDetailDesc').value;
+    const progress = Number(document.getElementById('taskDetailProgress').value || 0);
+    const note = document.getElementById('taskDetailProgressNote').value.trim();
+    if (!name) return;
+
+    const saveButton = document.querySelector('#taskDetailModal .btn-modal-action');
+    if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+    }
+
+    try {
+        const r1 = await fetch('/ProjectTracker/UpdateName', {
+            method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: new URLSearchParams({ id: currentDetailId, name, __RequestVerificationToken: token })
+        });
+        if (!r1.ok) throw new Error('UpdateName failed: ' + r1.status);
+
+        const r2 = await fetch('/ProjectTracker/UpdateDescription', {
+            method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: new URLSearchParams({ id: currentDetailId, description: desc, __RequestVerificationToken: token })
+        });
+        if (!r2.ok) throw new Error('UpdateDescription failed: ' + r2.status);
+
+        let movedToCompleted = false;
+        if (note || progress !== currentDetailProgress) {
+            const r3 = await fetch('/ProjectTracker/UpdateProgress', {
+                method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: new URLSearchParams({ id: currentDetailId, progress, note, __RequestVerificationToken: token })
+            });
+            if (!r3.ok) throw new Error('UpdateProgress failed: ' + r3.status);
+            const r3data = await r3.json().catch(() => ({}));
+            movedToCompleted = r3data.movedToCompleted === true;
+        }
+
+        if (movedToCompleted) { location.reload(); return; }
+
+        (bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')) || new bootstrap.Modal(document.getElementById('taskDetailModal'))).hide();
+    } catch (e) {
+        console.error(e);
+        alert('Unable to save changes. Please try again.');
+    } finally {
+        if (saveButton) {
+            saveButton.disabled = false;
+            saveButton.innerHTML = '<i class="fas fa-save me-1"></i>Save';
+        }
+    }
+}
+
+document.getElementById('taskDetailProgress').addEventListener('input', function () {
+    syncProgressInputs(this.value);
+});
 </script>
 }
