@@ -113,6 +113,17 @@ public class AuthController : Controller
         };
 
         _context.Add(user);
+
+        var creatorId = HttpContext.Session.GetInt32("UserId");
+        _context.ActivityLogs.Add(new ActivityLog
+        {
+            UserId = creatorId,
+            ProjectId = null,
+            ActionType = "UserCreated",
+            Description = $"New user '{username}' created as {user.Role}",
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _context.SaveChangesAsync();
 
         TempData["SuccessMessage"] = $"User '{username}' created successfully as {user.Role}.";

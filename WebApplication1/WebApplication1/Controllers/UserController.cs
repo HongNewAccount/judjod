@@ -127,6 +127,14 @@ public class UserController : Controller
                     }
 
                     _context.Update(existingUser);
+                    _context.ActivityLogs.Add(new ActivityLog
+                    {
+                        UserId = currentUserId,
+                        ProjectId = null,
+                        ActionType = "ProfileUpdated",
+                        Description = $"{existingUser.FirstName} {existingUser.LastName}'s profile was updated",
+                        CreatedAt = DateTime.UtcNow
+                    });
                     await _context.SaveChangesAsync();
                     TempData["SuccessMessage"] = "Profile updated successfully.";
                 }
