@@ -29,6 +29,11 @@
         return $"<div class=\"chat-avatar chat-avatar-initials\" style=\"width:{size};height:{size};\">{f}{l}</div>";
     }
 
+    string AvatarLink(User? u, string size = "32px") {
+        if (u == null) return "";
+        return $"<a href=\"/User/Details/{u.Id}\" title=\"{u.FirstName} {u.LastName}\">{AvatarHtml(u, size)}</a>";
+    }
+
     var memberMap = room.Members.Where(m => m.User != null).ToDictionary(m => m.UserId, m => m.User!);
 }
 @Html.AntiForgeryToken()
@@ -37,33 +42,31 @@
 
     <!-- Header -->
     <div class="d-flex align-items-center mb-3 flex-shrink-0 gap-2">
-        <a href="@Url.Action("Index","Chat")" class="btn btn-sm btn-secondary flex-shrink-0">
-            <i class="fas fa-arrow-left"></i>
-        </a>
-
         @if (room.IsGroup)
         {
             <div class="rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0"
                  style="width:40px;height:40px;background:linear-gradient(135deg,#11998e,#38ef7d);">
                 <i class="fas fa-users"></i>
             </div>
-        }
-        else
-        {
-            @Html.Raw(AvatarHtml(dmPartner, "40px"))
-        }
-
-        <div class="flex-grow-1" style="min-width:0;">
-            <div class="fw-semibold text-truncate">@roomName</div>
-            @if (room.IsGroup)
-            {
+            <div class="flex-grow-1" style="min-width:0;">
+                <div class="fw-semibold text-truncate">@roomName</div>
                 <small class="text-muted">
                     @string.Join(", ", room.Members
                         .Where(m => m.User != null)
                         .Select(m => m.User!.FirstName))
                 </small>
-            }
-        </div>
+            </div>
+        }
+        else
+        {
+            <a href="@Url.Action("Details","User", new { id = dmPartner?.Id })"
+               class="d-flex align-items-center gap-2 text-decoration-none text-dark flex-grow-1" style="min-width:0;">
+                @Html.Raw(AvatarHtml(dmPartner, "40px"))
+                <div style="min-width:0;">
+                    <div class="fw-semibold text-truncate">@roomName</div>
+                </div>
+            </a>
+        }
 
         @if (isAdmin)
         {
@@ -71,20 +74,16 @@
                   onsubmit="return confirm('ลบข้อความทั้งหมดในแชทนี้?')">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="roomId" value="@room.Id" />
-                <button type="submit" class="btn btn-sm btn-outline-danger">
+                <button type="submit" class="btn btn-sm btn-outline-danger flex-shrink-0">
                     <i class="fas fa-trash me-1"></i>Clear Chat
                 </button>
             </form>
         }
-    </div>
 
-    @if (TempData["SuccessMessage"] != null)
-    {
-        <div class="alert alert-success alert-dismissible py-2 flex-shrink-0">
-            @TempData["SuccessMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
+        <a href="@Url.Action("Index","Chat")" class="btn btn-sm btn-secondary flex-shrink-0">
+            <i class="fas fa-arrow-left me-1"></i>Back
+        </a>
+    </div>
 
     <!-- Messages -->
     <div id="chatBox" class="flex-1 overflow-y-auto p-3 rounded mb-3"
@@ -104,7 +103,7 @@
                     <div class="chat-bubble chat-bubble-mine">
                         @if (!string.IsNullOrEmpty(m.ImagePath))
                         { <a href="@m.ImagePath" target="_blank"><img src="@m.ImagePath" class="chat-img" /></a> }
-                        else { <div>@m.Content</div> }
+                        else { <div class="chat-text">@m.Content</div> }
                         <small class="chat-time">@m.CreatedAt.ToString("HH:mm")</small>
                     </div>
                     @Html.Raw(AvatarHtml(currentUser))
@@ -113,8 +112,8 @@
             else
             {
                 <div class="d-flex justify-content-start align-items-end gap-2 mb-2">
-                    @Html.Raw(AvatarHtml(sender))
-                    <div>
+                    @Html.Raw(AvatarLink(sender))
+                    <div class="chat-theirs-wrap">
                         @if (room.IsGroup && sender != null)
                         {
                             <small class="text-muted ms-1 d-block mb-1">@sender.FirstName @sender.LastName</small>
@@ -122,7 +121,7 @@
                         <div class="chat-bubble chat-bubble-theirs">
                             @if (!string.IsNullOrEmpty(m.ImagePath))
                             { <a href="@m.ImagePath" target="_blank"><img src="@m.ImagePath" class="chat-img" /></a> }
-                            else { <div>@m.Content</div> }
+                            else { <div class="chat-text">@m.Content</div> }
                             <small class="chat-time">@m.CreatedAt.ToString("HH:mm")</small>
                         </div>
                     </div>
@@ -145,17 +144,24 @@
 </div>
 
 <style>
-.chat-bubble { max-width:70%;padding:.55rem .85rem;border-radius:16px;font-size:.9rem; }
-.chat-bubble-mine   { background:var(--color-accent);color:#fff;border-bottom-right-radius:4px; }
+.chat-bubble { padding:.5rem .8rem;border-radius:16px;font-size:.9rem; }
+.chat-bubble-mine   { max-width:70%;background:var(--color-accent);color:#fff;border-bottom-right-radius:4px; }
 .chat-bubble-theirs { background:#fff;color:#1a1a2e;border:1px solid #e9ecef;border-bottom-left-radius:4px; }
-.chat-time { display:block;font-size:.7rem;opacity:.65;margin-top:2px;text-align:right; }
-.chat-avatar { border-radius:50%;flex-shrink:0; }
+.chat-theirs-wrap   { max-width:50%; }
+.chat-theirs-wrap .chat-bubble-theirs { max-width:100%; }
+.chat-text  { word-break:break-word;overflow-wrap:break-word; }
+.chat-time  { display:block;font-size:.7rem;opacity:.65;white-space:nowrap;margin-top:2px; }
+.chat-bubble-mine .chat-time { text-align:right; }
+.chat-avatar { border-radius:50%;flex-shrink:0;display:block; }
 .chat-avatar-initials {
     display:inline-flex;align-items:center;justify-content:center;
     background:linear-gradient(135deg,#667eea,#764ba2);
     color:#fff;font-size:.72rem;font-weight:700;
 }
+a .chat-avatar, a .chat-avatar-initials { cursor:pointer; }
+a .chat-avatar:hover, a .chat-avatar-initials:hover { opacity:.8; }
 .chat-img { max-width:200px;max-height:200px;border-radius:8px;display:block; }
+#chatBox { overflow-x:hidden; }
 </style>
 
 @section Scripts {
@@ -170,6 +176,10 @@ const myAvatarHtml = `@Html.Raw(AvatarHtml(currentUser).Replace("`", "\\`"))`;
 const memberAvatars = {
     @foreach (var mem in room.Members.Where(m => m.User != null))
     {<text>@mem.UserId: `@Html.Raw(AvatarHtml(mem.User).Replace("`","\\`"))`,</text>}
+};
+const memberProfileUrls = {
+    @foreach (var mem in room.Members.Where(m => m.User != null))
+    {<text>@mem.UserId: '/User/Details/@mem.UserId',</text>}
 };
 
 function scrollBottom() {
@@ -207,24 +217,30 @@ async function sendFile(input) {
 }
 
 function appendMsg(m) {
-    const box   = document.getElementById('chatBox');
-    const isMe  = m.senderId === myId;
-    const body  = m.imagePath
-        ? `<a href="${m.imagePath}" target="_blank"><img src="${m.imagePath}" class="chat-img" /></a>`
-        : m.content;
-    const avatarHtml   = isMe ? myAvatarHtml : (memberAvatars[m.senderId] || '');
-    const senderLabel  = (!isMe && isGroup && m.senderName)
+    const box = document.getElementById('chatBox');
+    const isMe = m.senderId === myId;
+    const rawAvatar = memberAvatars[m.senderId] || '';
+    const profileUrl = memberProfileUrls[m.senderId];
+    const avatarHtml = isMe
+        ? myAvatarHtml
+        : (profileUrl ? `<a href="${profileUrl}" title="View profile">${rawAvatar}</a>` : rawAvatar);
+    const senderLabel = (!isMe && isGroup && m.senderName)
         ? `<small class="text-muted ms-1 d-block mb-1">${m.senderName}</small>` : '';
+
+    const bubbleBody = m.imagePath
+        ? `<a href="${m.imagePath}" target="_blank"><img src="${m.imagePath}" class="chat-img" /></a><small class="chat-time">${m.createdAt}</small>`
+        : `<div class="chat-text">${m.content}</div><small class="chat-time">${m.createdAt}</small>`;
+
     let html;
     if (isMe) {
         html = `<div class="d-flex justify-content-end align-items-end gap-2 mb-2">
-            <div class="chat-bubble chat-bubble-mine"><div>${body}</div><small class="chat-time">${m.createdAt}</small></div>
+            <div class="chat-bubble chat-bubble-mine">${bubbleBody}</div>
             ${avatarHtml}
         </div>`;
     } else {
         html = `<div class="d-flex justify-content-start align-items-end gap-2 mb-2">
             ${avatarHtml}
-            <div>${senderLabel}<div class="chat-bubble chat-bubble-theirs"><div>${body}</div><small class="chat-time">${m.createdAt}</small></div></div>
+            <div class="chat-theirs-wrap">${senderLabel}<div class="chat-bubble chat-bubble-theirs">${bubbleBody}</div></div>
         </div>`;
     }
     box.insertAdjacentHTML('beforeend', html);

@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Users";
     var userRole = Context.Session.GetString("UserRole");
+    var currentUserId = Context.Session.GetInt32("UserId");
 }
 
 <div class="container-fluid">
