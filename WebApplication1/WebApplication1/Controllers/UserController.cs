@@ -32,7 +32,8 @@ public class UserController : Controller
 
         var ownedProjects = await _context.Projects
             .Where(p => p.Owners.Any(o => o.UserId == id))
-            .Include(p => p.Group)
+            .Include(p => p.Groups)
+                .ThenInclude(pg => pg.Group)
             .OrderBy(p => p.Name)
             .ToListAsync();
 

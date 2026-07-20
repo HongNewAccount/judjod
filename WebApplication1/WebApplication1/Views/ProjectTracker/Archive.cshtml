@@ -70,11 +70,14 @@
                             </span>
                         }
 
-                        @if (project.Group?.Color != null)
+                        @if (project.Groups.Any())
                         {
                             <span class="kanban-quick-btn kanban-quick-btn-group" style="cursor:default;">
-                                <span style="width:8px;height:8px;border-radius:50%;background:@project.Group.Color;display:inline-block;margin-right:4px;"></span>
-                                <span>@project.Group.Name</span>
+                                @foreach (var ga in project.Groups.Take(2))
+                                {
+                                    <span style="width:8px;height:8px;border-radius:50%;background:@(ga.Group?.Color ?? "#6c757d");display:inline-block;margin-right:2px;"></span>
+                                }
+                                <span>@string.Join(", ", project.Groups.Take(2).Select(ga => ga.Group?.Name ?? ""))</span>
                             </span>
                         }
 

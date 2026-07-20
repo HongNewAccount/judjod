@@ -181,6 +181,28 @@ WHERE table_schema = DATABASE()
     }
     catch { }
 
+    try
+    {
+        context.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS `ProjectGroupAssignments` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `ProjectId` int NOT NULL,
+                `GroupId` int NOT NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_ProjectGroupAssignments` (`ProjectId`, `GroupId`),
+                KEY `IX_ProjectGroupAssignments_GroupId` (`GroupId`),
+                CONSTRAINT `FK_PGA_Projects` FOREIGN KEY (`ProjectId`) REFERENCES `Projects` (`Id`) ON DELETE CASCADE,
+                CONSTRAINT `FK_PGA_Groups` FOREIGN KEY (`GroupId`) REFERENCES `ProjectGroups` (`Id`) ON DELETE CASCADE
+            ) CHARACTER SET utf8mb4;");
+
+        // Migrate existing single GroupId → junction table
+        context.Database.ExecuteSqlRaw(@"
+            INSERT IGNORE INTO `ProjectGroupAssignments` (`ProjectId`, `GroupId`)
+            SELECT `Id`, `GroupId` FROM `Projects`
+            WHERE `GroupId` IS NOT NULL;");
+    }
+    catch { }
+
     SeedData.Initialize(context);
 }
 

@@ -163,9 +163,13 @@
                                           style="font-size:.85rem;cursor:pointer;"
                                           data-id="@p.Id" data-name="@p.Name" data-status="@p.Status"
                                           onclick="openDetailModal(this.dataset.id, this.dataset.name, this.dataset.status)">
-                                        @if (p.Group != null)
+                                        @if (p.Groups.Any())
                                         {
-                                            <span class="flex-shrink-0 mt-1" style="width:8px;height:8px;border-radius:50%;background:@(p.Group.Color ?? "#6c757d");display:inline-block;"></span>
+                                            var firstGroup = p.Groups.FirstOrDefault()?.Group;
+                                            if (firstGroup != null)
+                                            {
+                                                <span class="flex-shrink-0 mt-1" style="width:8px;height:8px;border-radius:50%;background:@(firstGroup.Color ?? "#6c757d");display:inline-block;"></span>
+                                            }
                                         }
                                         <span class="text-dark">@p.Name</span>
                                     </span>

@@ -14,5 +14,5 @@ public class ProjectGroup
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public ICollection<Project> Projects { get; set; } = new List<Project>();
+    public ICollection<ProjectGroupAssignment> ProjectAssignments { get; set; } = new List<ProjectGroupAssignment>();
 }

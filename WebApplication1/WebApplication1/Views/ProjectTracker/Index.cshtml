@@ -172,7 +172,7 @@
                         <div class="kanban-card"
                              data-project-id="@project.Id"
                              data-status="@project.Status"
-                             data-sort-order="@project.SortOrder" data-group-id="@(project.GroupId?.ToString() ?? "")"
+                             data-sort-order="@project.SortOrder" data-group-ids="@string.Join(",", project.Groups.Select(g => g.GroupId))"
                              data-search="@($"{project.Name} {string.Join(' ', project.Owners.Select(o => o.User != null ? o.User.FirstName + ' ' + o.User.LastName : ""))}".ToLower())"
                              draggable="@(isAdmin ? "true" : "false")"
                              onclick="cardClicked(event, @project.Id, '@project.Name.Replace("'","\\'")')">
@@ -266,39 +266,38 @@
 
                                     <div class="dropdown">
                                         <button type="button"
-                                                class="kanban-quick-btn @(project.GroupId.HasValue ? "kanban-quick-btn-group" : "kanban-quick-btn-empty")"
+                                                class="kanban-quick-btn @(project.Groups.Any() ? "kanban-quick-btn-group" : "kanban-quick-btn-empty")"
                                                 data-bs-toggle="dropdown" data-bs-auto-close="outside" title="Group">
-                                            @if (project.Group?.Color != null)
+                                            @if (project.Groups.Any())
                                             {
-                                                <span style="width:8px;height:8px;border-radius:50%;background:@project.Group.Color;display:inline-block;margin-right:4px;flex-shrink:0;"></span>
+                                                @foreach (var ga in project.Groups.Take(2))
+                                                {
+                                                    <span style="width:8px;height:8px;border-radius:50%;background:@(ga.Group?.Color ?? "#6c757d");display:inline-block;margin-right:2px;flex-shrink:0;"></span>
+                                                }
+                                                <span>@string.Join(", ", project.Groups.Take(2).Select(ga => ga.Group?.Name ?? ""))@(project.Groups.Count() > 2 ? $" +{project.Groups.Count()-2}" : "")</span>
                                             }
                                             else
                                             {
                                                 <i class="fas fa-users me-1"></i>
+                                                <span>Group</span>
                                             }
-                                            <span>@(project.Group?.Name ?? "Group")</span>
                                         </button>
-                                        <div class="dropdown-menu p-0 group-picker" style="min-width:190px;" data-project-id="@project.Id">
+                                        <div class="dropdown-menu p-0 group-picker" style="min-width:230px;" data-project-id="@project.Id">
                                             <div style="padding:.4rem .5rem;position:sticky;top:0;background:#fff;z-index:2;border-bottom:1px solid #f0f0f0;">
-                                                <input type="text" class="form-control form-control-sm group-search" placeholder="Search team..." onclick="event.stopPropagation()" />
+                                                <input type="text" class="form-control form-control-sm group-search" placeholder="Search..." onclick="event.stopPropagation()" />
                                             </div>
-                                            <div style="max-height:200px;overflow-y:auto;padding:.25rem .5rem .5rem;">
-                                                <div class="group-item py-1">
-                                                    <label class="d-flex align-items-center gap-2" style="cursor:pointer;margin:0;font-size:.85rem;">
-                                                        <input type="radio" class="form-check-input flex-shrink-0 group-radio" name="grp_@project.Id"
-                                                               value="" @(project.GroupId == null ? "checked" : "") data-project-id="@project.Id" style="margin:0;" />
-                                                        <i class="fas fa-times" style="color:#aaa;font-size:.75rem;"></i>
-                                                        <span class="small">None</span>
-                                                    </label>
-                                                </div>
+                                            <div class="group-scroll-list" style="max-height:220px;overflow-y:auto;padding:.25rem .5rem .5rem;">
                                                 @foreach (var g in groups)
                                                 {
+                                                    var isInGroup = project.Groups.Any(pg => pg.GroupId == g.Id);
                                                     <div class="group-item py-1">
-                                                        <label class="d-flex align-items-center gap-2" style="cursor:pointer;margin:0;font-size:.85rem;">
-                                                            <input type="radio" class="form-check-input flex-shrink-0 group-radio" name="grp_@project.Id"
-                                                                   value="@g.Id" @(project.GroupId == g.Id ? "checked" : "") data-project-id="@project.Id"
-                                                                   data-group-id="@g.Id" style="margin:0;" />
-                                                            <span style="width:10px;height:10px;border-radius:50%;background:@(g.Color ?? "#6c757d");flex-shrink:0;display:inline-block;"></span>
+                                                        <label class="d-flex align-items-center gap-2" for="grp_@(project.Id)_@(g.Id)" style="cursor:pointer;margin:0;">
+                                                            <input class="form-check-input flex-shrink-0 group-checkbox" type="checkbox"
+                                                                   id="grp_@(project.Id)_@(g.Id)" value="@g.Id"
+                                                                   checked="@isInGroup" data-project-id="@project.Id" style="margin:0;" />
+                                                            <span class="rounded-circle flex-shrink-0 d-inline-flex align-items-center justify-content-center text-white fw-bold" style="width:24px;height:24px;font-size:9px;background:@(g.Color ?? "#6c757d");">
+                                                                @(g.Name.Length > 0 ? g.Name[0].ToString().ToUpper() : "")
+                                                            </span>
                                                             <span class="small">@g.Name</span>
                                                         </label>
                                                     </div>
@@ -535,8 +534,8 @@ function filterByGroup(groupId, tabEl) {
         if (!groupId) {
             card.style.display = '';
         } else {
-            const cg = card.getAttribute('data-group-id');
-            card.style.display = (String(cg) === String(groupId)) ? '' : 'none';
+            const ids = (card.getAttribute('data-group-ids') || '').split(',').filter(Boolean);
+            card.style.display = ids.includes(String(groupId)) ? '' : 'none';
         }
     });
 }
@@ -664,44 +663,32 @@ function updateDateDOM(id, endDate) {
     }
 }
 
-function updateGroupDOM(id, groupId, radioEl) {
+function updateGroupBtn(id, picker) {
     const card = document.querySelector('.kanban-card[data-project-id="' + id + '"]');
     if (!card) return;
     const groupDropdown = [...card.querySelectorAll('.kanban-quick-row .dropdown')]
-        .find(dd => dd.querySelector('.group-picker, .group-radio'));
+        .find(dd => dd.querySelector('.group-picker'));
     if (!groupDropdown) return;
     const btn = groupDropdown.querySelector('[data-bs-toggle="dropdown"]');
     if (!btn) return;
-    const nameSpan = btn.querySelector('span:last-child');
-
-    if (groupId) {
-        const label = radioEl?.closest?.('.group-item') ?? radioEl?.parentElement;
-        const colorDot = label?.querySelector('span[style*="border-radius:50%"]');
-        const nameEl = label?.querySelector('span.small');
-        const color = colorDot?.style?.background || '#6c757d';
-        const groupName = nameEl?.textContent?.trim() || 'Team';
-
-        btn.className = 'kanban-quick-btn kanban-quick-btn-group';
-        let dot = btn.querySelector('span[style*="border-radius:50%"]');
-        const usersIcon = btn.querySelector('i.fa-users');
-        if (usersIcon) usersIcon.remove();
-        if (!dot) {
-            dot = document.createElement('span');
-            dot.style.cssText = 'width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;flex-shrink:0;';
-            btn.insertBefore(dot, nameSpan);
-        }
-        dot.style.background = color;
-        if (nameSpan) nameSpan.textContent = groupName;
-    } else {
+    const checked = [...picker.querySelectorAll('.group-checkbox:checked')];
+    const groupIds = checked.map(c => c.value).join(',');
+    card.setAttribute('data-group-ids', groupIds);
+    if (checked.length === 0) {
         btn.className = 'kanban-quick-btn kanban-quick-btn-empty';
-        const dot = btn.querySelector('span[style*="border-radius:50%"]');
-        if (dot) dot.remove();
-        if (!btn.querySelector('i.fa-users')) {
-            const icon = document.createElement('i');
-            icon.className = 'fas fa-users me-1';
-            btn.insertBefore(icon, nameSpan);
-        }
-        if (nameSpan) nameSpan.textContent = 'Group';
+        btn.innerHTML = '<i class="fas fa-users me-1"></i><span>Group</span>';
+    } else {
+        btn.className = 'kanban-quick-btn kanban-quick-btn-group';
+        const dots = checked.slice(0, 2).map(c => {
+            const circle = c.closest('.group-item')?.querySelector('span.rounded-circle');
+            const color = circle?.style?.background || '#6c757d';
+            return `<span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;margin-right:2px;flex-shrink:0;"></span>`;
+        }).join('');
+        const names = checked.slice(0, 2).map(c =>
+            c.closest('.group-item')?.querySelector('span.small')?.textContent?.trim() || ''
+        ).join(', ');
+        const more = checked.length > 2 ? ` +${checked.length - 2}` : '';
+        btn.innerHTML = `${dots}<span>${names}${more}</span>`;
     }
 }
 
@@ -803,18 +790,17 @@ document.querySelectorAll('.owner-search').forEach(input => {
     input.addEventListener('keydown', e => e.stopPropagation());
 });
 
-document.querySelectorAll('.group-radio').forEach(radio => {
-    radio.addEventListener('change', async function () {
+document.querySelectorAll('.group-checkbox').forEach(cb => {
+    cb.addEventListener('change', async function () {
         const id = this.getAttribute('data-project-id');
-        const groupId = this.value || '';
+        const picker = this.closest('.group-picker');
+        const groupIds = [...picker.querySelectorAll('.group-checkbox:checked')].map(c => c.value).join(',');
         try {
-            await fetch('/ProjectTracker/AssignGroup', {
+            await fetch('/ProjectTracker/UpdateGroups', {
                 method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                body: new URLSearchParams({ id, groupId, __RequestVerificationToken: token })
+                body: new URLSearchParams({ id, groupIds, __RequestVerificationToken: token })
             });
-            updateGroupDOM(id, groupId, this);
-            const dropdownEl = this.closest('.dropdown')?.querySelector('[data-bs-toggle="dropdown"]');
-            if (dropdownEl) { const inst = bootstrap.Dropdown.getInstance(dropdownEl); if (inst) inst.hide(); }
+            updateGroupBtn(id, picker);
         } catch (e) { console.error(e); }
     });
 });
@@ -822,8 +808,8 @@ document.querySelectorAll('.group-radio').forEach(radio => {
 document.querySelectorAll('.group-search').forEach(input => {
     input.addEventListener('input', function () {
         const term = this.value.toLowerCase();
-        const picker = this.closest('.group-picker');
-        picker?.querySelectorAll('.group-item').forEach(item => {
+        const list = this.closest('.group-picker').querySelector('.group-scroll-list');
+        (list || this.closest('.group-picker')).querySelectorAll('.group-item').forEach(item => {
             const name = item.querySelector('span.small')?.textContent?.toLowerCase() ?? '';
             item.style.display = name.includes(term) ? '' : 'none';
         });

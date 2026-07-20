@@ -14,6 +14,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ProjectGroup> ProjectGroups { get; set; }
     public DbSet<Project> Projects { get; set; }
     public DbSet<ProjectOwner> ProjectOwners { get; set; }
+    public DbSet<ProjectGroupAssignment> ProjectGroupAssignments { get; set; }
 
     public DbSet<ActivityLog> ActivityLogs { get; set; }
     public DbSet<ProjectApprovalRequest> ProjectApprovalRequests { get; set; }
@@ -30,8 +31,11 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<ProjectGroup>().HasKey(g => g.Id);
 
         modelBuilder.Entity<Project>().HasKey(p => p.Id);
-        modelBuilder.Entity<Project>().HasOne(p => p.Group).WithMany(g => g.Projects).HasForeignKey(p => p.GroupId).OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<Project>().HasOne(p => p.CreatedByUser).WithMany().HasForeignKey(p => p.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ProjectGroupAssignment>().HasKey(pga => pga.Id);
+        modelBuilder.Entity<ProjectGroupAssignment>().HasOne(pga => pga.Project).WithMany(p => p.Groups).HasForeignKey(pga => pga.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ProjectGroupAssignment>().HasOne(pga => pga.Group).WithMany(g => g.ProjectAssignments).HasForeignKey(pga => pga.GroupId).OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<ProjectOwner>().HasKey(po => po.Id);
         modelBuilder.Entity<ProjectOwner>().HasOne(po => po.Project).WithMany(p => p.Owners).HasForeignKey(po => po.ProjectId).OnDelete(DeleteBehavior.Cascade);

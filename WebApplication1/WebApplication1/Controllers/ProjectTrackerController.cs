@@ -29,7 +29,7 @@ public class ProjectTrackerController : Controller
         ViewBag.SelectedGroupId = groupId;
 
         var allProjects = await _context.Projects
-            .Include(p => p.Group)
+            .Include(p => p.Groups).ThenInclude(pg => pg.Group)
             .Include(p => p.CreatedByUser)
             .Include(p => p.Owners)
                 .ThenInclude(po => po.User)
@@ -76,7 +76,7 @@ public class ProjectTrackerController : Controller
 
         var projects = allProjects
             .Where(p => p.Status != "Closed")
-            .Where(p => groupId == null || p.GroupId == groupId)
+            .Where(p => groupId == null || p.Groups.Any(pg => pg.GroupId == groupId))
             .OrderBy(p => p.SortOrder).ThenBy(p => p.Id).ToList();
 
         return View(projects);
@@ -773,7 +773,7 @@ public class ProjectTrackerController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateQuick(string name, string status = "Planning",
-        string? priority = null, string? endDate = null, string? ownerIds = null, int? groupId = null)
+        string? priority = null, string? endDate = null, string? ownerIds = null)
     {
         if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
         if (string.IsNullOrWhiteSpace(name)) return BadRequest(new { error = "Name is required" });
@@ -802,7 +802,6 @@ public class ProjectTrackerController : Controller
             Priority = string.IsNullOrWhiteSpace(priority) || priority == "None" ? null : priority,
             StartDate = DateTime.Today,
             EndDate = dueDate,
-            GroupId = groupId,
             SortOrder = maxSort + 1,
             CreatedByUserId = userId,
             CreatedAt = DateTime.UtcNow
@@ -988,17 +987,25 @@ public class ProjectTrackerController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AssignGroup(int id, int? groupId)
+    public async Task<IActionResult> UpdateGroups(int id, string? groupIds)
     {
         if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
 
         var userRole = HttpContext.Session.GetString("UserRole");
         if (userRole != "Admin" && userRole != "Editor") return Forbid();
 
-        var project = await _context.Projects.FindAsync(id);
+        var project = await _context.Projects
+            .Include(p => p.Groups)
+            .FirstOrDefaultAsync(p => p.Id == id);
         if (project == null) return NotFound();
 
-        project.GroupId = groupId;
+        _context.ProjectGroupAssignments.RemoveRange(project.Groups);
+
+        var idList = (groupIds ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => int.TryParse(s.Trim(), out var gid) ? gid : 0).Where(x => x > 0).Distinct();
+        foreach (var gid in idList)
+            _context.ProjectGroupAssignments.Add(new ProjectGroupAssignment { ProjectId = id, GroupId = gid });
+
         project.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
@@ -1028,7 +1035,7 @@ public class ProjectTrackerController : Controller
         var projects = await _context.Projects
             .Include(p => p.CreatedByUser)
             .Include(p => p.Owners).ThenInclude(o => o.User)
-            .Include(p => p.Group)
+            .Include(p => p.Groups).ThenInclude(pg => pg.Group)
             .Where(p => p.Status == "Closed")
             .OrderByDescending(p => p.UpdatedAt ?? p.CreatedAt)
             .ToListAsync();

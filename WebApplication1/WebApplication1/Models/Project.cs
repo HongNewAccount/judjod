@@ -22,8 +22,6 @@ public class Project
     [StringLength(500)]
     public string? Issues { get; set; } // JSON array or comma-separated
 
-    public int? GroupId { get; set; }
-
     [StringLength(20)]
     public string? Priority { get; set; } // None, Low, Medium, High
 
@@ -37,8 +35,8 @@ public class Project
 
     public DateTime? UpdatedAt { get; set; }
 
-    public ProjectGroup? Group { get; set; }
     public User? CreatedByUser { get; set; }
     public ICollection<ProjectOwner> Owners { get; set; } = new List<ProjectOwner>();
+    public ICollection<ProjectGroupAssignment> Groups { get; set; } = new List<ProjectGroupAssignment>();
     public ICollection<ActivityLog> ActivityLogs { get; set; } = new List<ActivityLog>();
 }
