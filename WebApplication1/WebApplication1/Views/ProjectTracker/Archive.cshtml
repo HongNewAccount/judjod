@@ -26,14 +26,7 @@
 
     <div class="card mb-3">
         <div class="card-body py-2">
-            <form method="get" asp-action="Archive" class="d-flex gap-2">
-                <input type="text" name="searchTerm" class="form-control" placeholder="Search..." value="@searchTerm" />
-                <button type="submit" class="btn btn-modal-action btn-sm" style="white-space:nowrap;">Search</button>
-                @if (!string.IsNullOrEmpty(searchTerm))
-                {
-                    <a asp-action="Archive" class="btn btn-sm btn-secondary" style="white-space:nowrap;">Clear</a>
-                }
-            </form>
+            <input type="text" id="archiveSearch" class="form-control" placeholder="Search by project or owner name..." />
         </div>
     </div>
 
@@ -51,6 +44,7 @@
             {
                 <div class="kanban-card" style="cursor:pointer;"
                      data-id="@project.Id" data-name="@project.Name" data-status="@project.Status"
+                     data-search="@($"{project.Name} {string.Join(' ', project.Owners.Select(o => o.User != null ? o.User.FirstName + " " + o.User.LastName : ""))}".ToLower())"
                      onclick="openDetailModal(this.dataset.id, this.dataset.name, this.dataset.status)">
                     <span class="badge bg-secondary mb-1" style="font-size:.65rem;">Archived</span>
 
@@ -200,6 +194,13 @@
 @section Scripts {
 <script>
 const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+document.getElementById('archiveSearch').addEventListener('keyup', function () {
+    const term = this.value.toLowerCase();
+    document.querySelectorAll('.kanban-card[data-search]').forEach(card => {
+        card.style.display = card.getAttribute('data-search').includes(term) ? '' : 'none';
+    });
+});
 
 let currentDetailId = null;
 let currentDetailProgress = 0;

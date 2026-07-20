@@ -7,8 +7,8 @@
     <div class="row justify-content-center">
         <div class="col-md-5">
             <div class="card border-0 shadow-sm">
-                <div class="card-header bg-dark text-white py-3">
-                    <h6 class="mb-0 fw-bold"><i class="fas fa-user-plus me-2"></i>Create New User</h6>
+                <div class="card-header py-3 text-white" style="background:var(--color-accent);">
+                    <h6 class="mb-0 fw-bold"><i class="fas fa-user-plus me-2"></i>Register</h6>
                 </div>
                 <div class="card-body p-4">
                     @if (ViewBag.ErrorMessage != null)
@@ -44,11 +44,16 @@
                         @if (Context.Session.GetString("IsSuperAdmin") == "true")
                         {
                             <div class="mb-4 p-3 bg-light rounded">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="canEdit" id="canEditCheck" value="true" />
-                                    <label class="form-check-label fw-semibold" for="canEditCheck">
-                                        Can Edit
-                                    </label>
+                                <label class="form-label fw-semibold mb-2">Role</label>
+                                <div class="d-flex gap-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="canEdit" id="roleUser" value="false" checked />
+                                        <label class="form-check-label" for="roleUser">User</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="canEdit" id="roleEditor" value="true" />
+                                        <label class="form-check-label" for="roleEditor">Editor</label>
+                                    </div>
                                 </div>
                             </div>
                         }

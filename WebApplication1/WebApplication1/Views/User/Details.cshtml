@@ -46,7 +46,7 @@
                         {
                             @if (Model.Role == "Editor")
                             {
-                                <span class="badge bg-primary">Editor</span>
+                                <span class="badge" style="background:var(--color-accent);color:#fff;">Editor</span>
                             }
                             else
                             {
@@ -81,6 +81,8 @@
                 <div class="d-flex gap-2 flex-wrap flex-shrink-0 align-items-center">
                     @if (isSuperAdminViewer)
                     {
+                        @if (currentSessionId != Model.Id)
+                        {
                         <form asp-action="SetRole" asp-route-id="@Model.Id" method="post" class="d-flex align-items-center gap-1">
                             @Html.AntiForgeryToken()
                             <i class="fas fa-user-tag text-muted" style="font-size:.8rem;"></i>
@@ -90,7 +92,10 @@
                                 <option value="User" selected="@(Model.Role != "Editor")">User</option>
                             </select>
                         </form>
+                        }
 
+                        @if (currentSessionId != Model.Id)
+                        {
                         <form asp-action="ToggleBan" asp-route-id="@Model.Id" method="post" class="d-inline"
                               onsubmit="return confirm('@(Model.IsActive ? "Ban" : "Unban") @Model.FirstName?');">
                             @Html.AntiForgeryToken()
@@ -99,6 +104,7 @@
                                 <i class="fas fa-ban me-1"></i>@(Model.IsActive ? "Ban" : "Unban")
                             </button>
                         </form>
+                        }
                         @if (currentSessionId != Model.Id)
                         {
                             <a asp-controller="Chat" asp-action="Conversation" asp-route-userId="@Model.Id" asp-route-from="user"

@@ -150,6 +150,55 @@ public class UserController : Controller
         return View(user);
     }
 
+    public async Task<IActionResult> ChangePassword(int id)
+    {
+        var currentUserId = HttpContext.Session.GetInt32("UserId");
+        var userRole = HttpContext.Session.GetString("UserRole");
+        var user = await _context.Users.FindAsync(id);
+        if (user == null) return NotFound();
+        if (userRole != "Admin" && currentUserId != id) return Forbid();
+        ViewBag.TargetUser = user;
+        return View();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangePassword(int id, string newPassword, string confirmPassword)
+    {
+        var currentUserId = HttpContext.Session.GetInt32("UserId");
+        var userRole = HttpContext.Session.GetString("UserRole");
+        var user = await _context.Users.FindAsync(id);
+        if (user == null) return NotFound();
+        if (userRole != "Admin" && currentUserId != id) return Forbid();
+
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+        {
+            ViewBag.ErrorMessage = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
+            ViewBag.TargetUser = user;
+            return View();
+        }
+        if (newPassword != confirmPassword)
+        {
+            ViewBag.ErrorMessage = "รหัสผ่านไม่ตรงกัน";
+            ViewBag.TargetUser = user;
+            return View();
+        }
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        _context.ActivityLogs.Add(new ActivityLog
+        {
+            UserId      = currentUserId,
+            ActionType  = "PasswordChanged",
+            Description = currentUserId == id
+                ? $"{user.FirstName} {user.LastName} เปลี่ยนรหัสผ่านของตัวเอง"
+                : $"Admin เปลี่ยนรหัสผ่านให้ {user.FirstName} {user.LastName}",
+            CreatedAt   = DateTime.UtcNow
+        });
+        await _context.SaveChangesAsync();
+        TempData["SuccessMessage"] = "เปลี่ยนรหัสผ่านสำเร็จ";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ToggleBan(int id)

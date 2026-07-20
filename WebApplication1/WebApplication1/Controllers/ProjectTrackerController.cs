@@ -1023,27 +1023,15 @@ public class ProjectTrackerController : Controller
         return Ok(new { success = true });
     }
 
-    public async Task<IActionResult> Archive(string searchTerm = "")
+    public async Task<IActionResult> Archive()
     {
-        var query = _context.Projects
+        var projects = await _context.Projects
             .Include(p => p.CreatedByUser)
             .Include(p => p.Owners).ThenInclude(o => o.User)
             .Include(p => p.Group)
             .Where(p => p.Status == "Closed")
-            .AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(searchTerm))
-        {
-            var lower = searchTerm.ToLower();
-            var matching = await query.ToListAsync();
-            matching = matching.Where(p => p.Name.ToLower().Contains(lower) ||
-                (p.Description ?? "").ToLower().Contains(lower)).ToList();
-            ViewBag.SearchTerm = searchTerm;
-            return View(matching.OrderByDescending(p => p.UpdatedAt ?? p.CreatedAt).ToList());
-        }
-
-        var projects = await query.OrderByDescending(p => p.UpdatedAt ?? p.CreatedAt).ToListAsync();
-        ViewBag.SearchTerm = searchTerm;
+            .OrderByDescending(p => p.UpdatedAt ?? p.CreatedAt)
+            .ToListAsync();
         return View(projects);
     }
 
