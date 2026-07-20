@@ -12,124 +12,201 @@ public class ChatController : Controller
 
     public async Task<IActionResult> Index()
     {
-        var userId  = HttpContext.Session.GetInt32("UserId");
+        var userId = HttpContext.Session.GetInt32("UserId");
         if (userId == null) return RedirectToAction("Login", "Auth");
-        var isAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
 
-        if (isAdmin)
+        var rooms = await _context.ChatRooms
+            .Include(r => r.Members).ThenInclude(m => m.User)
+            .Where(r => r.Members.Any(m => m.UserId == userId))
+            .ToListAsync();
+
+        var roomIds = rooms.Select(r => r.Id).ToList();
+
+        var lastMessages = await _context.ChatRoomMessages
+            .Where(m => roomIds.Contains(m.RoomId))
+            .GroupBy(m => m.RoomId)
+            .Select(g => g.OrderByDescending(m => m.Id).First())
+            .ToListAsync();
+
+        var memberInfo = await _context.ChatRoomMembers
+            .Where(m => m.UserId == userId && roomIds.Contains(m.RoomId))
+            .ToDictionaryAsync(m => m.RoomId, m => m.LastReadMessageId);
+
+        var unreadCounts = new Dictionary<int, int>();
+        foreach (var roomId in roomIds)
         {
-            var msgs = await _context.ChatMessages
-                .Include(m => m.User)
-                .OrderByDescending(m => m.CreatedAt)
-                .ToListAsync();
-
-            var conversations = msgs
-                .GroupBy(m => m.UserId)
-                .Select(g => {
-                    var last  = g.First();
-                    var u     = last.User;
-                    var fname = u?.FirstName ?? "";
-                    var lname = u?.LastName  ?? "";
-                    return new ChatConversationViewModel
-                    {
-                        UserId           = g.Key,
-                        UserName         = $"{fname} {lname}".Trim(),
-                        Initials         = $"{(fname.Length > 0 ? fname[0] : ' ')}{(lname.Length > 0 ? lname[0] : ' ')}".Trim(),
-                        ProfileImagePath = u?.ProfileImagePath,
-                        LastMessage      = last.Content,
-                        LastTime         = last.CreatedAt,
-                        UnreadCount      = g.Count(m => !m.IsFromAdmin && !m.IsRead)
-                    };
-                })
-                .OrderByDescending(c => c.LastTime)
-                .ToList();
-
-            return View("AdminIndex", conversations);
+            var lastReadId = memberInfo.GetValueOrDefault(roomId, 0);
+            unreadCounts[roomId] = await _context.ChatRoomMessages.CountAsync(m =>
+                m.RoomId == roomId && m.Id > lastReadId && m.SenderId != userId);
         }
-        else
-        {
-            var messages = await _context.ChatMessages
-                .Where(m => m.UserId == userId)
-                .OrderBy(m => m.CreatedAt)
-                .ToListAsync();
 
-            var unread = messages.Where(m => m.IsFromAdmin && !m.IsRead).ToList();
-            unread.ForEach(m => m.IsRead = true);
-            if (unread.Any()) await _context.SaveChangesAsync();
+        var lastMessageTimes = lastMessages.ToDictionary(m => m.RoomId, m => m.CreatedAt);
+        rooms = rooms.OrderByDescending(r => lastMessageTimes.GetValueOrDefault(r.Id, r.CreatedAt)).ToList();
 
-            var currentUser = await _context.Users.FindAsync(userId);
-            var adminUser   = await _context.Users.FirstOrDefaultAsync(u => u.Role == "Admin");
+        ViewBag.LastMessages = lastMessages.ToDictionary(m => m.RoomId);
+        ViewBag.UnreadCounts = unreadCounts;
+        ViewBag.CurrentUserId = userId.Value;
 
-            ViewBag.CurrentUser   = currentUser;
-            ViewBag.AdminUser     = adminUser;
-            ViewBag.CurrentUserId = userId;
-            return View("UserChat", messages);
-        }
+        var allUsers = await _context.Users
+            .Where(u => u.Id != userId)
+            .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
+            .ToListAsync();
+        ViewBag.AllUsers = allUsers;
+
+        return View(rooms);
     }
 
-    public async Task<IActionResult> Conversation(int userId, string? from = null)
+    public async Task<IActionResult> Room(int id)
     {
-        if (HttpContext.Session.GetString("IsSuperAdmin") != "true") return Forbid();
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null) return RedirectToAction("Login", "Auth");
 
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null) return NotFound();
+        var room = await _context.ChatRooms
+            .Include(r => r.Members).ThenInclude(m => m.User)
+            .Include(r => r.CreatedBy)
+            .FirstOrDefaultAsync(r => r.Id == id);
 
-        var messages = await _context.ChatMessages
-            .Where(m => m.UserId == userId)
+        if (room == null) return NotFound();
+        if (!room.Members.Any(m => m.UserId == userId)) return Forbid();
+
+        var messages = await _context.ChatRoomMessages
+            .Include(m => m.Sender)
+            .Where(m => m.RoomId == id)
             .OrderBy(m => m.CreatedAt)
             .ToListAsync();
 
-        var unread = messages.Where(m => !m.IsFromAdmin && !m.IsRead).ToList();
-        unread.ForEach(m => m.IsRead = true);
-        if (unread.Any()) await _context.SaveChangesAsync();
+        var member = room.Members.First(m => m.UserId == userId);
+        if (messages.Any() && member.LastReadMessageId < messages.Last().Id)
+        {
+            member.LastReadMessageId = messages.Last().Id;
+            await _context.SaveChangesAsync();
+        }
 
-        var adminId   = HttpContext.Session.GetInt32("UserId");
-        var adminUser = adminId.HasValue ? await _context.Users.FindAsync(adminId.Value) : null;
+        ViewBag.Room = room;
+        ViewBag.Messages = messages;
+        ViewBag.CurrentUserId = userId.Value;
+        ViewBag.IsAdmin = HttpContext.Session.GetString("UserRole") == "Admin";
+        ViewBag.CurrentUser = await _context.Users.FindAsync(userId.Value);
 
-        var pendingRequests = await _context.ProjectApprovalRequests
-            .Where(r => r.RequestedByUserId == userId && r.ApprovalStatus == "Pending" && r.RequestType == "RoleRequest")
-            .OrderBy(r => r.RequestedAt)
-            .ToListAsync();
-
-        ViewBag.ChatUser       = user;
-        ViewBag.AdminUser      = adminUser;
-        ViewBag.PendingRequests = pendingRequests;
-        ViewBag.ReturnUrl      = from == "user"
-            ? Url.Action("Details", "User", new { id = userId })
-            : Url.Action("Index", "Chat");
-        return View("AdminChat", messages);
+        return View();
     }
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Send(int userId, string content, bool isFromAdmin)
+    public async Task<IActionResult> StartDM(int userId)
     {
-        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
-        if (string.IsNullOrWhiteSpace(content)) return BadRequest();
+        var currentUserId = HttpContext.Session.GetInt32("UserId");
+        if (currentUserId == null) return RedirectToAction("Login", "Auth");
+        if (userId == currentUserId) return RedirectToAction("Index");
 
-        var msg = new ChatMessage
+        var existing = await _context.ChatRooms
+            .Include(r => r.Members)
+            .Where(r => !r.IsGroup
+                && r.Members.Any(m => m.UserId == currentUserId)
+                && r.Members.Any(m => m.UserId == userId))
+            .FirstOrDefaultAsync(r => r.Members.Count == 2);
+
+        if (existing != null)
+            return RedirectToAction("Room", new { id = existing.Id });
+
+        var room = new ChatRoom
         {
-            UserId      = userId,
-            IsFromAdmin = isFromAdmin,
-            Content     = content.Trim(),
-            CreatedAt   = DateTime.UtcNow
+            IsGroup = false,
+            CreatedAt = DateTime.UtcNow,
+            CreatedByUserId = currentUserId.Value,
+            Members = new List<ChatRoomMember>
+            {
+                new ChatRoomMember { UserId = currentUserId.Value, JoinedAt = DateTime.UtcNow },
+                new ChatRoomMember { UserId = userId, JoinedAt = DateTime.UtcNow }
+            }
         };
-        _context.ChatMessages.Add(msg);
+        _context.ChatRooms.Add(room);
         await _context.SaveChangesAsync();
 
-        return Ok(new { id = msg.Id, content = msg.Content, isFromAdmin = msg.IsFromAdmin, createdAt = msg.CreatedAt.ToString("HH:mm"), imagePath = (string?)null });
+        return RedirectToAction("Room", new { id = room.Id });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SendFile(int userId, bool isFromAdmin, IFormFile file)
+    public async Task<IActionResult> CreateGroup(string name, List<int> memberIds)
+    {
+        var currentUserId = HttpContext.Session.GetInt32("UserId");
+        if (currentUserId == null) return RedirectToAction("Login", "Auth");
+
+        if (string.IsNullOrWhiteSpace(name)) name = "Group Chat";
+
+        var members = new List<ChatRoomMember>
+        {
+            new ChatRoomMember { UserId = currentUserId.Value, JoinedAt = DateTime.UtcNow }
+        };
+        foreach (var uid in memberIds.Where(uid => uid != currentUserId))
+            members.Add(new ChatRoomMember { UserId = uid, JoinedAt = DateTime.UtcNow });
+
+        var room = new ChatRoom
+        {
+            Name = name.Trim(),
+            IsGroup = true,
+            CreatedAt = DateTime.UtcNow,
+            CreatedByUserId = currentUserId.Value,
+            Members = members
+        };
+        _context.ChatRooms.Add(room);
+        await _context.SaveChangesAsync();
+
+        return RedirectToAction("Room", new { id = room.Id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Send(int roomId, string content)
     {
         if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null) return Unauthorized();
+        if (string.IsNullOrWhiteSpace(content)) return BadRequest();
+
+        var member = await _context.ChatRoomMembers
+            .FirstOrDefaultAsync(m => m.RoomId == roomId && m.UserId == userId);
+        if (member == null) return Forbid();
+
+        var msg = new ChatRoomMessage
+        {
+            RoomId = roomId,
+            SenderId = userId.Value,
+            Content = content.Trim(),
+            CreatedAt = DateTime.UtcNow
+        };
+        _context.ChatRoomMessages.Add(msg);
+        await _context.SaveChangesAsync();
+
+        member.LastReadMessageId = msg.Id;
+        await _context.SaveChangesAsync();
+
+        var sender = await _context.Users.FindAsync(userId.Value);
+        return Ok(new {
+            id = msg.Id,
+            content = msg.Content,
+            senderId = msg.SenderId,
+            senderName = $"{sender?.FirstName} {sender?.LastName}".Trim(),
+            createdAt = msg.CreatedAt.ToString("HH:mm"),
+            imagePath = (string?)null
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendFile(int roomId, IFormFile file)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null) return Unauthorized();
         if (file == null || file.Length == 0) return BadRequest();
 
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var allowed = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
-        if (!allowed.Contains(ext)) return BadRequest("Only image files are allowed");
+        if (!new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" }.Contains(ext))
+            return BadRequest("Only image files are allowed");
+
+        var member = await _context.ChatRoomMembers
+            .FirstOrDefaultAsync(m => m.RoomId == roomId && m.UserId == userId);
+        if (member == null) return Forbid();
 
         var folder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "chat");
         if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
@@ -140,162 +217,101 @@ public class ChatController : Controller
             await file.CopyToAsync(fs);
 
         var imagePath = $"/uploads/chat/{fileName}";
-        var msg = new ChatMessage
+        var msg = new ChatRoomMessage
         {
-            UserId      = userId,
-            IsFromAdmin = isFromAdmin,
-            Content     = "",
-            ImagePath   = imagePath,
-            CreatedAt   = DateTime.UtcNow
+            RoomId = roomId,
+            SenderId = userId.Value,
+            Content = "",
+            ImagePath = imagePath,
+            CreatedAt = DateTime.UtcNow
         };
-        _context.ChatMessages.Add(msg);
+        _context.ChatRoomMessages.Add(msg);
         await _context.SaveChangesAsync();
 
-        return Ok(new { id = msg.Id, content = msg.Content, isFromAdmin = msg.IsFromAdmin, createdAt = msg.CreatedAt.ToString("HH:mm"), imagePath });
+        member.LastReadMessageId = msg.Id;
+        await _context.SaveChangesAsync();
+
+        var sender = await _context.Users.FindAsync(userId.Value);
+        return Ok(new {
+            id = msg.Id,
+            content = msg.Content,
+            senderId = msg.SenderId,
+            senderName = $"{sender?.FirstName} {sender?.LastName}".Trim(),
+            createdAt = msg.CreatedAt.ToString("HH:mm"),
+            imagePath
+        });
     }
 
     [HttpGet]
-    public async Task<IActionResult> Poll(int userId, int afterId)
-    {
-        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
-        var isAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
-
-        var msgs = await _context.ChatMessages
-            .Where(m => m.UserId == userId && m.Id > afterId)
-            .OrderBy(m => m.CreatedAt)
-            .ToListAsync();
-
-        var unread = msgs.Where(m => m.IsFromAdmin != isAdmin && !m.IsRead).ToList();
-        unread.ForEach(m => m.IsRead = true);
-        if (unread.Any()) await _context.SaveChangesAsync();
-
-        return Ok(msgs.Select(m => new {
-            id          = m.Id,
-            content     = m.Content,
-            isFromAdmin = m.IsFromAdmin,
-            createdAt   = m.CreatedAt.ToString("HH:mm"),
-            imagePath   = m.ImagePath
-        }));
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RequestRoleChange()
+    public async Task<IActionResult> Poll(int roomId, int afterId)
     {
         if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
         var userId = HttpContext.Session.GetInt32("UserId");
         if (userId == null) return Unauthorized();
 
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null) return NotFound();
-        if (user.Role == "Editor") return BadRequest("Already an Editor");
-
-        var existing = await _context.ProjectApprovalRequests
-            .AnyAsync(r => r.RequestedByUserId == userId.Value && r.ApprovalStatus == "Pending" && r.RequestType == "RoleRequest");
-        if (existing) return Ok(new { alreadyPending = true });
-
-        var req = new ProjectApprovalRequest
-        {
-            ProjectId         = null,
-            RequestType       = "RoleRequest",
-            Name              = "Role",
-            Description       = "Editor",
-            Issues            = $"{user.FirstName} {user.LastName}",
-            StartDate         = DateTime.UtcNow,
-            RequestedByUserId = userId.Value,
-            ApprovalStatus    = "Pending",
-            RequestedAt       = DateTime.UtcNow
-        };
-        _context.ProjectApprovalRequests.Add(req);
-
-        var msg = new ChatMessage
-        {
-            UserId      = userId.Value,
-            IsFromAdmin = false,
-            Content     = "🔑 ขอสิทธิ์ Editor เพื่อแก้ไข Task",
-            IsRead      = true,   // don't double-count with the PendingRoleRequest badge
-            CreatedAt   = DateTime.UtcNow
-        };
-        _context.ChatMessages.Add(msg);
-        await _context.SaveChangesAsync();
-
-        return Ok(new { id = msg.Id, content = msg.Content, isFromAdmin = false, createdAt = msg.CreatedAt.ToString("HH:mm"), imagePath = (string?)null });
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ApproveRoleRequest(int requestId)
-    {
-        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
-        if (HttpContext.Session.GetString("IsSuperAdmin") != "true") return Forbid();
-
-        var adminId = HttpContext.Session.GetInt32("UserId");
-        var req = await _context.ProjectApprovalRequests.FindAsync(requestId);
-        if (req == null) return NotFound();
-
-        req.ApprovalStatus   = "Approved";
-        req.ApprovedByUserId = adminId;
-        req.ApprovedAt       = DateTime.UtcNow;
-
-        var targetUser = await _context.Users.FindAsync(req.RequestedByUserId);
-        if (targetUser != null)
-        {
-            targetUser.Role = "Editor";
-            _context.ActivityLogs.Add(new ActivityLog
-            {
-                UserId      = adminId,
-                ActionType  = "RoleChanged",
-                Description = $"{targetUser.FirstName} {targetUser.LastName} promoted to Editor via chat request",
-                OldValue    = "User",
-                NewValue    = "Editor",
-                CreatedAt   = DateTime.UtcNow
-            });
-        }
-
-        await _context.SaveChangesAsync();
-        return Ok(new { success = true });
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RejectRoleRequest(int requestId)
-    {
-        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
-        if (HttpContext.Session.GetString("IsSuperAdmin") != "true") return Forbid();
-
-        var req = await _context.ProjectApprovalRequests.FindAsync(requestId);
-        if (req == null) return NotFound();
-
-        req.ApprovalStatus = "Rejected";
-        await _context.SaveChangesAsync();
-        return Ok(new { success = true });
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> PendingRoleRequests(int userId)
-    {
-        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
-        if (HttpContext.Session.GetString("IsSuperAdmin") != "true") return Forbid();
-
-        var reqs = await _context.ProjectApprovalRequests
-            .Where(r => r.RequestedByUserId == userId && r.ApprovalStatus == "Pending" && r.RequestType == "RoleRequest")
-            .OrderBy(r => r.RequestedAt)
-            .Select(r => new { r.Id, displayName = r.Issues })
+        var msgs = await _context.ChatRoomMessages
+            .Include(m => m.Sender)
+            .Where(m => m.RoomId == roomId && m.Id > afterId)
+            .OrderBy(m => m.CreatedAt)
             .ToListAsync();
 
-        return Ok(reqs);
+        if (msgs.Any())
+        {
+            var member = await _context.ChatRoomMembers
+                .FirstOrDefaultAsync(m => m.RoomId == roomId && m.UserId == userId);
+            if (member != null)
+            {
+                member.LastReadMessageId = msgs.Last().Id;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        return Ok(msgs.Select(m => new {
+            id = m.Id,
+            content = m.Content,
+            senderId = m.SenderId,
+            senderName = $"{m.Sender?.FirstName} {m.Sender?.LastName}".Trim(),
+            createdAt = m.CreatedAt.ToString("HH:mm"),
+            imagePath = m.ImagePath
+        }));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ClearRoom(int roomId)
+    {
+        if (HttpContext.Session.GetString("UserRole") != "Admin") return Forbid();
+
+        var messages = await _context.ChatRoomMessages.Where(m => m.RoomId == roomId).ToListAsync();
+        _context.ChatRoomMessages.RemoveRange(messages);
+
+        var members = await _context.ChatRoomMembers.Where(m => m.RoomId == roomId).ToListAsync();
+        members.ForEach(m => m.LastReadMessageId = 0);
+
+        await _context.SaveChangesAsync();
+        TempData["SuccessMessage"] = "Chat history cleared.";
+        return RedirectToAction("Room", new { id = roomId });
     }
 
     [HttpGet]
     public async Task<IActionResult> UnreadCount()
     {
         if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
-        var userId  = HttpContext.Session.GetInt32("UserId");
-        var isAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null) return Ok(new { count = 0 });
 
-        int count = isAdmin
-            ? await _context.ChatMessages.CountAsync(m => !m.IsFromAdmin && !m.IsRead)
-            : await _context.ChatMessages.CountAsync(m => m.UserId == userId && m.IsFromAdmin && !m.IsRead);
+        var memberships = await _context.ChatRoomMembers
+            .Where(m => m.UserId == userId)
+            .ToListAsync();
+
+        var count = 0;
+        foreach (var mem in memberships)
+        {
+            count += await _context.ChatRoomMessages.CountAsync(m =>
+                m.RoomId == mem.RoomId &&
+                m.Id > mem.LastReadMessageId &&
+                m.SenderId != userId);
+        }
 
         return Ok(new { count });
     }

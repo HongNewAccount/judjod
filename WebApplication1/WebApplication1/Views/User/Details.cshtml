@@ -107,7 +107,7 @@
                         }
                         @if (currentSessionId != Model.Id)
                         {
-                            <a asp-controller="Chat" asp-action="Conversation" asp-route-userId="@Model.Id" asp-route-from="user"
+                            <a asp-controller="Chat" asp-action="StartDM" asp-route-userId="@Model.Id"
                                class="btn btn-sm btn-primary">
                                 <i class="fas fa-comment me-1"></i>Chat
                             </a>

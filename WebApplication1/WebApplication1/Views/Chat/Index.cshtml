@@ -1,0 +1,220 @@
+@using WebApplication1.Models
+@model IEnumerable<WebApplication1.Models.ChatRoom>
+@{
+    ViewData["Title"] = "Chat";
+    var currentUserId = (int)ViewBag.CurrentUserId;
+    var lastMessages = (Dictionary<int, ChatRoomMessage>)ViewBag.LastMessages;
+    var unreadCounts = (Dictionary<int, int>)ViewBag.UnreadCounts;
+    var allUsers = (List<User>)ViewBag.AllUsers;
+
+    string Initials(User? u) {
+        if (u == null) return "?";
+        var f = u.FirstName?.Length > 0 ? u.FirstName[0].ToString() : "";
+        var l = u.LastName?.Length > 0 ? u.LastName[0].ToString() : "";
+        return (f + l).ToUpper();
+    }
+
+    string RoomName(ChatRoom r) {
+        if (r.IsGroup) return r.Name ?? "Group Chat";
+        var other = r.Members.FirstOrDefault(m => m.UserId != currentUserId)?.User;
+        return $"{other?.FirstName} {other?.LastName}".Trim();
+    }
+}
+@Html.AntiForgeryToken()
+
+<div class="container-fluid">
+    <div class="page-header mb-3 d-flex align-items-center">
+        <div class="flex-grow-1">
+            <h1 class="page-title mb-0"><i class="fas fa-comments me-2" style="color:var(--color-accent);"></i>Chat</h1>
+            <p class="page-subtitle mb-0">Team conversations</p>
+        </div>
+        <button class="btn btn-modal-action btn-sm" data-bs-toggle="modal" data-bs-target="#newChatModal">
+            <i class="fas fa-plus me-1"></i>New Chat
+        </button>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="card p-5 text-center border-0 shadow-sm" style="max-width:600px;">
+            <i class="fas fa-comments" style="font-size:48px;color:#ccc;"></i>
+            <p class="text-muted mt-3">No conversations yet.</p>
+            <button class="btn btn-modal-action btn-sm mx-auto" style="width:fit-content;" data-bs-toggle="modal" data-bs-target="#newChatModal">
+                <i class="fas fa-plus me-1"></i>Start a chat
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm" style="max-width:600px;">
+            @foreach (var room in Model)
+            {
+                var name = RoomName(room);
+                var other = room.IsGroup ? null : room.Members.FirstOrDefault(m => m.UserId != currentUserId)?.User;
+                var lastMsg = lastMessages.GetValueOrDefault(room.Id);
+                var unread = unreadCounts.GetValueOrDefault(room.Id, 0);
+
+                <a href="@Url.Action("Room","Chat", new { id = room.Id })"
+                   class="d-flex align-items-center gap-3 p-3 text-decoration-none text-dark border-bottom chat-row">
+
+                    @if (room.IsGroup)
+                    {
+                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0"
+                             style="width:44px;height:44px;background:linear-gradient(135deg,#11998e,#38ef7d);">
+                            <i class="fas fa-users" style="font-size:.9rem;"></i>
+                        </div>
+                    }
+                    else if (!string.IsNullOrEmpty(other?.ProfileImagePath))
+                    {
+                        <img src="@other.ProfileImagePath" class="rounded-circle flex-shrink-0"
+                             style="width:44px;height:44px;object-fit:cover;" />
+                    }
+                    else
+                    {
+                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0"
+                             style="width:44px;height:44px;background:linear-gradient(135deg,#667eea,#764ba2);font-size:.85rem;">
+                            @Initials(other)
+                        </div>
+                    }
+
+                    <div style="flex:1;min-width:0;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">@name</span>
+                            @if (lastMsg != null)
+                            {
+                                <small class="text-muted flex-shrink-0 ms-2">@lastMsg.CreatedAt.ToString("dd MMM HH:mm")</small>
+                            }
+                        </div>
+                        <p class="text-muted small mb-0 text-truncate">
+                            @if (lastMsg != null)
+                            {
+                                @(string.IsNullOrEmpty(lastMsg.Content) ? "[Image]" : lastMsg.Content)
+                            }
+                            else { <span class="fst-italic">No messages yet</span> }
+                        </p>
+                    </div>
+
+                    @if (unread > 0)
+                    {
+                        <span class="badge rounded-pill flex-shrink-0" style="background:var(--color-accent);">@unread</span>
+                    }
+                </a>
+            }
+        </div>
+    }
+</div>
+
+<!-- New Chat Modal -->
+<div class="modal fade" id="newChatModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2 px-3">
+                <h6 class="modal-title fw-semibold"><i class="fas fa-plus me-2" style="color:var(--color-accent);"></i>New Chat</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3">
+                <ul class="nav nav-tabs mb-3">
+                    <li class="nav-item">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabDM">
+                            <i class="fas fa-user me-1"></i>Direct Message
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabGroup">
+                            <i class="fas fa-users me-1"></i>Group Chat
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- DM Tab -->
+                    <div class="tab-pane fade show active" id="tabDM">
+                        <input type="text" id="dmSearch" class="form-control form-control-sm mb-2" placeholder="Search..." />
+                        <div style="max-height:300px;overflow-y:auto;">
+                            @foreach (var u in allUsers)
+                            {
+                                <a href="@Url.Action("StartDM","Chat", new { userId = u.Id })"
+                                   class="d-flex align-items-center gap-2 p-2 rounded text-decoration-none text-dark dm-user-row user-row">
+                                    @if (!string.IsNullOrEmpty(u.ProfileImagePath))
+                                    {
+                                        <img src="@u.ProfileImagePath" class="rounded-circle flex-shrink-0"
+                                             style="width:36px;height:36px;object-fit:cover;" />
+                                    }
+                                    else
+                                    {
+                                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0"
+                                             style="width:36px;height:36px;background:linear-gradient(135deg,#667eea,#764ba2);font-size:.65rem;">
+                                            @Initials(u)
+                                        </div>
+                                    }
+                                    <div>
+                                        <div class="fw-semibold small">@u.FirstName @u.LastName</div>
+                                        <div class="text-muted" style="font-size:.7rem;">@u.Role</div>
+                                    </div>
+                                </a>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Group Tab -->
+                    <div class="tab-pane fade" id="tabGroup">
+                        <form method="post" action="@Url.Action("CreateGroup","Chat")">
+                            @Html.AntiForgeryToken()
+                            <input type="text" name="name" class="form-control form-control-sm mb-2"
+                                   placeholder="Group name..." required />
+                            <input type="text" id="groupSearch" class="form-control form-control-sm mb-2"
+                                   placeholder="Search members..." />
+                            <div style="max-height:220px;overflow-y:auto;" id="groupUserList">
+                                @foreach (var u in allUsers)
+                                {
+                                    <label class="d-flex align-items-center gap-2 p-2 rounded group-user-row user-row" style="cursor:pointer;">
+                                        <input type="checkbox" name="memberIds" value="@u.Id" class="form-check-input mt-0 flex-shrink-0" />
+                                        @if (!string.IsNullOrEmpty(u.ProfileImagePath))
+                                        {
+                                            <img src="@u.ProfileImagePath" class="rounded-circle flex-shrink-0"
+                                                 style="width:32px;height:32px;object-fit:cover;" />
+                                        }
+                                        else
+                                        {
+                                            <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0"
+                                                 style="width:32px;height:32px;background:linear-gradient(135deg,#667eea,#764ba2);font-size:.65rem;">
+                                                @Initials(u)
+                                            </div>
+                                        }
+                                        <div>
+                                            <div class="fw-semibold small">@u.FirstName @u.LastName</div>
+                                            <div class="text-muted" style="font-size:.7rem;">@u.Role</div>
+                                        </div>
+                                    </label>
+                                }
+                            </div>
+                            <button type="submit" class="btn btn-modal-action w-100 mt-2">
+                                <i class="fas fa-users me-1"></i>Create Group
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.chat-row:hover, .user-row:hover { background: #f8f9fa; }
+</style>
+
+@section Scripts {
+<script>
+document.getElementById('dmSearch').addEventListener('input', function () {
+    const term = this.value.toLowerCase();
+    document.querySelectorAll('.dm-user-row').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+    });
+});
+document.getElementById('groupSearch').addEventListener('input', function () {
+    const term = this.value.toLowerCase();
+    document.querySelectorAll('.group-user-row').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+    });
+});
+</script>
+}

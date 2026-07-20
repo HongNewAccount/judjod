@@ -11,14 +11,13 @@
     var chatBadge = 0;
     if (userId != null)
     {
-        if (userRole == "Admin")
+        var myMemberships = DbContext.ChatRoomMembers.Where(m => m.UserId == userId).ToList();
+        foreach (var mem in myMemberships)
         {
-            chatBadge = DbContext.ChatMessages.Count(m => !m.IsFromAdmin && !m.IsRead)
-                      + DbContext.ProjectApprovalRequests.Count(r => r.ApprovalStatus == "Pending" && r.RequestType == "RoleRequest");
-        }
-        else
-        {
-            chatBadge = DbContext.ChatMessages.Count(m => m.UserId == userId && m.IsFromAdmin && !m.IsRead);
+            chatBadge += DbContext.ChatRoomMessages.Count(m =>
+                m.RoomId == mem.RoomId &&
+                m.Id > mem.LastReadMessageId &&
+                m.SenderId != userId);
         }
     }
 

@@ -203,6 +203,51 @@ WHERE table_schema = DATABASE()
     }
     catch { }
 
+    try
+    {
+        context.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS `ChatRooms` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `Name` varchar(200) NULL,
+                `IsGroup` tinyint(1) NOT NULL DEFAULT 0,
+                `CreatedAt` datetime(6) NOT NULL,
+                `CreatedByUserId` int NOT NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_ChatRooms_CreatedByUserId` (`CreatedByUserId`),
+                CONSTRAINT `FK_ChatRooms_Users` FOREIGN KEY (`CreatedByUserId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT
+            ) CHARACTER SET utf8mb4;");
+
+        context.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS `ChatRoomMembers` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `RoomId` int NOT NULL,
+                `UserId` int NOT NULL,
+                `LastReadMessageId` int NOT NULL DEFAULT 0,
+                `JoinedAt` datetime(6) NOT NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `UX_ChatRoomMembers` (`RoomId`, `UserId`),
+                KEY `IX_ChatRoomMembers_UserId` (`UserId`),
+                CONSTRAINT `FK_CRM_Rooms` FOREIGN KEY (`RoomId`) REFERENCES `ChatRooms` (`Id`) ON DELETE CASCADE,
+                CONSTRAINT `FK_CRM_Users` FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE
+            ) CHARACTER SET utf8mb4;");
+
+        context.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS `ChatRoomMessages` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `RoomId` int NOT NULL,
+                `SenderId` int NOT NULL,
+                `Content` longtext CHARACTER SET utf8mb4 NOT NULL,
+                `ImagePath` varchar(500) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                PRIMARY KEY (`Id`),
+                KEY `IX_ChatRoomMessages_RoomId` (`RoomId`),
+                KEY `IX_ChatRoomMessages_SenderId` (`SenderId`),
+                CONSTRAINT `FK_CRMSG_Rooms` FOREIGN KEY (`RoomId`) REFERENCES `ChatRooms` (`Id`) ON DELETE CASCADE,
+                CONSTRAINT `FK_CRMSG_Users` FOREIGN KEY (`SenderId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT
+            ) CHARACTER SET utf8mb4;");
+    }
+    catch { }
+
     SeedData.Initialize(context);
 }
 
