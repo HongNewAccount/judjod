@@ -55,21 +55,21 @@
                     </a>
                 </li>
                 <li class="sidebar-item">
+                    <a class="@NavClass("ProjectTracker", "Archive")" asp-controller="ProjectTracker" asp-action="Archive" title="Archive">
+                        <i class="fas fa-archive"></i>
+                        <span>Archive</span>
+                    </a>
+                </li>
+                <li class="sidebar-item">
                     <a class="@NavClass("Dashboard")" asp-controller="Dashboard" asp-action="Index" title="Calendar">
                         <i class="fas fa-calendar-alt"></i>
                         <span>Calendar</span>
                     </a>
                 </li>
                 <li class="sidebar-item">
-                    <a class="@NavClass("ProjectTracker", "ActivityLog")" asp-controller="ProjectTracker" asp-action="ActivityLog" title="Activity Log">
-                        <i class="fas fa-history"></i>
-                        <span>Activity Log</span>
-                    </a>
-                </li>
-                <li class="sidebar-item">
-                    <a class="@NavClass("ProjectTracker", "Archive")" asp-controller="ProjectTracker" asp-action="Archive" title="Archive">
-                        <i class="fas fa-archive"></i>
-                        <span>Archive</span>
+                    <a class="@NavClass("Chat")" asp-controller="Chat" asp-action="Index" title="Chat">
+                        <i class="fas fa-comments"></i>
+                        <span>Chat @if (chatBadge > 0) { <span class="badge rounded-pill ms-1" style="background:var(--color-accent);font-size:.6rem;padding:2px 5px;vertical-align:middle;">@chatBadge</span> }</span>
                     </a>
                 </li>
                 <li class="sidebar-item">
@@ -79,9 +79,9 @@
                     </a>
                 </li>
                 <li class="sidebar-item">
-                    <a class="@NavClass("Chat")" asp-controller="Chat" asp-action="Index" title="Chat">
-                        <i class="fas fa-comments"></i>
-                        <span>Chat @if (chatBadge > 0) { <span class="badge rounded-pill ms-1" style="background:var(--color-accent);font-size:.6rem;padding:2px 5px;vertical-align:middle;">@chatBadge</span> }</span>
+                    <a class="@NavClass("ProjectTracker", "ActivityLog")" asp-controller="ProjectTracker" asp-action="ActivityLog" title="Log">
+                        <i class="fas fa-history"></i>
+                        <span>Log</span>
                     </a>
                 </li>
             </ul>

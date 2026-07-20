@@ -95,14 +95,14 @@
                               onsubmit="return confirm('@(Model.IsActive ? "Ban" : "Unban") @Model.FirstName?');">
                             @Html.AntiForgeryToken()
                             <button type="submit"
-                                    class="btn btn-sm @(Model.IsActive ? "btn-outline-danger" : "btn-danger")">
+                                    class="btn btn-sm @(Model.IsActive ? "btn-danger" : "btn-outline-danger")">
                                 <i class="fas fa-ban me-1"></i>@(Model.IsActive ? "Ban" : "Unban")
                             </button>
                         </form>
                         @if (currentSessionId != Model.Id)
                         {
                             <a asp-controller="Chat" asp-action="Conversation" asp-route-userId="@Model.Id" asp-route-from="user"
-                               class="btn btn-sm btn-outline-primary">
+                               class="btn btn-sm btn-primary">
                                 <i class="fas fa-comment me-1"></i>Chat
                             </a>
                         }
