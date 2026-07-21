@@ -53,30 +53,46 @@
                 var lastMsg = lastMessages.GetValueOrDefault(room.Id);
                 var unread = unreadCounts.GetValueOrDefault(room.Id, 0);
 
-                <a href="@Url.Action("Room","Chat", new { id = room.Id })"
-                   class="d-flex align-items-center gap-3 p-3 text-decoration-none text-dark border-bottom chat-row">
+                var membersJson = System.Text.Json.JsonSerializer.Serialize(
+                    room.Members.Where(m => m.User != null).OrderBy(m => m.User!.FirstName).Select(m => new {
+                        id   = m.UserId,
+                        name = $"{m.User!.FirstName} {m.User.LastName}".Trim(),
+                        role = m.User.Role ?? "User",
+                        img  = m.User.ProfileImagePath ?? "",
+                        init = $"{(m.User.FirstName?.Length > 0 ? m.User.FirstName[0] : ' ')}{(m.User.LastName?.Length > 0 ? m.User.LastName[0] : ' ')}".Trim().ToUpper()
+                    })
+                );
 
+                <div class="d-flex align-items-center gap-3 p-3 border-bottom chat-row">
+
+                    @* Avatar: clickable *@
                     @if (room.IsGroup)
                     {
-                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0"
-                             style="width:44px;height:44px;background:linear-gradient(135deg,#11998e,#38ef7d);">
+                        <button type="button" class="btn p-0 border-0 rounded-circle flex-shrink-0"
+                                onclick="showGroupMembers('@Html.Raw(name)', @Html.Raw(membersJson))"
+                                title="View members"
+                                style="width:44px;height:44px;background:linear-gradient(135deg,#11998e,#38ef7d);color:#fff;">
                             <i class="fas fa-users" style="font-size:.9rem;"></i>
-                        </div>
+                        </button>
                     }
                     else if (!string.IsNullOrEmpty(other?.ProfileImagePath))
                     {
-                        <img src="@other.ProfileImagePath" class="rounded-circle flex-shrink-0"
-                             style="width:44px;height:44px;object-fit:cover;" />
+                        <a href="/User/Details/@other!.Id" class="flex-shrink-0">
+                            <img src="@other.ProfileImagePath" class="rounded-circle"
+                                 style="width:44px;height:44px;object-fit:cover;" />
+                        </a>
                     }
                     else
                     {
-                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0"
-                             style="width:44px;height:44px;background:linear-gradient(135deg,#667eea,#764ba2);font-size:.85rem;">
+                        <a href="/User/Details/@other?.Id" class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold text-decoration-none flex-shrink-0"
+                           style="width:44px;height:44px;background:linear-gradient(135deg,#667eea,#764ba2);font-size:.85rem;">
                             @Initials(other)
-                        </div>
+                        </a>
                     }
 
-                    <div style="flex:1;min-width:0;">
+                    @* Text → goes to room *@
+                    <a href="@Url.Action("Room","Chat", new { id = room.Id })"
+                       class="text-decoration-none text-dark flex-grow-1" style="min-width:0;">
                         <div class="d-flex justify-content-between align-items-center">
                             <span class="fw-semibold">@name</span>
                             @if (lastMsg != null)
@@ -91,14 +107,27 @@
                             }
                             else { <span class="fst-italic">No messages yet</span> }
                         </p>
-                    </div>
+                    </a>
 
                     @if (unread > 0)
                     {
                         <span class="badge rounded-pill flex-shrink-0" style="background:var(--color-accent);">@unread</span>
                     }
-                </a>
+                </div>
             }
+        </div>
+
+        <!-- Shared group members modal -->
+        <div class="modal fade" id="groupMembersModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header py-2 px-3">
+                        <h6 class="modal-title fw-semibold" id="groupMembersTitle"></h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-0" id="groupMembersList" style="max-height:360px;overflow-y:auto;"></div>
+                </div>
+            </div>
         </div>
     }
 </div>
@@ -216,5 +245,25 @@ document.getElementById('groupSearch').addEventListener('input', function () {
         row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
     });
 });
+
+function showGroupMembers(name, members) {
+    document.getElementById('groupMembersTitle').innerHTML =
+        `<i class="fas fa-users me-2" style="color:var(--color-accent);"></i>${name}`;
+    document.getElementById('groupMembersList').innerHTML = members.map(m => {
+        const avatar = m.img
+            ? `<img src="${m.img}" class="rounded-circle flex-shrink-0" style="width:34px;height:34px;object-fit:cover;">`
+            : `<div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0"
+                    style="width:34px;height:34px;background:linear-gradient(135deg,#667eea,#764ba2);font-size:.65rem;">${m.init}</div>`;
+        return `<a href="/User/Details/${m.id}"
+                   class="d-flex align-items-center gap-2 px-3 py-2 text-decoration-none text-dark member-row">
+            ${avatar}
+            <div>
+                <div class="fw-semibold small">${m.name}</div>
+                <div class="text-muted" style="font-size:.7rem;">${m.role}</div>
+            </div>
+        </a>`;
+    }).join('');
+    new bootstrap.Modal(document.getElementById('groupMembersModal')).show();
+}
 </script>
 }

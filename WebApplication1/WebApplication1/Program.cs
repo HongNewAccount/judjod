@@ -205,6 +205,12 @@ WHERE table_schema = DATABASE()
 
     try
     {
+        EnsureColumn(context, "ChatRoomMessages", "IsSystemMessage", "tinyint(1) NOT NULL DEFAULT 0");
+    }
+    catch { }
+
+    try
+    {
         context.Database.ExecuteSqlRaw(@"
             CREATE TABLE IF NOT EXISTS `ChatRooms` (
                 `Id` int NOT NULL AUTO_INCREMENT,

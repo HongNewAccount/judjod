@@ -82,10 +82,24 @@ public class ChatController : Controller
             await _context.SaveChangesAsync();
         }
 
+        var isAdmin = HttpContext.Session.GetString("UserRole") == "Admin";
+        var isCreator = room.CreatedByUserId == userId;
+        var canManage = isAdmin || isCreator;
+
+        var memberUserIds = room.Members.Select(m => m.UserId).ToList();
+        var nonMembers = room.IsGroup
+            ? await _context.Users
+                .Where(u => !memberUserIds.Contains(u.Id))
+                .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
+                .ToListAsync()
+            : new List<User>();
+
         ViewBag.Room = room;
         ViewBag.Messages = messages;
         ViewBag.CurrentUserId = userId.Value;
-        ViewBag.IsAdmin = HttpContext.Session.GetString("UserRole") == "Admin";
+        ViewBag.IsAdmin = isAdmin;
+        ViewBag.CanManageGroup = canManage;
+        ViewBag.NonMembers = nonMembers;
         ViewBag.CurrentUser = await _context.Users.FindAsync(userId.Value);
 
         return View();
@@ -272,8 +286,94 @@ public class ChatController : Controller
             senderId = m.SenderId,
             senderName = $"{m.Sender?.FirstName} {m.Sender?.LastName}".Trim(),
             createdAt = m.CreatedAt.ToString("HH:mm"),
-            imagePath = m.ImagePath
+            imagePath = m.ImagePath,
+            isSystem = m.IsSystemMessage
         }));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddMember(int roomId, int userId)
+    {
+        var currentUserId = HttpContext.Session.GetInt32("UserId");
+        var isAdmin = HttpContext.Session.GetString("UserRole") == "Admin";
+        var room = await _context.ChatRooms.Include(r => r.Members).FirstOrDefaultAsync(r => r.Id == roomId);
+        if (room == null || !room.IsGroup) return NotFound();
+        if (!isAdmin && room.CreatedByUserId != currentUserId) return Forbid();
+        if (!room.Members.Any(m => m.UserId == userId))
+        {
+            _context.ChatRoomMembers.Add(new ChatRoomMember { RoomId = roomId, UserId = userId, JoinedAt = DateTime.UtcNow });
+            var added = await _context.Users.FindAsync(userId);
+            var actor = await _context.Users.FindAsync(currentUserId);
+            _context.ChatRoomMessages.Add(new ChatRoomMessage
+            {
+                RoomId = roomId, SenderId = currentUserId!.Value, IsSystemMessage = true,
+                Content = $"{added?.FirstName} {added?.LastName} was added by {actor?.FirstName}".Trim(),
+                CreatedAt = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+        }
+        return RedirectToAction("Room", new { id = roomId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveMember(int roomId, int userId)
+    {
+        var currentUserId = HttpContext.Session.GetInt32("UserId");
+        var isAdmin = HttpContext.Session.GetString("UserRole") == "Admin";
+        var room = await _context.ChatRooms.FirstOrDefaultAsync(r => r.Id == roomId);
+        if (room == null || !room.IsGroup) return NotFound();
+        if (!isAdmin && room.CreatedByUserId != currentUserId) return Forbid();
+        if (userId == room.CreatedByUserId) return BadRequest();
+        var member = await _context.ChatRoomMembers.FirstOrDefaultAsync(m => m.RoomId == roomId && m.UserId == userId);
+        if (member != null)
+        {
+            var removed = await _context.Users.FindAsync(userId);
+            var actor   = await _context.Users.FindAsync(currentUserId);
+            _context.ChatRoomMembers.Remove(member);
+            _context.ChatRoomMessages.Add(new ChatRoomMessage
+            {
+                RoomId = roomId, SenderId = currentUserId!.Value, IsSystemMessage = true,
+                Content = $"{removed?.FirstName} {removed?.LastName} was removed by {actor?.FirstName}".Trim(),
+                CreatedAt = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+        }
+        return RedirectToAction("Room", new { id = roomId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> LeaveRoom(int roomId)
+    {
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null) return RedirectToAction("Login", "Auth");
+
+        var member = await _context.ChatRoomMembers
+            .FirstOrDefaultAsync(m => m.RoomId == roomId && m.UserId == userId);
+        if (member != null)
+        {
+            var user = await _context.Users.FindAsync(userId.Value);
+            _context.ChatRoomMembers.Remove(member);
+            _context.ChatRoomMessages.Add(new ChatRoomMessage
+            {
+                RoomId = roomId, SenderId = userId.Value, IsSystemMessage = true,
+                Content = $"{user?.FirstName} {user?.LastName} left the group".Trim(),
+                CreatedAt = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            var hasMembers = await _context.ChatRoomMembers.AnyAsync(m => m.RoomId == roomId);
+            if (!hasMembers)
+            {
+                var room = await _context.ChatRooms.FindAsync(roomId);
+                if (room != null) _context.ChatRooms.Remove(room);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        return RedirectToAction("Index");
     }
 
     [HttpPost]
