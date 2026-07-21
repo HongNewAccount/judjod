@@ -42,4 +42,6 @@ public class User
     public string? ProfileImagePath { get; set; }
 
     public bool ProjectAccessSuspended { get; set; } = false;
+
+    public bool ChatEnabled { get; set; } = true;
 }

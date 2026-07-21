@@ -15,6 +15,13 @@ public class ChatController : Controller
         var userId = HttpContext.Session.GetInt32("UserId");
         if (userId == null) return RedirectToAction("Login", "Auth");
 
+        var me = await _context.Users.FindAsync(userId.Value);
+        if (me?.ChatEnabled == false)
+        {
+            TempData["ErrorMessage"] = "Chat access is disabled for your account.";
+            return RedirectToAction("Index", "Dashboard");
+        }
+
         var rooms = await _context.ChatRooms
             .Include(r => r.Members).ThenInclude(m => m.User)
             .Where(r => r.Members.Any(m => m.UserId == userId))

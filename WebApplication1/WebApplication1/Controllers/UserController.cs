@@ -208,16 +208,17 @@ public class UserController : Controller
         if (!isSuperAdmin) return Forbid();
 
         var user = await _context.Users.FindAsync(id);
-        if (user == null)
-            return NotFound();
+        if (user == null) return NotFound();
 
         user.IsActive = !user.IsActive;
         await _context.SaveChangesAsync();
 
+        if (HttpContext.Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            return Ok(new { value = user.IsActive });
+
         TempData["SuccessMessage"] = user.IsActive
             ? $"{user.FirstName} {user.LastName} has been unbanned."
             : $"{user.FirstName} {user.LastName} has been banned.";
-
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -250,21 +251,59 @@ public class UserController : Controller
     public async Task<IActionResult> ToggleProjectSuspension(int id)
     {
         var userRole = HttpContext.Session.GetString("UserRole");
-        if (userRole != "Admin")
-        {
-            return Forbid();
-        }
+        if (userRole != "Admin") return Forbid();
 
         var user = await _context.Users.FindAsync(id);
-        if (user == null)
-            return NotFound();
+        if (user == null) return NotFound();
 
         user.ProjectAccessSuspended = !user.ProjectAccessSuspended;
         await _context.SaveChangesAsync();
 
+        if (HttpContext.Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            return Ok(new { value = !user.ProjectAccessSuspended });
+
         TempData["SuccessMessage"] = user.ProjectAccessSuspended
             ? $"{user.FirstName} {user.LastName}'s project access has been suspended."
             : $"{user.FirstName} {user.LastName}'s project access has been restored.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleRole(int id)
+    {
+        var isSuperAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
+        if (!isSuperAdmin) return Forbid();
+        var currentUserId = HttpContext.Session.GetInt32("UserId");
+        if (currentUserId == id) return BadRequest();
+
+        var user = await _context.Users.FindAsync(id);
+        if (user == null) return NotFound();
+
+        user.Role = user.Role == "Editor" ? "User" : "Editor";
+        await _context.SaveChangesAsync();
+
+        if (HttpContext.Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            return Ok(new { value = user.Role == "Editor" });
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleChatEnabled(int id)
+    {
+        var userRole = HttpContext.Session.GetString("UserRole");
+        if (userRole != "Admin") return Forbid();
+
+        var user = await _context.Users.FindAsync(id);
+        if (user == null) return NotFound();
+
+        user.ChatEnabled = !user.ChatEnabled;
+        await _context.SaveChangesAsync();
+
+        if (HttpContext.Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            return Ok(new { value = user.ChatEnabled });
 
         return RedirectToAction(nameof(Details), new { id });
     }

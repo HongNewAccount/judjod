@@ -1505,3 +1505,6 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+/* Disable all modal animations */
+.modal.fade .modal-dialog { transition: none !important; transform: none !important; }
+.modal { transition: none !important; }

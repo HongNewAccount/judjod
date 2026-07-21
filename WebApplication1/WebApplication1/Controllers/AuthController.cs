@@ -68,7 +68,7 @@ public class AuthController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Register(string username, string password, string confirmPassword, bool canEdit = false)
+    public async Task<IActionResult> Register(string username, string password, string confirmPassword, bool chatEnabled = true, bool projectAccess = true)
     {
         var isSuperAdmin2 = HttpContext.Session.GetString("IsSuperAdmin") == "true";
         if (!isSuperAdmin2)
@@ -100,15 +100,15 @@ public class AuthController : Controller
             return View();
         }
 
-        var isSuperAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
         var user = new User
         {
             Username = username.Trim(),
             FirstName = username.Trim(),
             LastName = "",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-            Role = (canEdit && isSuperAdmin) ? "Editor" : "User",
+            Role = projectAccess ? "Editor" : "User",
             IsActive = true,
+            ChatEnabled = chatEnabled,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -126,7 +126,7 @@ public class AuthController : Controller
 
         await _context.SaveChangesAsync();
 
-        TempData["SuccessMessage"] = $"User '{username}' created successfully as {user.Role}.";
+        TempData["SuccessMessage"] = $"User '{username}' created successfully.";
         return RedirectToAction(nameof(Register));
     }
 }

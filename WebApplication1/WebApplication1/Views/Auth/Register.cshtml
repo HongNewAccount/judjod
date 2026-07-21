@@ -44,15 +44,23 @@
                         @if (Context.Session.GetString("IsSuperAdmin") == "true")
                         {
                             <div class="mb-4 p-3 bg-light rounded">
-                                <label class="form-label fw-semibold mb-2">Role</label>
-                                <div class="d-flex gap-4">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="canEdit" id="roleUser" value="false" checked />
-                                        <label class="form-check-label" for="roleUser">User</label>
+                                <label class="form-label fw-semibold mb-2 d-block">Initial Settings</label>
+                                <div class="d-flex flex-column gap-2">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="form-check form-switch mb-0">
+                                            <input class="form-check-input" type="checkbox" name="chatEnabled" id="regChat" value="true" checked />
+                                        </div>
+                                        <label for="regChat" class="small fw-semibold mb-0">
+                                            <i class="fas fa-comments me-1" style="color:var(--color-accent);"></i>Chat Access
+                                        </label>
                                     </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="canEdit" id="roleEditor" value="true" />
-                                        <label class="form-check-label" for="roleEditor">Editor</label>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="form-check form-switch mb-0">
+                                            <input class="form-check-input" type="checkbox" name="projectAccess" id="regProject" value="true" checked />
+                                        </div>
+                                        <label for="regProject" class="small fw-semibold mb-0">
+                                            <i class="fas fa-columns me-1 text-primary"></i>Project Access
+                                        </label>
                                     </div>
                                 </div>
                             </div>
