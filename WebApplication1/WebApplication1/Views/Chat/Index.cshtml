@@ -68,8 +68,9 @@
                     @* Avatar: clickable *@
                     @if (room.IsGroup)
                     {
-                        <button type="button" class="btn p-0 border-0 rounded-circle flex-shrink-0"
-                                onclick="showGroupMembers('@Html.Raw(name)', @Html.Raw(membersJson))"
+                        <button type="button" class="btn p-0 border-0 rounded-circle flex-shrink-0 js-show-members"
+                                data-room-name="@name"
+                                data-members="@System.Net.WebUtility.HtmlEncode(membersJson)"
                                 title="View members"
                                 style="width:44px;height:44px;background:linear-gradient(135deg,#11998e,#38ef7d);color:#fff;">
                             <i class="fas fa-users" style="font-size:.9rem;"></i>
@@ -244,6 +245,15 @@ document.getElementById('groupSearch').addEventListener('input', function () {
     document.querySelectorAll('.group-user-row').forEach(row => {
         row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
     });
+});
+
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.js-show-members');
+    if (!btn) return;
+    e.stopPropagation();
+    const name = btn.dataset.roomName;
+    const members = JSON.parse(btn.dataset.members);
+    showGroupMembers(name, members);
 });
 
 function showGroupMembers(name, members) {

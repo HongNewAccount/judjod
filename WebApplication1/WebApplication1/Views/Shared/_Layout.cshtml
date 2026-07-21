@@ -85,11 +85,7 @@
                 </li>
             </ul>
 
-            <div class="sidebar-footer">
-                <a asp-controller="Auth" asp-action="Logout" class="btn btn-action w-100">
-                    <i class="fas fa-sign-out-alt me-1"></i> <span class="sidebar-logout-text">Logout</span>
-                </a>
-            </div>
+            <div class="sidebar-footer"></div>
         </nav>
 
         <div class="app-main">
@@ -102,7 +98,7 @@
                 </div>
                 @if (userId != null)
                 {
-                    <div class="topbar-right">
+                    <div class="topbar-right d-flex align-items-center gap-2">
                         <a asp-controller="User" asp-action="Details" asp-route-id="@userId" class="topbar-user">
                             @if (!string.IsNullOrEmpty(currentUserProfileImage))
                             {
@@ -116,6 +112,9 @@
                                 <span class="topbar-user-name">@userName</span>
                                 <span class="topbar-user-role">@userRole</span>
                             </span>
+                        </a>
+                        <a asp-controller="Auth" asp-action="Logout" class="btn btn-sm btn-outline-secondary" title="Logout">
+                            <i class="fas fa-sign-out-alt"></i>
                         </a>
                     </div>
                 }
