@@ -385,6 +385,25 @@ public class ChatController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteMessage(int id)
+    {
+        if (HttpContext.Request.Headers["X-Requested-With"] != "XMLHttpRequest") return BadRequest();
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null) return Unauthorized();
+
+        var msg = await _context.ChatRoomMessages.FindAsync(id);
+        if (msg == null) return NotFound();
+
+        var isAdmin = HttpContext.Session.GetString("UserRole") == "Admin";
+        if (msg.SenderId != userId && !isAdmin) return Forbid();
+
+        _context.ChatRoomMessages.Remove(msg);
+        await _context.SaveChangesAsync();
+        return Ok();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> ClearRoom(int roomId)
     {
         if (HttpContext.Session.GetString("UserRole") != "Admin") return Forbid();

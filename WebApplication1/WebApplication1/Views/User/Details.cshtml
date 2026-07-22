@@ -46,11 +46,11 @@
                         {
                             @if (Model.Role == "Editor")
                             {
-                                <span class="badge" style="background:var(--color-accent);color:#fff;">Editor</span>
+                                <span id="roleBadge" class="badge bg-primary">Editor</span>
                             }
                             else
                             {
-                                <span class="badge bg-secondary">User</span>
+                                <span id="roleBadge" class="badge bg-secondary">User</span>
                             }
                         }
                         @if (!Model.IsActive)
@@ -115,9 +115,6 @@
             {
                 <div class="border-top px-4 py-3">
                     <div class="d-flex flex-wrap gap-4 align-items-center">
-                        <small class="text-muted fw-semibold text-uppercase" style="letter-spacing:.06em;font-size:.7rem;">
-                            <i class="fas fa-shield-alt me-1"></i>Admin Controls
-                        </small>
 
                         <div class="d-flex align-items-center gap-2">
                             <div class="form-check form-switch mb-0">
@@ -137,7 +134,7 @@
                                        @(Model.Role == "Editor" ? "checked" : "") />
                             </div>
                             <label for="togProject" class="small fw-semibold mb-0">
-                                <i class="fas fa-columns me-1 text-primary"></i>Project Access
+                                <i class="fas fa-columns me-1 text-primary"></i>Editor
                             </label>
                         </div>
                     </div>
@@ -405,6 +402,7 @@ document.querySelectorAll('.admin-tog').forEach(function(tog) {
     tog.addEventListener('change', async function() {
         const url = this.dataset.url;
         const checked = this.checked;
+        const isRoleToggle = this.id === 'togProject';
         this.disabled = true;
         try {
             const res = await fetch(url, {
@@ -413,6 +411,13 @@ document.querySelectorAll('.admin-tog').forEach(function(tog) {
                 body: new URLSearchParams({ __RequestVerificationToken: token })
             });
             if (!res.ok) throw new Error();
+            if (isRoleToggle) {
+                const badge = document.getElementById('roleBadge');
+                if (badge) {
+                    badge.className = checked ? 'badge bg-primary' : 'badge bg-secondary';
+                    badge.textContent = checked ? 'Editor' : 'User';
+                }
+            }
         } catch {
             this.checked = !checked;
         } finally {
