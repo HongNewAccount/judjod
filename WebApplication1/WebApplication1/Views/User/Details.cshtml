@@ -78,68 +78,65 @@
                     </div>
                 </div>
 
-                <div class="d-flex gap-2 flex-wrap flex-shrink-0 align-items-center">
-                    @if (currentSessionId != Model.Id)
+                <div class="d-flex gap-3 flex-shrink-0 align-items-center">
+                    @if (isAdminViewer && currentSessionId != Model.Id)
                     {
-                        <a asp-controller="Chat" asp-action="StartDM" asp-route-userId="@Model.Id"
-                           class="btn btn-sm btn-primary profile-btn">
-                            <i class="fas fa-comment me-1"></i>Chat
-                        </a>
-                    }
-                    @{
-                        var canEditProfile = isSuperAdminViewer || isAdminViewer || currentSessionId == Model.Id;
-                    }
-                    @if (canEditProfile)
-                    {
-                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-modal-action profile-btn">
-                            <i class="fas fa-pencil-alt me-1"></i>Edit
-                        </a>
-                    }
-                    @if (isSuperAdminViewer && currentSessionId != Model.Id)
-                    {
-                        <form asp-action="ToggleBan" asp-route-id="@Model.Id" method="post" class="d-inline"
-                              onsubmit="return confirm('@(Model.IsActive ? "Ban" : "Unban") @Model.FirstName?');">
-                            @Html.AntiForgeryToken()
-                            <button type="submit" class="btn btn-sm btn-danger profile-btn">
-                                <i class="fas fa-ban me-1"></i>@(Model.IsActive ? "Ban" : "Unban")
-                            </button>
-                        </form>
-                    }
-                    <a asp-action="Index" class="btn btn-sm btn-secondary profile-btn">
-                        <i class="fas fa-arrow-left me-1"></i>Back
-                    </a>
-                </div>
-            </div>
-
-            @if (isAdminViewer && currentSessionId != Model.Id)
-            {
-                <div class="border-top px-4 py-3">
-                    <div class="d-flex flex-wrap gap-4 align-items-center">
-
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="form-check form-switch mb-0">
-                                <input class="form-check-input admin-tog" type="checkbox" id="togChat"
-                                       data-url="@Url.Action("ToggleChatEnabled","User", new { id = Model.Id })"
-                                       @(Model.ChatEnabled ? "checked" : "") />
+                        <div class="d-flex flex-column gap-2 me-1">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input admin-tog" type="checkbox" id="togChat"
+                                           data-url="@Url.Action("ToggleChatEnabled","User", new { id = Model.Id })"
+                                           @(Model.ChatEnabled ? "checked" : "") />
+                                </div>
+                                <label for="togChat" class="small fw-semibold mb-0" style="white-space:nowrap;">
+                                    <i class="fas fa-comments me-1" style="color:var(--color-accent);"></i>Chat
+                                </label>
                             </div>
-                            <label for="togChat" class="small fw-semibold mb-0">
-                                <i class="fas fa-comments me-1" style="color:var(--color-accent);"></i>Chat
-                            </label>
-                        </div>
-
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="form-check form-switch mb-0">
-                                <input class="form-check-input admin-tog" type="checkbox" id="togProject"
-                                       data-url="@Url.Action("ToggleRole","User", new { id = Model.Id })"
-                                       @(Model.Role == "Editor" ? "checked" : "") />
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input admin-tog" type="checkbox" id="togProject"
+                                           data-url="@Url.Action("ToggleRole","User", new { id = Model.Id })"
+                                           @(Model.Role == "Editor" ? "checked" : "") />
+                                </div>
+                                <label for="togProject" class="small fw-semibold mb-0" style="white-space:nowrap;">
+                                    <i class="fas fa-columns me-1 text-primary"></i>Editor
+                                </label>
                             </div>
-                            <label for="togProject" class="small fw-semibold mb-0">
-                                <i class="fas fa-columns me-1 text-primary"></i>Editor
-                            </label>
                         </div>
+                    }
+
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                        @{
+                            var canEditProfile = isSuperAdminViewer || isAdminViewer || currentSessionId == Model.Id;
+                        }
+                        @if (currentSessionId != Model.Id)
+                        {
+                            <a asp-controller="Chat" asp-action="StartDM" asp-route-userId="@Model.Id"
+                               class="btn btn-sm btn-primary profile-btn">
+                                <i class="fas fa-comment me-1"></i>Chat
+                            </a>
+                        }
+                        @if (canEditProfile)
+                        {
+                            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-modal-action profile-btn">
+                                <i class="fas fa-pencil-alt me-1"></i>Edit
+                            </a>
+                        }
+                        @if (isSuperAdminViewer && currentSessionId != Model.Id)
+                        {
+                            <form asp-action="ToggleBan" asp-route-id="@Model.Id" method="post" class="d-inline"
+                                  onsubmit="return confirm('@(Model.IsActive ? "Ban" : "Unban") @Model.FirstName?');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-danger profile-btn">
+                                    <i class="fas fa-ban me-1"></i>@(Model.IsActive ? "Ban" : "Unban")
+                                </button>
+                            </form>
+                        }
+                        <a asp-action="Index" class="btn btn-sm btn-secondary profile-btn">
+                            <i class="fas fa-arrow-left me-1"></i>Back
+                        </a>
                     </div>
                 </div>
-            }
         </div>
     </div>
 
