@@ -15,9 +15,9 @@
         @if (Context.Session.GetString("IsSuperAdmin") == "true")
         {
             <div class="col-auto">
-                <a asp-controller="Auth" asp-action="Register" class="btn btn-action">
+                <button type="button" class="btn btn-action" data-bs-toggle="modal" data-bs-target="#registerModal">
                     <i class="fas fa-user-plus me-2"></i>Register User
-                </a>
+                </button>
             </div>
         }
     </div>
@@ -83,6 +83,67 @@
     }
 </div>
 
+<!-- ═══ Register Modal ═══ -->
+@if (Context.Session.GetString("IsSuperAdmin") == "true")
+{
+    <div class="modal fade" id="registerModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header text-white py-3 px-4" style="background:var(--color-accent);">
+                    <h6 class="modal-title fw-bold">
+                        <i class="fas fa-user-plus me-2"></i>Register User
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div id="regError" class="alert alert-danger small py-2 d-none"></div>
+                    <form id="regForm" novalidate>
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
+                            <input type="text" name="username" class="form-control" placeholder="Enter username" autocomplete="username" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
+                            <input type="password" name="password" class="form-control" placeholder="Enter password" autocomplete="new-password" />
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Confirm Password <span class="text-danger">*</span></label>
+                            <input type="password" name="confirmPassword" class="form-control" placeholder="Re-enter password" autocomplete="new-password" />
+                        </div>
+                        <div class="mb-4 p-3 bg-light rounded">
+                            <label class="form-label fw-semibold mb-2 d-block">Initial Settings</label>
+                            <div class="d-flex flex-column gap-2">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox" id="regChat" checked />
+                                    </div>
+                                    <label for="regChat" class="small fw-semibold mb-0">
+                                        <i class="fas fa-comments me-1" style="color:var(--color-accent);"></i>Chat Access
+                                    </label>
+                                </div>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox" id="regProject" checked />
+                                    </div>
+                                    <label for="regProject" class="small fw-semibold mb-0">
+                                        <i class="fas fa-columns me-1 text-primary"></i>Project Access
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-2">
+                            <button type="submit" class="btn btn-modal-action px-5">
+                                <i class="fas fa-user-check me-1"></i>Create User
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <style>
 .user-row-avatar {
     width: 40px;
@@ -102,3 +163,47 @@
     box-shadow: 0 4px 12px rgba(0,0,0,.1) !important;
 }
 </style>
+
+@section Scripts {
+<script>
+(function () {
+    var form = document.getElementById('regForm');
+    if (!form) return;
+
+    var modal = document.getElementById('registerModal');
+    modal.addEventListener('hidden.bs.modal', function () {
+        form.reset();
+        document.getElementById('regError').classList.add('d-none');
+    });
+
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        var errEl = document.getElementById('regError');
+        errEl.classList.add('d-none');
+
+        var token = form.querySelector('input[name="__RequestVerificationToken"]').value;
+        var params = new URLSearchParams({
+            __RequestVerificationToken: token,
+            username:        form.querySelector('[name="username"]').value,
+            password:        form.querySelector('[name="password"]').value,
+            confirmPassword: form.querySelector('[name="confirmPassword"]').value,
+            chatEnabled:     document.getElementById('regChat').checked,
+            projectAccess:   document.getElementById('regProject').checked,
+        });
+
+        var res = await fetch('/Auth/Register', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params
+        });
+        var json = await res.json();
+        if (json.success) {
+            location.reload();
+        } else {
+            errEl.textContent = json.error;
+            errEl.classList.remove('d-none');
+        }
+    });
+})();
+</script>
+}

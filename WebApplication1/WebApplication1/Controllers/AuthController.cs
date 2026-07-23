@@ -53,51 +53,38 @@ public class AuthController : Controller
         return RedirectToAction(nameof(Login));
     }
 
-    public async Task<IActionResult> Register()
+    public IActionResult Register()
     {
-        var isSuperAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
-        if (!isSuperAdmin)
-        {
-            return RedirectToAction("Index", "User");
-        }
-
-        var users = await _context.Users.Where(u => u.IsActive).ToListAsync();
-        ViewBag.Users = users;
-        return View();
+        return RedirectToAction("Index", "User");
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(string username, string password, string confirmPassword, bool chatEnabled = true, bool projectAccess = true)
     {
-        var isSuperAdmin2 = HttpContext.Session.GetString("IsSuperAdmin") == "true";
-        if (!isSuperAdmin2)
+        var isAjax = Request.Headers.XRequestedWith == "XMLHttpRequest";
+        var isSuperAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
+        if (!isSuperAdmin)
         {
+            if (isAjax) return Json(new { success = false, error = "Unauthorized" });
             return RedirectToAction(nameof(Login));
         }
 
+        string? error = null;
         if (string.IsNullOrWhiteSpace(username) || username.Length < 3)
-        {
-            ViewBag.ErrorMessage = "Username must be at least 3 characters.";
-            return View();
-        }
+            error = "Username must be at least 3 characters.";
+        else if (string.IsNullOrWhiteSpace(password) || password.Length < 4)
+            error = "Password must be at least 4 characters.";
+        else if (password != confirmPassword)
+            error = "Passwords do not match.";
+        else if (await _context.Users.AnyAsync(u => u.Username == username))
+            error = $"Username '{username}' already exists.";
 
-        if (string.IsNullOrWhiteSpace(password) || password.Length < 4)
+        if (error != null)
         {
-            ViewBag.ErrorMessage = "Password must be at least 4 characters.";
-            return View();
-        }
-
-        if (password != confirmPassword)
-        {
-            ViewBag.ErrorMessage = "Passwords do not match.";
-            return View();
-        }
-
-        if (await _context.Users.AnyAsync(u => u.Username == username))
-        {
-            ViewBag.ErrorMessage = $"Username '{username}' already exists.";
-            return View();
+            if (isAjax) return Json(new { success = false, error });
+            TempData["ErrorMessage"] = error;
+            return RedirectToAction("Index", "User");
         }
 
         var user = new User
@@ -126,7 +113,8 @@ public class AuthController : Controller
 
         await _context.SaveChangesAsync();
 
+        if (isAjax) return Json(new { success = true, message = $"User '{username}' created successfully." });
         TempData["SuccessMessage"] = $"User '{username}' created successfully.";
-        return RedirectToAction(nameof(Register));
+        return RedirectToAction("Index", "User");
     }
 }
