@@ -103,7 +103,7 @@
                 var rActive  = hasRoom && selRoom!.Id == r.Id;
 
                 <a href="@Url.Action("Room","Chat", new { id = r.Id })"
-                   class="chat-room-row @(rActive ? "chat-room-active" : "") d-flex align-items-center gap-2 text-decoration-none">
+                   class="chat-room-row @(rActive ? "chat-room-active" : "")">
                     @* Avatar *@
                     @if (r.IsGroup)
                     {
@@ -500,11 +500,15 @@
     flex-shrink: 0;
 }
 .chat-room-row {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
     padding: .6rem .75rem;
     border-bottom: 1px solid #f4f4f4;
     transition: background .12s;
     color: inherit;
     cursor: pointer;
+    text-decoration: none;
 }
 .chat-room-row:hover { background: #f8f9fa; }
 .chat-room-active { background: rgba(253,126,20,.09) !important; border-left: 3px solid var(--color-accent); }
@@ -582,31 +586,31 @@ a .chat-avatar:hover, a .chat-avatar-initials:hover { opacity:.8; }
 .user-row:hover, .member-row:hover { background:#f8f9fa; }
 </style>
 
+<!-- Search scripts isolated so room-JS errors can't suppress them -->
+<script>
+(function () {
+    function hookSearch(inputId, rowSel, textFn) {
+        var el = document.getElementById(inputId);
+        if (!el) return;
+        el.addEventListener('input', function () {
+            var term = this.value.trim().toLowerCase();
+            document.querySelectorAll(rowSel).forEach(function (row) {
+                row.style.display = (!term || textFn(row).toLowerCase().includes(term)) ? '' : 'none';
+            });
+        });
+    }
+    hookSearch('chatSearch', '.chat-room-row', function (row) {
+        var name    = (row.querySelector('.room-row-name')?.textContent    ?? '');
+        var preview = (row.querySelector('.room-row-preview')?.textContent ?? '');
+        return name + ' ' + preview;
+    });
+    hookSearch('dmSearch',    '.dm-user-row',    function (r) { return r.textContent; });
+    hookSearch('groupSearch', '.group-user-row', function (r) { return r.textContent; });
+})();
+</script>
+
 @section Scripts {
 <script>
-/* ── Left panel search ── */
-document.getElementById('chatSearch').addEventListener('input', function () {
-    const term = this.value.trim().toLowerCase();
-    document.querySelectorAll('.chat-room-row').forEach(row => {
-        if (!term) { row.style.display = ''; return; }
-        const name    = (row.querySelector('.room-row-name')?.textContent    ?? '').toLowerCase();
-        const preview = (row.querySelector('.room-row-preview')?.textContent ?? '').toLowerCase();
-        row.style.display = (name.includes(term) || preview.includes(term)) ? '' : 'none';
-    });
-});
-
-/* ── New Chat modal search ── */
-document.getElementById('dmSearch').addEventListener('input', function () {
-    const term = this.value.toLowerCase();
-    document.querySelectorAll('.dm-user-row').forEach(r =>
-        r.style.display = r.textContent.toLowerCase().includes(term) ? '' : 'none');
-});
-document.getElementById('groupSearch').addEventListener('input', function () {
-    const term = this.value.toLowerCase();
-    document.querySelectorAll('.group-user-row').forEach(r =>
-        r.style.display = r.textContent.toLowerCase().includes(term) ? '' : 'none');
-});
-
 @if (hasRoom)
 {
 <text>
