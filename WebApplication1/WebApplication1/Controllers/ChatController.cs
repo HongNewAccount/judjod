@@ -22,45 +22,9 @@ public class ChatController : Controller
             return RedirectToAction("Index", "Dashboard");
         }
 
-        var rooms = await _context.ChatRooms
-            .Include(r => r.Members).ThenInclude(m => m.User)
-            .Where(r => r.Members.Any(m => m.UserId == userId))
-            .ToListAsync();
-
-        var roomIds = rooms.Select(r => r.Id).ToList();
-
-        var lastMessages = await _context.ChatRoomMessages
-            .Where(m => roomIds.Contains(m.RoomId))
-            .GroupBy(m => m.RoomId)
-            .Select(g => g.OrderByDescending(m => m.Id).First())
-            .ToListAsync();
-
-        var memberInfo = await _context.ChatRoomMembers
-            .Where(m => m.UserId == userId && roomIds.Contains(m.RoomId))
-            .ToDictionaryAsync(m => m.RoomId, m => m.LastReadMessageId);
-
-        var unreadCounts = new Dictionary<int, int>();
-        foreach (var roomId in roomIds)
-        {
-            var lastReadId = memberInfo.GetValueOrDefault(roomId, 0);
-            unreadCounts[roomId] = await _context.ChatRoomMessages.CountAsync(m =>
-                m.RoomId == roomId && m.Id > lastReadId && m.SenderId != userId);
-        }
-
-        var lastMessageTimes = lastMessages.ToDictionary(m => m.RoomId, m => m.CreatedAt);
-        rooms = rooms.OrderByDescending(r => lastMessageTimes.GetValueOrDefault(r.Id, r.CreatedAt)).ToList();
-
-        ViewBag.LastMessages = lastMessages.ToDictionary(m => m.RoomId);
-        ViewBag.UnreadCounts = unreadCounts;
-        ViewBag.CurrentUserId = userId.Value;
-
-        var allUsers = await _context.Users
-            .Where(u => u.Id != userId)
-            .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
-            .ToListAsync();
-        ViewBag.AllUsers = allUsers;
-
-        return View(rooms);
+        await LoadRoomsViewBag(userId.Value);
+        ViewBag.SelectedRoom = null;
+        return View("Index");
     }
 
     public async Task<IActionResult> Room(int id)
@@ -101,15 +65,58 @@ public class ChatController : Controller
                 .ToListAsync()
             : new List<User>();
 
-        ViewBag.Room = room;
+        await LoadRoomsViewBag(userId.Value);
+
+        ViewBag.SelectedRoom = room;
         ViewBag.Messages = messages;
-        ViewBag.CurrentUserId = userId.Value;
         ViewBag.IsAdmin = isAdmin;
         ViewBag.CanManageGroup = canManage;
         ViewBag.NonMembers = nonMembers;
         ViewBag.CurrentUser = await _context.Users.FindAsync(userId.Value);
 
-        return View();
+        return View("Index");
+    }
+
+    private async Task LoadRoomsViewBag(int userId)
+    {
+        var rooms = await _context.ChatRooms
+            .Include(r => r.Members).ThenInclude(m => m.User)
+            .Where(r => r.Members.Any(m => m.UserId == userId))
+            .ToListAsync();
+
+        var roomIds = rooms.Select(r => r.Id).ToList();
+
+        var lastMessages = await _context.ChatRoomMessages
+            .Where(m => roomIds.Contains(m.RoomId))
+            .GroupBy(m => m.RoomId)
+            .Select(g => g.OrderByDescending(m => m.Id).First())
+            .ToListAsync();
+
+        var memberInfo = await _context.ChatRoomMembers
+            .Where(m => m.UserId == userId && roomIds.Contains(m.RoomId))
+            .ToDictionaryAsync(m => m.RoomId, m => m.LastReadMessageId);
+
+        var unreadCounts = new Dictionary<int, int>();
+        foreach (var roomId in roomIds)
+        {
+            var lastReadId = memberInfo.GetValueOrDefault(roomId, 0);
+            unreadCounts[roomId] = await _context.ChatRoomMessages.CountAsync(m =>
+                m.RoomId == roomId && m.Id > lastReadId && m.SenderId != userId);
+        }
+
+        var lastMessageTimes = lastMessages.ToDictionary(m => m.RoomId, m => m.CreatedAt);
+        rooms = rooms.OrderByDescending(r => lastMessageTimes.GetValueOrDefault(r.Id, r.CreatedAt)).ToList();
+
+        ViewBag.Rooms = rooms;
+        ViewBag.LastMessages = lastMessages.ToDictionary(m => m.RoomId);
+        ViewBag.UnreadCounts = unreadCounts;
+        ViewBag.CurrentUserId = userId;
+
+        var allUsers = await _context.Users
+            .Where(u => u.Id != userId)
+            .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
+            .ToListAsync();
+        ViewBag.AllUsers = allUsers;
     }
 
     public async Task<IActionResult> StartDM(int userId)

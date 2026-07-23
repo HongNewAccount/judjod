@@ -1,165 +1,398 @@
 @using WebApplication1.Models
-@model IEnumerable<WebApplication1.Models.ChatRoom>
 @{
     ViewData["Title"] = "Chat";
     var currentUserId = (int)ViewBag.CurrentUserId;
-    var lastMessages = (Dictionary<int, ChatRoomMessage>)ViewBag.LastMessages;
-    var unreadCounts = (Dictionary<int, int>)ViewBag.UnreadCounts;
-    var allUsers = (List<User>)ViewBag.AllUsers;
+    var rooms         = (List<ChatRoom>)ViewBag.Rooms;
+    var lastMsgs      = (Dictionary<int, ChatRoomMessage>)ViewBag.LastMessages;
+    var unreadCounts  = (Dictionary<int, int>)ViewBag.UnreadCounts;
+    var allUsers      = (List<User>)ViewBag.AllUsers;
 
-    string Initials(User? u) {
+    var selRoom  = ViewBag.SelectedRoom as ChatRoom;
+    var hasRoom  = selRoom != null;
+
+    List<ChatRoomMessage> messages = hasRoom ? (List<ChatRoomMessage>)ViewBag.Messages : new();
+    bool isAdmin     = hasRoom && (bool)ViewBag.IsAdmin;
+    User? currentUser = hasRoom ? (User)ViewBag.CurrentUser : null;
+    bool canManage   = hasRoom && (bool)ViewBag.CanManageGroup;
+    List<User> nonMembers = hasRoom && selRoom!.IsGroup ? (List<User>)ViewBag.NonMembers : new();
+    int lastId = messages.Any() ? messages.Last().Id : 0;
+
+    string roomName = "";
+    User? dmPartner = null;
+    if (hasRoom)
+    {
+        if (selRoom!.IsGroup) { roomName = selRoom.Name ?? "Group Chat"; }
+        else
+        {
+            dmPartner = selRoom.Members.FirstOrDefault(m => m.UserId != currentUserId)?.User;
+            roomName  = $"{dmPartner?.FirstName} {dmPartner?.LastName}".Trim();
+        }
+    }
+
+    string Initials(User? u)
+    {
         if (u == null) return "?";
         var f = u.FirstName?.Length > 0 ? u.FirstName[0].ToString() : "";
-        var l = u.LastName?.Length > 0 ? u.LastName[0].ToString() : "";
+        var l = u.LastName?.Length  > 0 ? u.LastName[0].ToString()  : "";
         return (f + l).ToUpper();
     }
 
-    string RoomName(ChatRoom r) {
+    string ListRoomName(ChatRoom r)
+    {
         if (r.IsGroup) return r.Name ?? "Group Chat";
         var other = r.Members.FirstOrDefault(m => m.UserId != currentUserId)?.User;
         return $"{other?.FirstName} {other?.LastName}".Trim();
     }
+
+    string AvatarHtml(User? u, string size = "32px")
+    {
+        if (u == null) return "";
+        if (!string.IsNullOrEmpty(u.ProfileImagePath))
+            return $"<img src=\"{u.ProfileImagePath}\" class=\"chat-avatar\" style=\"width:{size};height:{size};object-fit:cover;\" />";
+        var f = u.FirstName?.Length > 0 ? u.FirstName[0] : ' ';
+        var l = u.LastName?.Length  > 0 ? u.LastName[0]  : ' ';
+        return $"<div class=\"chat-avatar chat-avatar-initials\" style=\"width:{size};height:{size};\">{f}{l}</div>";
+    }
+
+    string AvatarLink(User? u, string size = "32px")
+    {
+        if (u == null) return "";
+        return $"<a href=\"/User/Details/{u.Id}\" title=\"{u.FirstName} {u.LastName}\">{AvatarHtml(u, size)}</a>";
+    }
+
+    var memberMap = hasRoom
+        ? selRoom!.Members.Where(m => m.User != null).ToDictionary(m => m.UserId, m => m.User!)
+        : new Dictionary<int, User>();
 }
 @Html.AntiForgeryToken()
 
-<div class="container-fluid">
-    <div class="page-header mb-3 d-flex align-items-center">
-        <div class="flex-grow-1">
-            <h1 class="page-title mb-0"><i class="fas fa-comments me-2" style="color:var(--color-accent);"></i>Chat</h1>
-            <p class="page-subtitle mb-0">Team conversations</p>
-        </div>
-        <button class="btn btn-action" data-bs-toggle="modal" data-bs-target="#newChatModal">
-            <i class="fas fa-plus me-1"></i>New Chat
-        </button>
-    </div>
+<!-- ═══ CHAT SHELL ═══ -->
+<div class="chat-shell">
 
-    @if (!Model.Any())
-    {
-        <div class="card p-5 text-center border-0 shadow-sm mx-auto" style="max-width:560px;">
-            <i class="fas fa-comments" style="font-size:48px;color:#ccc;"></i>
-            <p class="text-muted mt-3">No conversations yet.</p>
-            <button class="btn btn-modal-action btn-sm mx-auto" style="width:fit-content;" data-bs-toggle="modal" data-bs-target="#newChatModal">
-                <i class="fas fa-plus me-1"></i>Start a chat
+    <!-- ───── LEFT PANEL: conversation list ───── -->
+    <div class="chat-left">
+        <div class="chat-left-hdr d-flex align-items-center justify-content-between">
+            <span class="fw-bold" style="font-size:.95rem;letter-spacing:-.01em;">Chats</span>
+            <button class="btn btn-action btn-sm py-1 px-2" style="font-size:.75rem;"
+                    data-bs-toggle="modal" data-bs-target="#newChatModal" title="New chat">
+                <i class="fas fa-plus me-1"></i>New
             </button>
         </div>
-    }
-    else
-    {
-        <div class="card border-0 shadow-sm mx-auto" style="max-width:620px;">
-            @foreach (var room in Model)
+        <div class="px-3 pt-2 pb-2 border-bottom">
+            <div class="position-relative">
+                <i class="fas fa-search position-absolute"
+                   style="left:.65rem;top:50%;transform:translateY(-50%);color:#bbb;font-size:.75rem;pointer-events:none;"></i>
+                <input type="text" id="chatSearch" class="form-control form-control-sm ps-4"
+                       placeholder="Search chats…" autocomplete="off" />
+            </div>
+        </div>
+        <div class="chat-left-rooms">
+            @if (!rooms.Any())
             {
-                var name = RoomName(room);
-                var other = room.IsGroup ? null : room.Members.FirstOrDefault(m => m.UserId != currentUserId)?.User;
-                var lastMsg = lastMessages.GetValueOrDefault(room.Id);
-                var unread = unreadCounts.GetValueOrDefault(room.Id, 0);
+                <div class="text-center p-4 text-muted">
+                    <i class="fas fa-comments mb-2 d-block" style="font-size:2rem;color:#ddd;"></i>
+                    <small>No conversations yet</small>
+                </div>
+            }
+            @foreach (var r in rooms)
+            {
+                var rName    = ListRoomName(r);
+                var rOther   = r.IsGroup ? null : r.Members.FirstOrDefault(m => m.UserId != currentUserId)?.User;
+                var rLastMsg = lastMsgs.GetValueOrDefault(r.Id);
+                var rUnread  = unreadCounts.GetValueOrDefault(r.Id, 0);
+                var rActive  = hasRoom && selRoom!.Id == r.Id;
 
-                @* Razor auto-encodes @ expressions — JSON " → &quot; in HTML, browser decodes back to " for dataset *@
-                var membersJson = System.Text.Json.JsonSerializer.Serialize(
-                    room.Members.Where(m => m.User != null).OrderBy(m => m.User!.FirstName).Select(m => new {
-                        id   = m.UserId,
-                        name = $"{m.User!.FirstName} {m.User.LastName}".Trim(),
-                        role = m.User.Role ?? "User",
-                        img  = m.User.ProfileImagePath ?? "",
-                        init = $"{(m.User.FirstName?.Length > 0 ? m.User.FirstName[0] : ' ')}{(m.User.LastName?.Length > 0 ? m.User.LastName[0] : ' ')}".Trim().ToUpper()
-                    })
-                );
-
-                <div class="d-flex align-items-center gap-3 p-3 border-bottom chat-row">
-
-                    @* Avatar: clickable *@
-                    @if (room.IsGroup)
+                <a href="@Url.Action("Room","Chat", new { id = r.Id })"
+                   class="chat-room-row @(rActive ? "chat-room-active" : "") d-flex align-items-center gap-2 text-decoration-none">
+                    @* Avatar *@
+                    @if (r.IsGroup)
                     {
-                        <button type="button" class="btn p-0 border-0 rounded-circle flex-shrink-0 js-show-members"
-                                data-room-name="@name"
-                                data-members="@membersJson"
-                                title="View members"
-                                style="width:44px;height:44px;background:linear-gradient(135deg,#11998e,#38ef7d);color:#fff;">
-                            <i class="fas fa-users" style="font-size:.9rem;"></i>
-                        </button>
+                        <div class="chat-list-avatar flex-shrink-0 d-flex align-items-center justify-content-center text-white"
+                             style="background:linear-gradient(135deg,#11998e,#38ef7d);">
+                            <i class="fas fa-users" style="font-size:.8rem;"></i>
+                        </div>
                     }
-                    else if (!string.IsNullOrEmpty(other?.ProfileImagePath))
+                    else if (!string.IsNullOrEmpty(rOther?.ProfileImagePath))
                     {
-                        <a href="/User/Details/@other!.Id" class="flex-shrink-0">
-                            <img src="@other.ProfileImagePath" class="rounded-circle"
-                                 style="width:44px;height:44px;object-fit:cover;" />
-                        </a>
+                        <img src="@rOther!.ProfileImagePath" class="chat-list-avatar flex-shrink-0 rounded-circle"
+                             style="object-fit:cover;" />
                     }
                     else
                     {
-                        <a href="/User/Details/@other?.Id" class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold text-decoration-none flex-shrink-0"
-                           style="width:44px;height:44px;background:linear-gradient(135deg,#667eea,#764ba2);font-size:.85rem;">
-                            @Initials(other)
-                        </a>
+                        <div class="chat-list-avatar flex-shrink-0 d-flex align-items-center justify-content-center text-white fw-bold"
+                             style="background:linear-gradient(135deg,#667eea,#764ba2);font-size:.75rem;">
+                            @Initials(rOther)
+                        </div>
                     }
-
-                    @* Text → goes to room *@
-                    <a href="@Url.Action("Room","Chat", new { id = room.Id })"
-                       class="text-decoration-none text-dark flex-grow-1" style="min-width:0;">
+                    @* Text *@
+                    <div class="flex-grow-1" style="min-width:0;">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="fw-semibold">@name</span>
-                            @if (lastMsg != null)
+                            <span class="fw-semibold text-dark room-row-name" style="font-size:.85rem;">@rName</span>
+                            @if (rLastMsg != null)
                             {
-                                <small class="text-muted flex-shrink-0 ms-2">@lastMsg.CreatedAt.ToString("dd MMM HH:mm")</small>
+                                <small class="text-muted flex-shrink-0 ms-1" style="font-size:.65rem;">@rLastMsg.CreatedAt.ToString("dd MMM")</small>
                             }
                         </div>
-                        <p class="text-muted small mb-0 text-truncate">
-                            @if (lastMsg != null)
+                        <p class="mb-0 text-muted text-truncate room-row-preview" style="font-size:.75rem;">
+                            @if (rLastMsg != null)
                             {
-                                @(string.IsNullOrEmpty(lastMsg.Content) ? "[Image]" : lastMsg.Content)
+                                @(string.IsNullOrEmpty(rLastMsg.Content) ? "[Image]" : rLastMsg.Content)
                             }
-                            else { <span class="fst-italic">No messages yet</span> }
+                            else
+                            {
+                                <span class="fst-italic">No messages yet</span>
+                            }
                         </p>
-                    </a>
-
-                    @if (unread > 0)
+                    </div>
+                    @if (rUnread > 0)
                     {
-                        <span class="badge rounded-pill flex-shrink-0" style="background:var(--color-accent);">@unread</span>
+                        <span class="badge rounded-pill flex-shrink-0 ms-1"
+                              style="background:var(--color-accent);font-size:.6rem;padding:.25em .5em;">@rUnread</span>
                     }
-                </div>
+                </a>
             }
         </div>
+    </div>
 
-        <!-- Shared group members modal -->
-        <div class="modal fade" id="groupMembersModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content border-0 shadow">
-                    <div class="modal-header bg-dark text-white py-3 px-4">
-                        <h6 class="modal-title fw-bold" id="groupMembersTitle"></h6>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    <!-- ───── RIGHT PANEL: active chat ───── -->
+    <div class="chat-right d-flex flex-column">
+        @if (!hasRoom)
+        {
+            <div class="flex-grow-1 d-flex align-items-center justify-content-center">
+                <div class="text-center text-muted px-3">
+                    <i class="fas fa-comments mb-3 d-block" style="font-size:3.5rem;color:#e0e0e0;"></i>
+                    <p class="fw-semibold mb-1" style="font-size:1.05rem;color:#888;">Your conversations</p>
+                    <p class="small mb-3">Select a chat on the left, or start a new one.</p>
+                    <button class="btn btn-action btn-sm" data-bs-toggle="modal" data-bs-target="#newChatModal">
+                        <i class="fas fa-plus me-1"></i>New Chat
+                    </button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- Room header -->
+            <div class="chat-right-hdr d-flex align-items-center gap-2">
+                @if (selRoom!.IsGroup)
+                {
+                    <button type="button"
+                            class="d-flex align-items-center gap-2 btn btn-link text-decoration-none text-dark p-0 flex-grow-1 text-start"
+                            data-bs-toggle="modal" data-bs-target="#groupInfoModal" style="min-width:0;">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0"
+                             style="width:38px;height:38px;background:linear-gradient(135deg,#11998e,#38ef7d);">
+                            <i class="fas fa-users" style="font-size:.85rem;"></i>
+                        </div>
+                        <div style="min-width:0;">
+                            <div class="fw-semibold text-truncate" style="font-size:.95rem;">@roomName</div>
+                            <small class="text-muted" style="font-size:.72rem;">@selRoom.Members.Count members · tap to manage</small>
+                        </div>
+                    </button>
+                }
+                else
+                {
+                    <a href="@Url.Action("Details","User", new { id = dmPartner?.Id })"
+                       class="d-flex align-items-center gap-2 text-decoration-none text-dark flex-grow-1" style="min-width:0;">
+                        @Html.Raw(AvatarHtml(dmPartner, "38px"))
+                        <div style="min-width:0;">
+                            <div class="fw-semibold text-truncate" style="font-size:.95rem;">@roomName</div>
+                        </div>
+                    </a>
+                }
+                @if (isAdmin)
+                {
+                    <form method="post" action="@Url.Action("ClearRoom","Chat")"
+                          onsubmit="return confirm('ลบข้อความทั้งหมดในแชทนี้?')" class="flex-shrink-0">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="roomId" value="@selRoom!.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" style="font-size:.78rem;">
+                            <i class="fas fa-trash me-1"></i>Clear
+                        </button>
+                    </form>
+                }
+            </div>
+
+            <!-- Messages area -->
+            <div id="chatBox" class="chat-box flex-grow-1">
+                @if (!messages.Any())
+                {
+                    <p class="text-muted text-center small mt-4">No messages yet. Say hello!</p>
+                }
+                @foreach (var m in messages)
+                {
+                    if (m.IsSystemMessage)
+                    {
+                        <div class="chat-system-msg">@m.Content</div>
+                    }
+                    else
+                    {
+                        var isMe   = m.SenderId == currentUserId;
+                        var sender = memberMap.GetValueOrDefault(m.SenderId);
+                        if (isMe)
+                        {
+                            <div class="d-flex justify-content-end align-items-end gap-2 mb-2">
+                                <div class="chat-mine-wrap">
+                                    <button class="btn-del-msg" data-id="@m.Id" onclick="deleteMsg(this)">×</button>
+                                    <div class="chat-bubble chat-bubble-mine">
+                                        @if (!string.IsNullOrEmpty(m.ImagePath))
+                                        { <a href="@m.ImagePath" target="_blank"><img src="@m.ImagePath" class="chat-img" /></a> }
+                                        else { <div class="chat-text">@m.Content</div> }
+                                        <small class="chat-time">@m.CreatedAt.ToString("HH:mm")</small>
+                                    </div>
+                                </div>
+                                @Html.Raw(AvatarHtml(currentUser))
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-content-start align-items-end gap-2 mb-2">
+                                @Html.Raw(AvatarLink(sender))
+                                <div class="chat-theirs-wrap">
+                                    @if (selRoom!.IsGroup && sender != null)
+                                    {
+                                        <small class="text-muted ms-1 d-block mb-1">@sender.FirstName @sender.LastName</small>
+                                    }
+                                    <div class="chat-bubble chat-bubble-theirs">
+                                        @if (!string.IsNullOrEmpty(m.ImagePath))
+                                        { <a href="@m.ImagePath" target="_blank"><img src="@m.ImagePath" class="chat-img" /></a> }
+                                        else { <div class="chat-text">@m.Content</div> }
+                                        <small class="chat-time">@m.CreatedAt.ToString("HH:mm")</small>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                }
+            </div>
+
+            <!-- Input bar -->
+            <div class="chat-input-bar d-flex gap-2">
+                <label class="btn btn-outline-secondary btn-sm px-2 mb-0 flex-shrink-0" title="Send image">
+                    <i class="fas fa-image"></i>
+                    <input type="file" id="fileInput" style="display:none;" accept="image/*" onchange="sendFile(this)" />
+                </label>
+                <input type="text" id="msgInput" class="form-control form-control-sm" placeholder="Type a message…" />
+                <button class="btn btn-modal-action btn-sm px-3 flex-shrink-0" onclick="sendMsg()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- ═══ Group Info Modal (only when inside a group room) ═══ -->
+@if (hasRoom && selRoom!.IsGroup)
+{
+    <div class="modal fade" id="groupInfoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-dark text-white py-3 px-4">
+                    <h6 class="modal-title fw-bold">
+                        <i class="fas fa-users me-2" style="color:var(--color-accent);"></i>@roomName
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <p class="small fw-semibold text-muted mb-0 px-3 pt-3 pb-1 text-uppercase" style="letter-spacing:.05em;">
+                        Members (@selRoom!.Members.Count)
+                    </p>
+                    <div style="max-height:280px;overflow-y:auto;">
+                        @foreach (var mem in selRoom!.Members.Where(m => m.User != null).OrderBy(m => m.User!.FirstName))
+                        {
+                            <div class="d-flex align-items-center gap-2 px-3 py-2 member-row">
+                                <a href="/User/Details/@mem.UserId"
+                                   class="d-flex align-items-center gap-2 text-decoration-none text-dark flex-grow-1">
+                                    @Html.Raw(AvatarHtml(mem.User, "32px"))
+                                    <div>
+                                        <div class="fw-semibold small">@mem.User!.FirstName @mem.User.LastName</div>
+                                        <div class="text-muted" style="font-size:.7rem;">@mem.User.Role</div>
+                                    </div>
+                                </a>
+                                @if (mem.UserId == selRoom!.CreatedByUserId)
+                                {
+                                    <span class="badge bg-secondary flex-shrink-0" style="font-size:.6rem;">Creator</span>
+                                }
+                                else if (canManage)
+                                {
+                                    <form method="post" action="@Url.Action("RemoveMember","Chat")"
+                                          onsubmit="return confirm('Remove @mem.User!.FirstName?')">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="roomId" value="@selRoom!.Id" />
+                                        <input type="hidden" name="userId" value="@mem.UserId" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1 flex-shrink-0">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        }
                     </div>
-                    <div class="modal-body p-0" id="groupMembersList" style="max-height:400px;overflow-y:auto;"></div>
+                    @if (canManage && nonMembers.Any())
+                    {
+                        <hr class="my-0" />
+                        <p class="small fw-semibold text-muted mb-0 px-3 pt-3 pb-1 text-uppercase" style="letter-spacing:.05em;">Invite</p>
+                        <div style="max-height:200px;overflow-y:auto;padding-bottom:.5rem;">
+                            @foreach (var u in nonMembers)
+                            {
+                                <div class="d-flex align-items-center gap-2 px-3 py-1 member-row">
+                                    <div class="flex-grow-1 d-flex align-items-center gap-2">
+                                        @Html.Raw(AvatarHtml(u, "28px"))
+                                        <span class="small">@u.FirstName @u.LastName</span>
+                                    </div>
+                                    <form method="post" action="@Url.Action("AddMember","Chat")">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="roomId" value="@selRoom!.Id" />
+                                        <input type="hidden" name="userId" value="@u.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer py-2 px-3 justify-content-start">
+                    <form method="post" action="@Url.Action("LeaveRoom","Chat")"
+                          onsubmit="return confirm('ออกจากกลุ่ม?')">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="roomId" value="@selRoom!.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-sign-out-alt me-1"></i>Leave Group
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
-    }
-</div>
+    </div>
+}
 
-<!-- New Chat Modal -->
+<!-- ═══ New Chat Modal ═══ -->
 <div class="modal fade" id="newChatModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-dark text-white py-3 px-4">
-                <h6 class="modal-title fw-bold"><i class="fas fa-comments me-2" style="color:var(--color-accent);"></i>New Chat</h6>
+                <h6 class="modal-title fw-bold">
+                    <i class="fas fa-comments me-2" style="color:var(--color-accent);"></i>New Chat
+                </h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-0">
                 <ul class="nav nav-tabs px-4 pt-3 border-bottom-0">
                     <li class="nav-item">
                         <button class="nav-link active fw-semibold" data-bs-toggle="tab" data-bs-target="#tabDM">
-                            <i class="fas fa-user me-1"></i>Direct Message
+                            <i class="fas fa-user me-1"></i>Direct
                         </button>
                     </li>
                     <li class="nav-item">
                         <button class="nav-link fw-semibold" data-bs-toggle="tab" data-bs-target="#tabGroup">
-                            <i class="fas fa-users me-1"></i>Group Chat
+                            <i class="fas fa-users me-1"></i>Group
                         </button>
                     </li>
                 </ul>
-
                 <div class="tab-content px-4 pb-4 pt-3">
                     <!-- DM Tab -->
                     <div class="tab-pane fade show active" id="tabDM">
-                        <input type="text" id="dmSearch" class="form-control mb-3" placeholder="Search people..." />
+                        <input type="text" id="dmSearch" class="form-control mb-3" placeholder="Search people…" />
                         <div style="max-height:340px;overflow-y:auto;" class="rounded border">
                             @foreach (var u in allUsers)
                             {
@@ -185,18 +418,17 @@
                             }
                         </div>
                     </div>
-
                     <!-- Group Tab -->
                     <div class="tab-pane fade" id="tabGroup">
                         <form method="post" action="@Url.Action("CreateGroup","Chat")">
                             @Html.AntiForgeryToken()
                             <div class="mb-3">
                                 <label class="form-label fw-semibold small">Group name *</label>
-                                <input type="text" name="name" class="form-control" placeholder="Enter group name..." required />
+                                <input type="text" name="name" class="form-control" placeholder="Enter group name…" required />
                             </div>
                             <div class="mb-2">
                                 <label class="form-label fw-semibold small">Add members</label>
-                                <input type="text" id="groupSearch" class="form-control mb-2" placeholder="Search people..." />
+                                <input type="text" id="groupSearch" class="form-control mb-2" placeholder="Search people…" />
                             </div>
                             <div style="max-height:240px;overflow-y:auto;" id="groupUserList" class="rounded border">
                                 @foreach (var u in allUsers)
@@ -234,54 +466,267 @@
 </div>
 
 <style>
-.chat-row:hover, .user-row:hover { background: #f8f9fa; }
-.member-row:hover { background: #f8f9fa; }
+/* ── Shell ── */
+.chat-shell {
+    display: flex;
+    height: calc(100vh - 128px);
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 16px rgba(0,0,0,.09);
+    margin: 0 -0.5rem;
+}
+
+/* ── Left panel ── */
+.chat-left {
+    width: 280px;
+    min-width: 220px;
+    border-right: 1px solid #e9ecef;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    flex-shrink: 0;
+}
+.chat-left-hdr {
+    padding: .75rem 1rem;
+    border-bottom: 1px solid #e9ecef;
+    flex-shrink: 0;
+}
+.chat-left-rooms { flex: 1; overflow-y: auto; }
+
+.chat-list-avatar {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.chat-room-row {
+    padding: .6rem .75rem;
+    border-bottom: 1px solid #f4f4f4;
+    transition: background .12s;
+    color: inherit;
+    cursor: pointer;
+}
+.chat-room-row:hover { background: #f8f9fa; }
+.chat-room-active { background: rgba(253,126,20,.09) !important; border-left: 3px solid var(--color-accent); }
+
+/* ── Right panel ── */
+.chat-right {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    background: #f8f9fb;
+}
+.chat-right-hdr {
+    background: #fff;
+    border-bottom: 1px solid #e9ecef;
+    padding: .65rem 1.1rem;
+    flex-shrink: 0;
+}
+.chat-box {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 1rem 1.1rem;
+    min-height: 0;
+}
+.chat-input-bar {
+    padding: .65rem 1rem;
+    background: #fff;
+    border-top: 1px solid #e9ecef;
+    flex-shrink: 0;
+}
+
+/* ── Bubbles ── */
+.chat-bubble { padding:.45rem .8rem; border-radius:16px; font-size:.875rem; }
+.chat-bubble-mine   { background:var(--color-accent); color:#fff; border-bottom-right-radius:4px; }
+.chat-bubble-theirs { background:#fff; color:#1a1a2e; border:1px solid #e9ecef; border-bottom-left-radius:4px; }
+.chat-theirs-wrap { max-width:55%; }
+.chat-theirs-wrap .chat-bubble-theirs { max-width:100%; }
+.chat-text  { word-break:break-word; overflow-wrap:break-word; }
+.chat-time  { display:block; font-size:.68rem; opacity:.65; white-space:nowrap; margin-top:2px; }
+.chat-bubble-mine .chat-time { text-align:right; }
+
+/* ── Avatars ── */
+.chat-avatar { border-radius:50%; flex-shrink:0; display:block; }
+.chat-avatar-initials {
+    display:inline-flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#667eea,#764ba2);
+    color:#fff; font-size:.72rem; font-weight:700;
+}
+a .chat-avatar, a .chat-avatar-initials { cursor:pointer; }
+a .chat-avatar:hover, a .chat-avatar-initials:hover { opacity:.8; }
+.chat-img { max-width:200px; max-height:200px; border-radius:8px; display:block; }
+
+/* ── Mine delete button ── */
+.chat-mine-wrap { position:relative; max-width:65%; }
+.chat-mine-wrap .chat-bubble-mine { max-width:100%; }
+.btn-del-msg {
+    display:none; position:absolute; top:-7px; right:-7px;
+    background:#dc3545; color:#fff; border:none; border-radius:50%;
+    width:18px; height:18px; font-size:.75rem; line-height:1;
+    padding:0; cursor:pointer; z-index:2;
+    align-items:center; justify-content:center;
+}
+.chat-mine-wrap:hover .btn-del-msg { display:flex; }
+
+/* ── System messages ── */
+.chat-system-msg {
+    text-align:center; font-size:.72rem; color:#888;
+    background:#efefef; border-radius:12px;
+    padding:3px 12px; margin:.5rem auto;
+    width:fit-content; max-width:80%;
+}
+
+/* ── Modal rows ── */
+.user-row:hover, .member-row:hover { background:#f8f9fa; }
 </style>
 
 @section Scripts {
 <script>
+/* ── Left panel search ── */
+document.getElementById('chatSearch').addEventListener('input', function () {
+    const term = this.value.trim().toLowerCase();
+    document.querySelectorAll('.chat-room-row').forEach(row => {
+        if (!term) { row.style.display = ''; return; }
+        const name    = (row.querySelector('.room-row-name')?.textContent    ?? '').toLowerCase();
+        const preview = (row.querySelector('.room-row-preview')?.textContent ?? '').toLowerCase();
+        row.style.display = (name.includes(term) || preview.includes(term)) ? '' : 'none';
+    });
+});
+
+/* ── New Chat modal search ── */
 document.getElementById('dmSearch').addEventListener('input', function () {
     const term = this.value.toLowerCase();
-    document.querySelectorAll('.dm-user-row').forEach(row => {
-        row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
-    });
+    document.querySelectorAll('.dm-user-row').forEach(r =>
+        r.style.display = r.textContent.toLowerCase().includes(term) ? '' : 'none');
 });
 document.getElementById('groupSearch').addEventListener('input', function () {
     const term = this.value.toLowerCase();
-    document.querySelectorAll('.group-user-row').forEach(row => {
-        row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+    document.querySelectorAll('.group-user-row').forEach(r =>
+        r.style.display = r.textContent.toLowerCase().includes(term) ? '' : 'none');
+});
+
+@if (hasRoom)
+{
+<text>
+/* ── Room JS ── */
+const token   = document.querySelector('input[name="__RequestVerificationToken"]').value;
+const roomId  = @selRoom!.Id;
+const myId    = @currentUserId;
+const isGroup = @(selRoom!.IsGroup ? "true" : "false");
+let   lastId  = @lastId;
+
+const myAvatarHtml = `@Html.Raw(AvatarHtml(currentUser).Replace("`","\\`"))`;
+const memberAvatars = {
+    @foreach (var mem in selRoom!.Members.Where(m => m.User != null))
+    {<text>@mem.UserId: `@Html.Raw(AvatarHtml(mem.User).Replace("`","\\`"))`,</text>}
+};
+const memberProfileUrls = {
+    @foreach (var mem in selRoom!.Members.Where(m => m.User != null))
+    {<text>@mem.UserId: '/User/Details/@mem.UserId',</text>}
+};
+
+function scrollBottom() {
+    const box = document.getElementById('chatBox');
+    if (box) box.scrollTop = box.scrollHeight;
+}
+scrollBottom();
+
+async function sendMsg() {
+    const input = document.getElementById('msgInput');
+    const text  = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    const res = await fetch('/Chat/Send', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: new URLSearchParams({ roomId, content: text, __RequestVerificationToken: token })
     });
-});
+    if (res.ok) { const m = await res.json(); appendMsg(m); lastId = m.id; }
+}
 
-document.addEventListener('click', function(e) {
-    const btn = e.target.closest('.js-show-members');
-    if (!btn) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const name = btn.dataset.roomName;
-    const members = JSON.parse(btn.dataset.members);
-    showGroupMembers(name, members);
-});
+async function sendFile(input) {
+    if (!input.files[0]) return;
+    const form = new FormData();
+    form.append('roomId', roomId);
+    form.append('file', input.files[0]);
+    form.append('__RequestVerificationToken', token);
+    input.value = '';
+    const res = await fetch('/Chat/SendFile', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: form
+    });
+    if (res.ok) { const m = await res.json(); appendMsg(m); lastId = m.id; }
+}
 
-function showGroupMembers(name, members) {
-    document.getElementById('groupMembersTitle').innerHTML =
-        `<i class="fas fa-users me-2" style="color:var(--color-accent);"></i>${name}`;
-    document.getElementById('groupMembersList').innerHTML = members.map(m => {
-        const avatar = m.img
-            ? `<img src="${m.img}" class="rounded-circle flex-shrink-0" style="width:38px;height:38px;object-fit:cover;">`
-            : `<div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0"
-                    style="width:38px;height:38px;background:linear-gradient(135deg,#667eea,#764ba2);font-size:.7rem;">${m.init}</div>`;
-        return `<a href="/User/Details/${m.id}"
-                   class="d-flex align-items-center gap-3 px-4 py-3 text-decoration-none text-dark member-row border-bottom">
-            ${avatar}
-            <div>
-                <div class="fw-semibold">${m.name}</div>
-                <div class="text-muted small">${m.role}</div>
+function appendMsg(m) {
+    const box = document.getElementById('chatBox');
+    if (!box) return;
+
+    if (m.isSystem) {
+        box.insertAdjacentHTML('beforeend', `<div class="chat-system-msg">${m.content}</div>`);
+        box.scrollTop = box.scrollHeight;
+        return;
+    }
+
+    const isMe       = m.senderId === myId;
+    const rawAvatar  = memberAvatars[m.senderId] || '';
+    const profileUrl = memberProfileUrls[m.senderId];
+    const avatarHtml = isMe
+        ? myAvatarHtml
+        : (profileUrl ? `<a href="${profileUrl}" title="View profile">${rawAvatar}</a>` : rawAvatar);
+    const senderLabel = (!isMe && isGroup && m.senderName)
+        ? `<small class="text-muted ms-1 d-block mb-1">${m.senderName}</small>` : '';
+
+    const bubbleBody = m.imagePath
+        ? `<a href="${m.imagePath}" target="_blank"><img src="${m.imagePath}" class="chat-img"/></a><small class="chat-time">${m.createdAt}</small>`
+        : `<div class="chat-text">${m.content}</div><small class="chat-time">${m.createdAt}</small>`;
+
+    let html;
+    if (isMe) {
+        html = `<div class="d-flex justify-content-end align-items-end gap-2 mb-2">
+            <div class="chat-mine-wrap">
+                <button class="btn-del-msg" data-id="${m.id}" onclick="deleteMsg(this)">×</button>
+                <div class="chat-bubble chat-bubble-mine">${bubbleBody}</div>
             </div>
-        </a>`;
-    }).join('');
-    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('groupMembersModal'));
-    modal.show();
+            ${avatarHtml}
+        </div>`;
+    } else {
+        html = `<div class="d-flex justify-content-start align-items-end gap-2 mb-2">
+            ${avatarHtml}
+            <div class="chat-theirs-wrap">${senderLabel}<div class="chat-bubble chat-bubble-theirs">${bubbleBody}</div></div>
+        </div>`;
+    }
+    box.insertAdjacentHTML('beforeend', html);
+    box.scrollTop = box.scrollHeight;
+}
+
+document.getElementById('msgInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendMsg();
+});
+
+async function deleteMsg(btn) {
+    const id  = btn.dataset.id;
+    const row = btn.closest('.mb-2');
+    const res = await fetch('/Chat/DeleteMessage', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: new URLSearchParams({ id, __RequestVerificationToken: token })
+    });
+    if (res.ok && row) row.remove();
+}
+
+setInterval(async () => {
+    const res = await fetch(`/Chat/Poll?roomId=${roomId}&afterId=${lastId}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    if (!res.ok) return;
+    const msgs = await res.json();
+    msgs.forEach(m => { appendMsg(m); lastId = m.id; });
+}, 3000);
+</text>
 }
 </script>
 }
