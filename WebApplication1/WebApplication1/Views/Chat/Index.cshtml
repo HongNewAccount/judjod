@@ -71,7 +71,7 @@
 
     <!-- ───── LEFT PANEL: conversation list ───── -->
     <div class="chat-left">
-        <div class="chat-left-hdr d-flex align-items-center justify-content-between">
+        <div class="chat-left-hdr">
             <span class="fw-bold" style="font-size:.95rem;letter-spacing:-.01em;">Chats</span>
             <button class="btn btn-action btn-sm py-1 px-2" style="font-size:.75rem;"
                     data-bs-toggle="modal" data-bs-target="#newChatModal" title="New chat">
@@ -172,7 +172,7 @@
         else
         {
             <!-- Room header -->
-            <div class="chat-right-hdr d-flex align-items-center gap-2">
+            <div class="chat-right-hdr">
                 @if (selRoom!.IsGroup)
                 {
                     <button type="button"
@@ -195,6 +195,7 @@
                         @Html.Raw(AvatarHtml(dmPartner, "38px"))
                         <div style="min-width:0;">
                             <div class="fw-semibold text-truncate" style="font-size:.95rem;">@roomName</div>
+                            <small class="text-muted" style="font-size:.72rem;">@dmPartner?.Role</small>
                         </div>
                     </a>
                 }
@@ -488,9 +489,13 @@
     flex-shrink: 0;
 }
 .chat-left-hdr {
-    padding: .75rem 1rem;
+    height: 62px;
+    padding: 0 1rem;
     border-bottom: 1px solid #e9ecef;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 .chat-left-rooms { flex: 1; overflow-y: auto; }
 
@@ -522,10 +527,14 @@
     background: #f8f9fb;
 }
 .chat-right-hdr {
+    height: 62px;
     background: #fff;
     border-bottom: 1px solid #e9ecef;
-    padding: .65rem 1.1rem;
+    padding: 0 1.1rem;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
 }
 .chat-box {
     flex: 1;
