@@ -18,7 +18,6 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<ActivityLog> ActivityLogs { get; set; }
     public DbSet<ProjectApprovalRequest> ProjectApprovalRequests { get; set; }
-    public DbSet<ChatMessage> ChatMessages { get; set; }
     public DbSet<ChatRoom> ChatRooms { get; set; }
     public DbSet<ChatRoomMember> ChatRoomMembers { get; set; }
     public DbSet<ChatRoomMessage> ChatRoomMessages { get; set; }
@@ -52,9 +51,6 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<ProjectApprovalRequest>().HasOne(par => par.Project).WithMany().HasForeignKey(par => par.ProjectId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<ProjectApprovalRequest>().HasOne(par => par.RequestedByUser).WithMany().HasForeignKey(par => par.RequestedByUserId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<ProjectApprovalRequest>().HasOne(par => par.ApprovedByUser).WithMany().HasForeignKey(par => par.ApprovedByUserId).OnDelete(DeleteBehavior.Restrict);
-
-        modelBuilder.Entity<ChatMessage>().HasKey(c => c.Id);
-        modelBuilder.Entity<ChatMessage>().HasOne(c => c.User).WithMany().HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<ChatRoom>().HasKey(r => r.Id);
         modelBuilder.Entity<ChatRoom>().HasOne(r => r.CreatedBy).WithMany().HasForeignKey(r => r.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
