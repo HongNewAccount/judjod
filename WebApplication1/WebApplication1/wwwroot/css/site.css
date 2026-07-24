@@ -21,7 +21,6 @@
 
 html {
     font-size: 14px;
-    overflow-y: scroll;
     background-color: var(--color-bg);
 }
 
