@@ -21,6 +21,8 @@
 
 html {
     font-size: 14px;
+    overflow-y: scroll;
+    background-color: var(--color-bg);
 }
 
 @media (min-width: 768px) {
@@ -143,6 +145,10 @@ body {
         margin-left: var(--sidebar-width-collapsed);
     }
 
+    [data-sidebar].collapsed .topbar {
+        left: var(--sidebar-width-collapsed);
+    }
+
     [data-sidebar].collapsed .sidebar-logo-text,
     [data-sidebar].collapsed .sidebar-item span {
         display: none;
@@ -177,6 +183,7 @@ body {
     display: flex;
     flex-direction: column;
     transition: margin-left 0.25s ease;
+    padding-top: var(--topbar-height);
 }
 
 .topbar {
@@ -187,9 +194,12 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 0 24px;
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: var(--sidebar-width);
+    right: 0;
     z-index: 900;
+    transition: left 0.25s ease;
 }
 
 .topbar-left {
@@ -302,6 +312,7 @@ body {
     }
 
     .topbar {
+        left: 0;
         padding: 0 16px;
     }
 

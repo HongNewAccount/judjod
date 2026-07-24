@@ -393,8 +393,8 @@
                 <div class="tab-content px-4 pb-4 pt-3">
                     <!-- DM Tab -->
                     <div class="tab-pane fade show active" id="tabDM">
-                        <input type="text" id="dmSearch" class="form-control mb-3" placeholder="Search people…" />
-                        <div style="max-height:340px;overflow-y:auto;" class="rounded border">
+                        <input type="text" id="dmSearch" class="form-control form-control-sm mb-2" placeholder="Search people…" />
+                        <div style="max-height:280px;overflow-y:auto;" class="rounded border">
                             @foreach (var u in allUsers)
                             {
                                 <a href="@Url.Action("StartDM","Chat", new { userId = u.Id })"
@@ -425,13 +425,13 @@
                             @Html.AntiForgeryToken()
                             <div class="mb-3">
                                 <label class="form-label fw-semibold small">Group name *</label>
-                                <input type="text" name="name" class="form-control" placeholder="Enter group name…" required />
+                                <input type="text" name="name" class="form-control form-control-sm" placeholder="Enter group name…" required />
                             </div>
                             <div class="mb-2">
                                 <label class="form-label fw-semibold small">Add members</label>
-                                <input type="text" id="groupSearch" class="form-control mb-2" placeholder="Search people…" />
+                                <input type="text" id="groupSearch" class="form-control form-control-sm mb-2" placeholder="Search people…" />
                             </div>
-                            <div style="max-height:240px;overflow-y:auto;" id="groupUserList" class="rounded border">
+                            <div style="max-height:180px;overflow-y:auto;" id="groupUserList" class="rounded border">
                                 @foreach (var u in allUsers)
                                 {
                                     <label class="d-flex align-items-center gap-3 p-3 group-user-row user-row border-bottom" style="cursor:pointer;">
@@ -455,9 +455,11 @@
                                     </label>
                                 }
                             </div>
-                            <button type="submit" class="btn btn-modal-action w-100 mt-3">
-                                <i class="fas fa-users me-1"></i>Create Group
-                            </button>
+                            <div class="text-center mt-3">
+                                <button type="submit" class="btn btn-modal-action px-5">
+                                    <i class="fas fa-users me-1"></i>Create Group
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
