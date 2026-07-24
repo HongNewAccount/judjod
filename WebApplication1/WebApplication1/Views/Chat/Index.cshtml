@@ -606,7 +606,8 @@ a .chat-avatar:hover, a .chat-avatar-initials:hover { opacity:.8; }
         el.addEventListener('input', function () {
             var term = this.value.trim().toLowerCase();
             document.querySelectorAll(rowSel).forEach(function (row) {
-                row.style.display = (!term || textFn(row).toLowerCase().includes(term)) ? '' : 'none';
+                var show = !term || textFn(row).toLowerCase().includes(term);
+                row.classList.toggle('d-none', !show);
             });
         });
     }
