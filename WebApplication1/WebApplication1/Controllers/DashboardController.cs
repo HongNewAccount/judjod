@@ -7,7 +7,6 @@ namespace WebApplication1.Controllers;
 public class DashboardController : Controller
 {
     private readonly ApplicationDbContext _context;
-
     public DashboardController(ApplicationDbContext context)
     {
         _context = context;
@@ -18,10 +17,9 @@ public class DashboardController : Controller
         var now = DateTime.UtcNow;
         var selectedYear = year ?? now.Year;
         var selectedMonth = month ?? now.Month;
-
         var startDate = new DateTime(selectedYear, selectedMonth, 1);
         var endDate = startDate.AddMonths(1).AddDays(-1);
-
+        
         var projects = await _context.Projects
             .Include(p => p.CreatedByUser)
             .Include(p => p.Owners)
@@ -39,7 +37,7 @@ public class DashboardController : Controller
         ViewBag.SelectedMonth = selectedMonth;
         ViewBag.MonthName = startDate.ToString("MMMM yyyy");
         ViewBag.StartDate = startDate;
-        ViewBag.EndDate = endDate;
+        ViewBag.EndDate   = endDate;
 
         return View();
     }

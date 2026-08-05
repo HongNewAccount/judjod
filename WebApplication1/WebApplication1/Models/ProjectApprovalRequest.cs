@@ -11,7 +11,7 @@ public class ProjectApprovalRequest
 
     [Required]
     [StringLength(50)]
-    public string RequestType { get; set; } = "Create"; // Create, Update
+    public string RequestType { get; set; } = "Create"; 
 
     [Required]
     [StringLength(200)]
@@ -24,13 +24,13 @@ public class ProjectApprovalRequest
     public DateTime? EndDate { get; set; }
 
     [StringLength(50)]
-    public string? Status { get; set; } // Planning, InProgress, OnHold, Completed, Closed
+    public string? Status { get; set; } 
 
     [StringLength(500)]
     public string? Issues { get; set; }
 
     [StringLength(200)]
-    public string? OwnerIds { get; set; } // Comma-separated list of UserIds, e.g. "1,3"
+    public string? OwnerIds { get; set; } 
 
     public int RequestedByUserId { get; set; }
     public User? RequestedByUser { get; set; }
@@ -39,7 +39,7 @@ public class ProjectApprovalRequest
 
     [Required]
     [StringLength(50)]
-    public string ApprovalStatus { get; set; } = "Pending"; // Pending, Approved, Rejected
+    public string ApprovalStatus { get; set; } = "Pending"; 
 
     public int? ApprovedByUserId { get; set; }
     public User? ApprovedByUser { get; set; }

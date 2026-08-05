@@ -14,7 +14,7 @@ namespace WebApplication1.Migrations
     [Migration("20260619000000_AddActivityLog")]
     partial class AddActivityLog
     {
-        /// <inheritdoc />
+        
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
@@ -27,11 +27,9 @@ namespace WebApplication1.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
                     b.Property<string>("ActionType")
                         .IsRequired()
                         .HasColumnType("longtext");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -137,40 +135,29 @@ namespace WebApplication1.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
-
                     b.Property<int>("CreatedByUserId")
                         .HasColumnType("int");
-
                     b.Property<string>("Description")
                         .HasColumnType("longtext");
-
                     b.Property<DateTime?>("EndDate")
                         .HasColumnType("datetime(6)");
-
                     b.Property<string>("Issues")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
-
                     b.Property<DateTime?>("StartDate")
                         .HasColumnType("datetime(6)");
-
                     b.Property<string>("Status")
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
-
                     b.HasKey("Id");
-
                     b.HasIndex("CreatedByUserId");
 
                     b.ToTable("Projects");
@@ -312,11 +299,8 @@ namespace WebApplication1.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
                     b.HasIndex("ReportId");
-
                     b.HasIndex("UserId");
-
                     b.ToTable("ReportComments");
                 });
 
@@ -421,7 +405,7 @@ namespace WebApplication1.Migrations
                 {
                     b.HasOne("WebApplication1.Models.Project", "Project")
                         .WithMany("Favorites")
-                        .HasForeignKey("ProjectId")
+                        //////.HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

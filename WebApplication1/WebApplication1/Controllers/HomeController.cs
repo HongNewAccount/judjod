@@ -9,7 +9,6 @@ namespace WebApplication1.Controllers;
 public class HomeController : Controller
 {
     private readonly ApplicationDbContext _context;
-
     public HomeController(ApplicationDbContext context)
     {
         _context = context;
@@ -22,9 +21,9 @@ public class HomeController : Controller
 
     public IActionResult Privacy()
     {
-        return View();
+        return View(); 
     }
-
+    
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
     {

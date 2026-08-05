@@ -35,7 +35,12 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
     <link href="~/css/site.css" rel="stylesheet" asp-append-version="true" />
-    <style>html { overflow-y: scroll; }</style>
+    <style>
+        html { overflow-y: scroll; }
+        /* html handles scrollbar via overflow-y:scroll — prevent Bootstrap from adding
+           compensating padding-right to body when a modal opens */
+        body.modal-open { padding-right: 0 !important; overflow: auto !important; }
+    </style>
 </head>
 <body>
     <div class="app-shell" data-sidebar>

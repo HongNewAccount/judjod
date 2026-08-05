@@ -449,9 +449,10 @@
                 <div class="d-flex flex-column gap-3">
                     <div>
                         <label class="form-label small fw-semibold">Description</label>
-                        <textarea id="taskDetailDesc" class="form-control" rows="2"
+                        <div id="taskDescView" class="form-control task-desc-view"
+                             style="min-height:58px;cursor:text;white-space:pre-wrap;word-break:break-word;line-height:1.6;"></div>
+                        <textarea id="taskDetailDesc" class="form-control d-none" rows="3"
                                   placeholder="Add a description..."></textarea>
-
                     </div>
 
                     <div>
@@ -912,6 +913,37 @@ function renderLogEntries(entries, containerId, emptyText) {
     }).join('');
 }
 
+function renderDescView(text) {
+    var view = document.getElementById('taskDescView');
+    var ta   = document.getElementById('taskDetailDesc');
+    if (!view) return;
+    var t = (text || '');
+    var escaped = t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    var linked  = escaped.replace(/(https?:\/\/[^\s<]+)/g,
+        '<a href="$1" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">$1</a>');
+    view.innerHTML = linked || '<span class="text-muted" style="font-size:.85rem;">Add a description…</span>';
+    view.classList.remove('d-none');
+    if (ta) ta.classList.add('d-none');
+}
+function switchToDescEdit() {
+    var view = document.getElementById('taskDescView');
+    var ta   = document.getElementById('taskDetailDesc');
+    if (!view || !ta) return;
+    view.classList.add('d-none');
+    ta.classList.remove('d-none');
+    ta.focus();
+}
+document.addEventListener('DOMContentLoaded', function() {
+    var view = document.getElementById('taskDescView');
+    var ta   = document.getElementById('taskDetailDesc');
+    if (view) view.addEventListener('click', function(e) {
+        if (e.target.tagName !== 'A') switchToDescEdit();
+    });
+    if (ta) ta.addEventListener('blur', function() {
+        renderDescView(this.value);
+    });
+});
+
 function openDetailModal(id, name, status) {
     currentDetailId = id;
     currentDetailStatus = status || null;
@@ -919,6 +951,7 @@ function openDetailModal(id, name, status) {
     const archiveBtn = document.getElementById('modalArchiveBtn');
     if (archiveBtn) archiveBtn.style.display = (status === 'Completed') ? '' : 'none';
     document.getElementById('taskDetailDesc').value = '';
+    renderDescView('');
     document.getElementById('taskDetailProgressNote').value = '';
     syncProgressInputs(0);
     document.getElementById('taskDetailProgressLog').innerHTML = '<div class="text-muted small">Loading...</div>';
@@ -932,6 +965,7 @@ function openDetailModal(id, name, status) {
             if (data.name) document.getElementById('taskDetailTitle').value = data.name;
             if (data.status) { currentDetailStatus = data.status; const ab=document.getElementById('modalArchiveBtn'); if(ab) ab.style.display=(data.status==='Completed'?'':'none'); }
             document.getElementById('taskDetailDesc').value = data.description || '';
+            renderDescView(data.description || '');
             currentDetailProgress = data.progress ?? 0;
             syncProgressInputs(currentDetailProgress);
             renderLogEntries(data.progressLogs || [], 'taskDetailProgressLog', 'No progress updates yet');
