@@ -228,6 +228,41 @@ public class ApiController : ControllerBase
         return Ok(groups);
     }
 
+    // GET /api/archive
+    [HttpGet("archive")]
+    public async Task<IActionResult> GetArchive()
+    {
+        if (!IsAuthorized()) return Unauthorized(new { error = "Invalid or missing API key." });
+
+        var projects = await _context.Projects
+            .Include(p => p.Owners).ThenInclude(o => o.User)
+            .Include(p => p.CreatedByUser)
+            .Where(p => p.Status == "Closed")
+            .OrderByDescending(p => p.UpdatedAt ?? p.CreatedAt)
+            .Select(p => new
+            {
+                p.Id,
+                p.Name,
+                p.Description,
+                p.Priority,
+                p.Progress,
+                p.StartDate,
+                p.EndDate,
+                p.CreatedAt,
+                ClosedAt = p.UpdatedAt,
+                CreatedBy = p.CreatedByUser == null ? null : p.CreatedByUser.Username,
+                Owners = p.Owners.Select(o => new
+                {
+                    o.UserId,
+                    Username = o.User == null ? null : o.User.Username,
+                    FullName = o.User == null ? null : $"{o.User.FirstName} {o.User.LastName}".Trim()
+                })
+            })
+            .ToListAsync();
+
+        return Ok(projects);
+    }
+
     // GET /api/logs?limit=50
     [HttpGet("logs")]
     public async Task<IActionResult> GetLogs([FromQuery] int limit = 50)

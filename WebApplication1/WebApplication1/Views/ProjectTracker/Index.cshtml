@@ -348,6 +348,10 @@
                                                 {
                                                     <span class="kanban-card-avatar">@Initials(owner.User)</span>
                                                 }
+                                                @if (project.Owners.Count() > 3)
+                                                {
+                                                    <span class="kanban-card-avatar kanban-card-avatar-more">+@(project.Owners.Count() - 3)</span>
+                                                }
                                             </div>
                                         </span>
                                     }
