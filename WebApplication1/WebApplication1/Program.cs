@@ -3,7 +3,8 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(o => o.JsonSerializerOptions.WriteIndented = true);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? "Server=localhost;Port=3306;Database=OrganizationDashboard;User=root;Password=1234;";
@@ -45,6 +46,7 @@ app.Use(async (context, next) =>
     var userId = context.Session.GetInt32("UserId");
 
     if (path.StartsWith("/auth") ||
+        path.StartsWith("/api") ||
         path.StartsWith("/css") || path.StartsWith("/js") ||
         path.StartsWith("/lib") || path.StartsWith("/images") ||
         path == "/" || path == "")
