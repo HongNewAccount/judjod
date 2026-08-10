@@ -48,7 +48,7 @@
     {
         if (u == null) return "";
         if (!string.IsNullOrEmpty(u.ProfileImagePath))
-            return $"<img src=\"{u.ProfileImagePath}\" class=\"chat-avatar\" style=\"width:{size};height:{size};object-fit:cover;\" />";
+            return $"<img src=\"{u.ProfileImagePath}\" class=\"chat-avatar\" style=\"width:{size};height:{size};object-fit:cover;\" draggable=\"false\" />";
         var f = u.FirstName?.Length > 0 ? u.FirstName[0] : ' ';
         var l = u.LastName?.Length  > 0 ? u.LastName[0]  : ' ';
         return $"<div class=\"chat-avatar chat-avatar-initials\" style=\"width:{size};height:{size};\">{f}{l}</div>";
@@ -57,7 +57,7 @@
     string AvatarLink(User? u, string size = "32px")
     {
         if (u == null) return "";
-        return $"<a href=\"/User/Details/{u.Id}\" title=\"{u.FirstName} {u.LastName}\">{AvatarHtml(u, size)}</a>";
+        return $"<a href=\"/User/Details/{u.Id}\" aria-label=\"{u.FirstName} {u.LastName}\">{AvatarHtml(u, size)}</a>";
     }
 
     var memberMap = hasRoom
@@ -115,7 +115,7 @@
                     else if (!string.IsNullOrEmpty(rOther?.ProfileImagePath))
                     {
                         <img src="@rOther!.ProfileImagePath" class="chat-list-avatar flex-shrink-0 rounded-circle"
-                             style="object-fit:cover;" />
+                             style="object-fit:cover;" draggable="false" />
                     }
                     else
                     {
@@ -468,6 +468,7 @@
     </div>
 </div>
 
+@section Styles {
 <style>
 /* ── Shell ── */
 .chat-shell {
@@ -563,7 +564,8 @@
 .chat-bubble-mine .chat-time { text-align:right; }
 
 /* ── Avatars ── */
-.chat-avatar { border-radius:50%; flex-shrink:0; display:block; }
+.chat-avatar { border-radius:50%; flex-shrink:0; display:block; user-select:none; }
+.chat-list-avatar { user-select:none; }
 .chat-avatar-initials {
     display:inline-flex; align-items:center; justify-content:center;
     background:linear-gradient(135deg,#667eea,#764ba2);
@@ -596,6 +598,7 @@ a .chat-avatar:hover, a .chat-avatar-initials:hover { opacity:.8; }
 /* ── Modal rows ── */
 .user-row:hover, .member-row:hover { background:#f8f9fa; }
 </style>
+}
 
 <!-- Search scripts isolated so room-JS errors can't suppress them -->
 <script>
@@ -692,7 +695,7 @@ function appendMsg(m) {
     const profileUrl = memberProfileUrls[m.senderId];
     const avatarHtml = isMe
         ? myAvatarHtml
-        : (profileUrl ? `<a href="${profileUrl}" title="View profile">${rawAvatar}</a>` : rawAvatar);
+        : (profileUrl ? `<a href="${profileUrl}" aria-label="View profile">${rawAvatar}</a>` : rawAvatar);
     const senderLabel = (!isMe && isGroup && m.senderName)
         ? `<small class="text-muted ms-1 d-block mb-1">${m.senderName}</small>` : '';
 
@@ -734,7 +737,7 @@ async function deleteMsg(btn) {
     if (res.ok && row) row.remove();
 }
 
-setInterval(async () => {
+const pollInterval = setInterval(async () => {
     const res = await fetch(`/Chat/Poll?roomId=${roomId}&afterId=${lastId}`, {
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     });
@@ -742,6 +745,7 @@ setInterval(async () => {
     const msgs = await res.json();
     msgs.forEach(m => { appendMsg(m); lastId = m.id; });
 }, 3000);
+window.addEventListener('beforeunload', () => clearInterval(pollInterval));
 </text>
 }
 </script>
