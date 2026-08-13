@@ -1,0 +1,135 @@
+@{
+    ViewData["Title"] = "API Demo";
+}
+
+@section Styles {
+<style>
+    .api-card { background: var(--color-surface); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
+    .api-stat { font-size: 2rem; font-weight: 700; color: var(--color-accent); }
+    .api-label { font-size: .85rem; color: var(--color-text-muted); }
+    .api-table { width: 100%; border-collapse: collapse; }
+    .api-table th { text-align: left; padding: .5rem .75rem; font-size: .8rem; color: var(--color-text-muted); border-bottom: 1px solid var(--color-border); }
+    .api-table td { padding: .5rem .75rem; font-size: .875rem; border-bottom: 1px solid var(--color-border); }
+    .badge-status { padding: 2px 10px; border-radius: 999px; font-size: .75rem; font-weight: 600; }
+    .status-inprogress { background: #dbeafe; color: #1d4ed8; }
+    .status-closed { background: #dcfce7; color: #15803d; }
+    .status-other { background: #f3f4f6; color: #374151; }
+    #api-error { display: none; }
+</style>
+}
+
+<div class="page-header mb-4">
+    <h1 class="page-title">API Demo</h1>
+    <p class="text-muted">ข้อมูลดึงจาก JudjodApi ผ่าน JavaScript fetch</p>
+</div>
+
+<div id="api-error" class="alert alert-danger">
+    ไม่สามารถเชื่อมต่อ JudjodApi ได้ — ตรวจสอบว่า JudjodApi รันอยู่ที่ <code>localhost:5168</code>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="api-card text-center">
+            <div class="api-stat" id="stat-projects">—</div>
+            <div class="api-label">Projects ทั้งหมด</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="api-card text-center">
+            <div class="api-stat" id="stat-users">—</div>
+            <div class="api-label">ผู้ใช้งาน</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="api-card text-center">
+            <div class="api-stat" id="stat-progress">—</div>
+            <div class="api-label">Progress เฉลี่ย %</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="api-card text-center">
+            <div class="api-stat" id="stat-groups">—</div>
+            <div class="api-label">กลุ่มงาน</div>
+        </div>
+    </div>
+</div>
+
+<div class="api-card">
+    <h5 class="mb-3">รายการ Projects</h5>
+    <div class="table-responsive">
+        <table class="api-table">
+            <thead>
+                <tr>
+                    <th>ชื่อ Project</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th>Progress</th>
+                    <th>Owner</th>
+                </tr>
+            </thead>
+            <tbody id="projects-tbody">
+                <tr><td colspan="5" class="text-center text-muted py-3">กำลังโหลด...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const API_BASE = 'http://localhost:5168';
+    const API_KEY = 'judjod-api-2026-xK9mP3qR';
+
+    function statusBadge(status) {
+        const cls = status === 'InProgress' ? 'status-inprogress'
+                  : status === 'Closed' ? 'status-closed'
+                  : 'status-other';
+        return `<span class="badge-status ${cls}">${status ?? '-'}</span>`;
+    }
+
+    async function loadSummary() {
+        const res = await fetch(`${API_BASE}/api/summary?key=judjod-api-2026-xK9mP3qR`);
+        if (!res.ok) throw new Error('summary failed');
+        const data = await res.json();
+        document.getElementById('stat-projects').textContent = data.totalProjects;
+        document.getElementById('stat-users').textContent = data.totalActiveUsers;
+        document.getElementById('stat-progress').textContent = data.averageProgress + '%';
+    }
+
+    async function loadGroups() {
+        const res = await fetch(`${API_BASE}/api/groups?key=judjod-api-2026-xK9mP3qR`);
+        if (!res.ok) throw new Error('groups failed');
+        const data = await res.json();
+        document.getElementById('stat-groups').textContent = data.length;
+    }
+
+    async function loadProjects() {
+        const res = await fetch(`${API_BASE}/api/projects?key=judjod-api-2026-xK9mP3qR`);
+        if (!res.ok) throw new Error('projects failed');
+        const projects = await res.json();
+        const tbody = document.getElementById('projects-tbody');
+        if (projects.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">ไม่มีข้อมูล</td></tr>';
+            return;
+        }
+        tbody.innerHTML = projects.map(p => `
+            <tr>
+                <td>${p.name ?? '-'}</td>
+                <td>${statusBadge(p.status)}</td>
+                <td>${p.priority ?? '-'}</td>
+                <td>${p.progress}%</td>
+                <td>${p.owners?.map(o => o.fullName || o.username).join(', ') || '-'}</td>
+            </tr>
+        `).join('');
+    }
+
+    async function init() {
+        try {
+            await Promise.all([loadSummary(), loadGroups(), loadProjects()]);
+        } catch (e) {
+            document.getElementById('api-error').style.display = 'block';
+        }
+    }
+
+    init();
+</script>
+}
