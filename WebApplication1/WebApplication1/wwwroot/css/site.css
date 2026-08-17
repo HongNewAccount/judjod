@@ -15,8 +15,8 @@
     --shadow-md: 0 10px 25px rgba(15, 23, 42, 0.1);
     --color-bg: #f4f6fb;
     --color-sidebar-bg: #161b2c;
-    --color-accent: #fd7e14;
-    --color-accent-hover: #dc6803;
+    --color-accent: #f7ef05;
+    --color-accent-hover: #d4c400;
 }
 
 html {
@@ -147,7 +147,7 @@ body.modal-open {
 
 .sidebar-link.active {
     background-color: var(--color-accent);
-    color: white;
+    color: #1a1a2e;
 }
 
 .sidebar-link i {
@@ -377,7 +377,7 @@ body.modal-open {
 }
 
 .pagination .page-link:hover {
-    color: #fff;
+    color: #1a1a2e;
     background-color: var(--color-accent);
     border-color: var(--color-accent);
 }
@@ -385,7 +385,7 @@ body.modal-open {
 .pagination .page-item.active .page-link {
     background-color: var(--color-accent);
     border-color: var(--color-accent);
-    color: #fff;
+    color: #1a1a2e;
     font-weight: bold;
 }
 
@@ -445,7 +445,7 @@ body.modal-open {
 
 .stat-card-warning {
     --stat-color: #d39e00;
-    --stat-bg: #fff8e6;
+    --stat-bg: #fffde6;
 }
 
 .stat-card-danger {
@@ -465,7 +465,7 @@ body.modal-open {
 
 .stat-card-total {
     --stat-color: var(--color-accent);
-    --stat-bg: #fff1e3;
+    --stat-bg: #fffde6;
 }
 
 .stat-card-dark {
@@ -566,7 +566,7 @@ body.modal-open {
 }
 
 .kanban-column-body.drag-over {
-    background-color: #fff7ec;
+    background-color: #fffde6;
     outline: 2px dashed var(--color-accent);
     outline-offset: -4px;
 }
@@ -728,7 +728,7 @@ body.modal-open {
 .btn-modal-action {
     background-color: var(--color-accent);
     border-color: var(--color-accent);
-    color: #fff;
+    color: #1a1a2e;
     font-size: .875rem;
     padding: .25rem .75rem;
     border-radius: var(--radius-sm);
@@ -742,17 +742,17 @@ body.modal-open {
 .btn-modal-action:hover {
     background-color: var(--color-accent-hover);
     border-color: var(--color-accent-hover);
-    color: #fff;
+    color: #1a1a2e;
 }
 
 .kanban-card-pending {
     border-style: dashed;
     border-color: #ffc107;
-    background: #fffaf0;
+    background: #fffde6;
 }
 
 .kanban-drag-placeholder {
-    background: #fff7ec;
+    background: #fffde6;
     border: 2px dashed var(--color-accent);
     border-radius: var(--radius-sm);
     height: 60px;
@@ -802,7 +802,7 @@ body.modal-open {
 }
 
 .kanban-column-body.drag-over {
-    background-color: #fff7ec;
+    background-color: #fffde6;
     outline: 2px dashed var(--color-accent);
     outline-offset: -4px;
     border-radius: 0 0 var(--radius-sm) var(--radius-sm);
@@ -844,7 +844,7 @@ body.modal-open {
 .group-tab-active {
     background: var(--group-color, var(--color-accent));
     border-color: var(--group-color, var(--color-accent));
-    color: #fff;
+    color: #1a1a2e;
 }
 
 .group-tab-active::before {
@@ -852,7 +852,7 @@ body.modal-open {
 }
 
 .group-tab-active:hover {
-    color: #fff;
+    color: #1a1a2e;
     filter: brightness(0.9);
 }
 
@@ -1000,8 +1000,8 @@ body.modal-open {
 
 .kanban-priority-btn.priority-medium {
     color: #b45309;
-    background: #fff8e6;
-    border-color: #ffd78a;
+    background: #fffde6;
+    border-color: #fff176;
 }
 
 .kanban-priority-btn.priority-high {
@@ -1109,7 +1109,7 @@ body.modal-open {
 }
 
 .badge-priority-medium {
-    background-color: #ff9800;
+    background-color: #f7ef05;
 }
 
 .badge-priority-low {
@@ -1196,7 +1196,7 @@ body.modal-open {
     border-radius: var(--radius-sm);
     background-color: var(--color-accent);
     border-color: var(--color-accent);
-    color: white;
+    color: #1a1a2e;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -1210,10 +1210,10 @@ body.modal-open {
 .btn-action.active {
     background-color: var(--color-accent-hover);
     border-color: var(--color-accent-hover);
-    color: white;
+    color: #1a1a2e;
     text-decoration: none;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(253, 126, 20, 0.35);
+    box-shadow: 0 4px 12px rgba(247, 239, 5, 0.4);
 }
 
 .badge.bg-danger {
@@ -1226,7 +1226,7 @@ body.modal-open {
 .btn.btn-action {
     background-color: var(--color-accent) !important;
     border-color: var(--color-accent) !important;
-    color: white !important;
+    color: #1a1a2e !important;
 }
 
 .btn.btn-action:hover {
@@ -1235,15 +1235,15 @@ body.modal-open {
 }
 
 .kanban-quick-btn.date-today {
-    color: #fd7e14;
-    background: #fff3e6;
-    border-color: #fd7e14;
+    color: #a89800;
+    background: #fffde6;
+    border-color: #f7ef05;
     font-weight: 600;
 }
 .kanban-quick-btn.date-soon {
-    color: #b45309;
-    background: #fff8e6;
-    border-color: #ffd78a;
+    color: #a89800;
+    background: #fffde6;
+    border-color: #fff176;
 }
 .kanban-quick-btn.date-overdue {
     color: #dc3545;
@@ -1354,7 +1354,7 @@ body.modal-open {
 .calendar-day { height: 110px; vertical-align: top !important; }
 .calendar-day-items { overflow: hidden; }
 
-.log-row-clickable:hover { background: #fff8f0; }
+.log-row-clickable:hover { background: #fffde6; }
 .log-row-clickable:hover td { color: var(--color-accent); }
 
 .kanban-card-desc {
