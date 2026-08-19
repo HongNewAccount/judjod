@@ -1368,9 +1368,18 @@ body.modal-open {
 .calendar-table thead { display: table-header-group; }
 .calendar-table tbody { display: table-row-group; height: 100%; }
 .calendar-table tbody tr { height: 1px; }
-.calendar-day, .calendar-day-empty { overflow: hidden; vertical-align: top !important; padding: 0 !important; }
-.calendar-day-inner { height: 100%; overflow: hidden; padding: 4px 6px; box-sizing: border-box; }
+.calendar-day, .calendar-day-empty { overflow: hidden; vertical-align: top !important; padding: 0 !important; max-height: 0; }
+.calendar-day-inner { position: absolute; inset: 0; overflow: hidden; padding: 4px 6px; box-sizing: border-box; }
+.calendar-day { position: relative; }
 .calendar-day-items { overflow: hidden; }
+/* date number rainbow by column */
+.calendar-table tbody td:nth-child(1) .calendar-day-number { color: #ef4444; }
+.calendar-table tbody td:nth-child(2) .calendar-day-number { color: #f97316; }
+.calendar-table tbody td:nth-child(3) .calendar-day-number { color: #eab308; }
+.calendar-table tbody td:nth-child(4) .calendar-day-number { color: #22c55e; }
+.calendar-table tbody td:nth-child(5) .calendar-day-number { color: #3b82f6; }
+.calendar-table tbody td:nth-child(6) .calendar-day-number { color: #6366f1; }
+.calendar-table tbody td:nth-child(7) .calendar-day-number { color: #a855f7; }
 
 .log-row-clickable:hover { background: #fffde6; }
 .log-row-clickable:hover td { color: var(--color-accent); }
