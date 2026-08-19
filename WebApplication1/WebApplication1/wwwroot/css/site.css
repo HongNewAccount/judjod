@@ -1358,13 +1358,13 @@ body.modal-open {
 .calendar-grid-wrap { flex: 1; min-height: 0; overflow: hidden; }
 .calendar-table { table-layout: fixed; width: 100%; height: 100%; border-collapse: collapse; }
 .calendar-header { text-align: center; font-size: .8rem; font-weight: 700; padding: 6px 0; }
-.calendar-table thead tr th:nth-child(1) { color: #ef4444; } /* Sun - Red */
-.calendar-table thead tr th:nth-child(2) { color: #f97316; } /* Mon - Orange */
-.calendar-table thead tr th:nth-child(3) { color: #eab308; } /* Tue - Yellow */
-.calendar-table thead tr th:nth-child(4) { color: #22c55e; } /* Wed - Green */
-.calendar-table thead tr th:nth-child(5) { color: #3b82f6; } /* Thu - Blue */
-.calendar-table thead tr th:nth-child(6) { color: #6366f1; } /* Fri - Indigo */
-.calendar-table thead tr th:nth-child(7) { color: #a855f7; } /* Sat - Violet */
+.calendar-table thead tr th:nth-child(1) { color: #ef4444; } /* Sun - แดง */
+.calendar-table thead tr th:nth-child(2) { color: #eab308; } /* Mon - เหลือง */
+.calendar-table thead tr th:nth-child(3) { color: #ec4899; } /* Tue - ชมพู */
+.calendar-table thead tr th:nth-child(4) { color: #22c55e; } /* Wed - เขียว */
+.calendar-table thead tr th:nth-child(5) { color: #f97316; } /* Thu - ส้ม */
+.calendar-table thead tr th:nth-child(6) { color: #38bdf8; } /* Fri - ฟ้า */
+.calendar-table thead tr th:nth-child(7) { color: #a855f7; } /* Sat - ม่วง */
 .calendar-table thead { display: table-header-group; }
 .calendar-table tbody { display: table-row-group; height: 100%; }
 .calendar-table tbody tr { height: 1px; }
@@ -1374,11 +1374,11 @@ body.modal-open {
 .calendar-day-items { overflow: hidden; }
 /* date number rainbow by column */
 .calendar-table tbody td:nth-child(1) .calendar-day-number { color: #ef4444; }
-.calendar-table tbody td:nth-child(2) .calendar-day-number { color: #f97316; }
-.calendar-table tbody td:nth-child(3) .calendar-day-number { color: #eab308; }
+.calendar-table tbody td:nth-child(2) .calendar-day-number { color: #eab308; }
+.calendar-table tbody td:nth-child(3) .calendar-day-number { color: #ec4899; }
 .calendar-table tbody td:nth-child(4) .calendar-day-number { color: #22c55e; }
-.calendar-table tbody td:nth-child(5) .calendar-day-number { color: #3b82f6; }
-.calendar-table tbody td:nth-child(6) .calendar-day-number { color: #6366f1; }
+.calendar-table tbody td:nth-child(5) .calendar-day-number { color: #f97316; }
+.calendar-table tbody td:nth-child(6) .calendar-day-number { color: #38bdf8; }
 .calendar-table tbody td:nth-child(7) .calendar-day-number { color: #a855f7; }
 
 .log-row-clickable:hover { background: #fffde6; }
