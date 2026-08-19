@@ -40,31 +40,9 @@
     };
 }
 
-<div class="container-fluid">
-    <div class="page-header">
-        <h1 class="page-title"><i class="fas fa-calendar-alt text-primary me-2"></i>Calendar</h1>
-        <p class="page-subtitle">View project deadlines by month</p>
-    </div>
-
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-white border-bottom py-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="d-flex gap-2">
-                    <a href="@Url.Action("Index", "Dashboard", new { year = previousYear, month = previousMonth })" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-chevron-left me-1"></i>Previous
-                    </a>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#datePickerModal">
-                        <i class="fas fa-calendar me-1"></i>@monthName
-                    </button>
-                    <a href="@Url.Action("Index", "Dashboard", new { year = nextYear, month = nextMonth })" class="btn btn-outline-secondary btn-sm">
-                        Next<i class="fas fa-chevron-right ms-1"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <div class="card-body p-4">
-            <table class="table table-bordered calendar-table">
+<div class="calendar-fullpage">
+    <div class="calendar-grid-wrap">
+        <table class="table table-bordered calendar-table mb-0">
                 <thead>
                     <tr class="table-light">
                         @foreach (var day in new[] { "Sun","Mon","Tue","Wed","Thu","Fri","Sat" })
@@ -93,21 +71,25 @@
                                         var dayProjects = projectsByDay.ContainsKey(dayCounter) ? projectsByDay[dayCounter] : new List<(int, string, string)>();
 
                                         <td class="calendar-day @(isToday ? "calendar-day-today" : "")">
-                                            <div class="calendar-day-number @(isToday ? "today-badge" : "")">@dayCounter</div>
-                                            <div class="calendar-day-items">
-                                                @foreach (var proj in dayProjects.Take(3))
-                                                {
-                                                    <span class="calendar-item calendar-project-link" title="@proj.Item2 — @proj.Item3"
-                                                          data-id="@proj.Item1" data-name="@proj.Item2" data-status="@proj.Item3"
-                                                          onclick="openDetailModal(this.dataset.id, this.dataset.name, this.dataset.status)" style="cursor:pointer;">
-                                                        <span class="badge @GetStatusDot(proj.Item3) me-1" style="width:7px;height:7px;border-radius:50%;padding:0;display:inline-block;"></span>
-                                                        @proj.Item2
-                                                    </span>
-                                                }
-                                                @if (dayProjects.Count > 3)
-                                                {
-                                                    <div class="calendar-item-more">+@(dayProjects.Count - 3) more</div>
-                                                }
+                                            <div class="calendar-day-inner">
+                                                <div class="calendar-day-number @(isToday ? "today-badge" : "")">@dayCounter</div>
+                                                <div class="calendar-day-items">
+                                                    @foreach (var proj in dayProjects.Take(3))
+                                                    {
+                                                        var words = proj.Item2.Split(' ');
+                                                        var label = words.Length > 10 ? string.Join(' ', words.Take(10)) + "…" : proj.Item2;
+                                                        <span class="calendar-item calendar-project-link" title="@proj.Item2 — @proj.Item3"
+                                                              data-id="@proj.Item1" data-name="@proj.Item2" data-status="@proj.Item3"
+                                                              onclick="openDetailModal(this.dataset.id, this.dataset.name, this.dataset.status)" style="cursor:pointer;">
+                                                            <span class="badge @GetStatusDot(proj.Item3) me-1" style="width:7px;height:7px;border-radius:50%;padding:0;display:inline-block;"></span>
+                                                            @label
+                                                        </span>
+                                                    }
+                                                    @if (dayProjects.Count > 3)
+                                                    {
+                                                        <div class="calendar-item-more">+@(dayProjects.Count - 3) more</div>
+                                                    }
+                                                </div>
                                             </div>
                                         </td>
                                         dayCounter++;
@@ -122,52 +104,27 @@
                     }
                 </tbody>
             </table>
+    </div>
+
+    <div class="calendar-nav-bottom">
+        <div class="d-flex gap-2">
+            <a href="@Url.Action("Index", "Dashboard", new { year = previousYear, month = previousMonth })" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-chevron-left me-1"></i>Previous
+            </a>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#datePickerModal">
+                <i class="fas fa-calendar me-1"></i>@monthName
+            </button>
+            <a href="@Url.Action("Index", "Dashboard", new { year = nextYear, month = nextMonth })" class="btn btn-outline-secondary btn-sm">
+                Next<i class="fas fa-chevron-right ms-1"></i>
+            </a>
+        </div>
+        <div class="d-flex gap-3 align-items-center">
+            <span class="cal-stat"><span class="cal-stat-num">@monthProjects.Count</span> Deadlines</span>
+            <span class="cal-stat text-danger"><span class="cal-stat-num">@monthProjects.Count(p => p.Status == "Late")</span> Late</span>
+            <span class="cal-stat text-success"><span class="cal-stat-num">@monthProjects.Count(p => p.Status == "Completed")</span> Completed</span>
         </div>
     </div>
 
-    <div class="row mt-3 g-3">
-        <div class="col-6">
-            <div class="stat-card stat-card-primary">
-                <div class="stat-card-icon"><i class="fas fa-project-diagram"></i></div>
-                <div>
-                    <div class="stat-card-value">@monthProjects.Count</div>
-                    <div class="stat-card-label">Deadlines This Month</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6">
-            <div class="stat-card stat-card-danger">
-                <div class="stat-card-icon"><i class="fas fa-exclamation-circle"></i></div>
-                <div>
-                    <div class="stat-card-value">@monthProjects.Count(p => p.Status == "Late")</div>
-                    <div class="stat-card-label">Late This Month</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    @if (monthProjects.Any())
-    {
-        <div class="card mt-4 border-0 shadow-sm">
-            <div class="card-header bg-white border-bottom">
-                <h6 class="mb-0"><i class="fas fa-list me-2 text-primary"></i>Project Deadlines — @monthName</h6>
-            </div>
-            <div class="list-group list-group-flush">
-                @foreach (var p in monthProjects.OrderBy(x => x.EndDate))
-                {
-                    <span class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-                          data-id="@p.Id" data-name="@p.Name" data-status="@p.Status"
-                          onclick="openDetailModal(this.dataset.id, this.dataset.name, this.dataset.status)" style="cursor:pointer;">
-                        <span>
-                            <span class="badge me-2 @(p.Status switch { "Completed"=>"bg-success","Late"=>"bg-danger","InProgress"=>"bg-primary",_=>"bg-secondary" })">@p.Status</span>
-                            @p.Name
-                        </span>
-                        <small class="text-muted">@p.EndDate?.ToString("dd MMM")</small>
-                    </span>
-                }
-            </div>
-        </div>
-    }
 </div>
 
 <div class="modal fade" id="taskDetailModal" tabindex="-1" aria-hidden="true">
@@ -182,8 +139,12 @@
                 <div class="d-flex flex-column gap-3">
                     <div>
                         <label class="form-label small fw-semibold">Description</label>
-                        <textarea id="taskDetailDesc" class="form-control" rows="2"
-                                  placeholder="Add a description..."></textarea>
+                        <div id="taskDescView" class="form-control"
+                             style="min-height:58px;cursor:text;white-space:pre-wrap;word-break:break-word;line-height:1.6;"
+                             onclick="switchToDescEdit()"></div>
+                        <textarea id="taskDetailDesc" class="form-control d-none" rows="2"
+                                  placeholder="Add a description..."
+                                  onblur="renderDescView(this.value)"></textarea>
                     </div>
                     <div>
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -296,6 +257,27 @@ const token = document.querySelector('input[name="__RequestVerificationToken"]')
 let currentDetailId = null;
 let currentDetailProgress = 0;
 
+function renderDescView(text) {
+    const view = document.getElementById('taskDescView');
+    const ta   = document.getElementById('taskDetailDesc');
+    if (!view) return;
+    const escaped = (text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const linked  = escaped.replace(/(https?:\/\/[^\s<]+)/g,
+        '<a href="$1" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">$1</a>');
+    view.innerHTML = linked || '<span class="text-muted" style="font-size:.85rem;">Add a description…</span>';
+    view.classList.remove('d-none');
+    if (ta) ta.classList.add('d-none');
+}
+
+function switchToDescEdit() {
+    const view = document.getElementById('taskDescView');
+    const ta   = document.getElementById('taskDetailDesc');
+    if (!view || !ta) return;
+    view.classList.add('d-none');
+    ta.classList.remove('d-none');
+    ta.focus();
+}
+
 function syncProgressInputs(value) {
     const range = document.getElementById('taskDetailProgress');
     const badge = document.getElementById('taskDetailProgressValue');
@@ -330,6 +312,7 @@ function openDetailModal(id, name, status) {
     currentDetailId = id;
     document.getElementById('taskDetailTitle').value = name;
     document.getElementById('taskDetailDesc').value = '';
+    renderDescView('');
     document.getElementById('taskDetailProgressNote').value = '';
     syncProgressInputs(0);
     document.getElementById('taskDetailProgressLog').innerHTML = '<div class="text-muted small">Loading...</div>';
@@ -342,6 +325,7 @@ function openDetailModal(id, name, status) {
         .then(data => {
             if (data.name) document.getElementById('taskDetailTitle').value = data.name;
             document.getElementById('taskDetailDesc').value = data.description || '';
+            renderDescView(data.description || '');
             currentDetailProgress = data.progress ?? 0;
             syncProgressInputs(currentDetailProgress);
             renderLogEntries(data.progressLogs || [], 'taskDetailProgressLog', 'No progress updates yet');
