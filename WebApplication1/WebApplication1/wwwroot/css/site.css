@@ -1381,8 +1381,8 @@ body.modal-open {
 .calendar-table tbody td:nth-child(6) .calendar-day-number { color: #38bdf8; }
 .calendar-table tbody td:nth-child(7) .calendar-day-number { color: #a855f7; }
 
-.log-row-clickable:hover { background: #fffde6; }
-.log-row-clickable:hover td { color: var(--color-accent); }
+.log-row-clickable:hover { background: #eff6ff; }
+.log-row-clickable:hover td { color: #2563eb; }
 .log-row-clickable td:first-child { border-radius: 8px 0 0 8px; }
 .log-row-clickable td:last-child { border-radius: 0 8px 8px 0; }
 
