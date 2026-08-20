@@ -64,23 +64,6 @@
 @Html.AntiForgeryToken()
 
 <div class="container-fluid">
-    <div class="row mb-3 page-header align-items-start">
-        <div class="col">
-            <h1 class="page-title mb-0">Board</h1>
-            <p class="page-subtitle">Track and manage all organization projects</p>
-        </div>
-        @if (userRole == "Admin" || userRole == "Editor")
-        {
-            <div class="col-auto d-flex gap-2 align-items-center">
-                <button type="button" id="btnDelete" class="btn btn-sm btn-outline-danger" onclick="enterSelectMode('delete')">
-                    <i class="fas fa-trash me-1"></i>Delete
-                </button>
-                <button type="button" id="btnArchive" class="btn btn-sm btn-outline-success" onclick="enterSelectMode('archive')">
-                    <i class="fas fa-archive me-1"></i>Archive
-                </button>
-            </div>
-        }
-    </div>
 
     <div class="card mb-3">
         <div class="card-body py-2">
@@ -370,6 +353,20 @@
                                     }
                                 }
                             </div>
+
+                            @if (isAdmin)
+                            {
+                                <div class="kanban-card-actions" onclick="event.stopPropagation()">
+                                    <button type="button" class="card-action-btn card-action-archive"
+                                            title="Archive" onclick="cardArchive(@project.Id, '@project.Name.Replace("'","\\'")')">
+                                        <i class="fas fa-archive"></i>
+                                    </button>
+                                    <button type="button" class="card-action-btn card-action-delete"
+                                            title="Delete" onclick="cardDelete(@project.Id, '@project.Name.Replace("'","\\'")')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            }
                         </div>
                     }
                 </div>
@@ -526,11 +523,75 @@
     color: #6c757d;
     margin-top: .2rem;
 }
+.kanban-card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: .35rem;
+    margin-top: .4rem;
+    opacity: 0;
+    transition: opacity .15s;
+}
+.kanban-card:hover .kanban-card-actions {
+    opacity: 1;
+}
+.card-action-btn {
+    border: none;
+    background: none;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: .75rem;
+    cursor: pointer;
+    line-height: 1;
+    transition: background .15s, color .15s;
+}
+.card-action-archive {
+    color: #198754;
+}
+.card-action-archive:hover {
+    background: #d1e7dd;
+}
+.card-action-delete {
+    color: #dc3545;
+}
+.card-action-delete:hover {
+    background: #f8d7da;
+}
 </style>
 
 @section Scripts {
 <script>
 const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+async function cardDelete(id, name) {
+    if (!confirm('Delete "' + name + '"? This cannot be undone.')) return;
+    const res = await fetch('/ProjectTracker/BulkAction', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: new URLSearchParams({ action: 'delete', projectIds: id, __RequestVerificationToken: token })
+    });
+    if (res.ok) {
+        const card = document.querySelector('.kanban-card[data-project-id="' + id + '"]');
+        if (card) card.remove();
+    }
+}
+
+async function cardArchive(id, name) {
+    if (!confirm('Archive "' + name + '"? Task must be Completed to archive.')) return;
+    const res = await fetch('/ProjectTracker/BulkAction', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: new URLSearchParams({ action: 'archive', projectIds: id, __RequestVerificationToken: token })
+    });
+    if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.count > 0) {
+            const card = document.querySelector('.kanban-card[data-project-id="' + id + '"]');
+            if (card) card.remove();
+        } else {
+            alert('Only Completed tasks can be archived.');
+        }
+    }
+}
 
 function filterByGroup(groupId, tabEl) {
     document.querySelectorAll('.group-tab').forEach(t => t.classList.remove('group-tab-active'));

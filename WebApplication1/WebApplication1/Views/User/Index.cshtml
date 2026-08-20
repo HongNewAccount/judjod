@@ -9,9 +9,6 @@
 <div class="container-fluid">
     <div class="row mb-4 page-header">
         <div class="col">
-            <h1 class="page-title">Users</h1>
-            <p class="page-subtitle">All organization members</p>
-        </div>
         @if (Context.Session.GetString("IsSuperAdmin") == "true")
         {
             <div class="col-auto">
