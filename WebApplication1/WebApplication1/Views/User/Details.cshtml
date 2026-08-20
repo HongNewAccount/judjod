@@ -89,7 +89,7 @@
                                            @(Model.ChatEnabled ? "checked" : "") />
                                 </div>
                                 <label for="togChat" class="small fw-semibold mb-0" style="white-space:nowrap;">
-                                    <i class="fas fa-comments me-1" style="color:#f7ef05;"></i>Chat
+                                    <i class="fas fa-comments me-1" style="color:#3b82f6;"></i>Chat
                                 </label>
                             </div>
                             <div class="d-flex align-items-center gap-2">
@@ -112,7 +112,7 @@
                         @if (currentSessionId != Model.Id)
                         {
                             <a asp-controller="Chat" asp-action="StartDM" asp-route-userId="@Model.Id"
-                               class="btn btn-sm btn-modal-action profile-btn">
+                               class="btn btn-sm btn-primary profile-btn">
                                 <i class="fas fa-comment me-1"></i>Chat
                             </a>
                         }
