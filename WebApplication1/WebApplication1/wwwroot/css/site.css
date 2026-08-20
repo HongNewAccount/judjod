@@ -600,7 +600,7 @@ body.modal-open {
 }
 
 .kanban-card-title:hover {
-    color: var(--color-accent);
+    color: #2563eb;
 }
 
 .kanban-card-desc {
