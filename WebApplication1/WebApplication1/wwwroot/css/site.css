@@ -1386,6 +1386,35 @@ body.modal-open {
 .log-row-clickable td:first-child { border-radius: 8px 0 0 8px; }
 .log-row-clickable td:last-child { border-radius: 0 8px 8px 0; }
 
+.kanban-card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: .35rem;
+    margin-top: .4rem;
+    opacity: 0;
+    transition: opacity .15s;
+}
+@media (hover: hover) {
+    .kanban-card:hover .kanban-card-actions { opacity: 1; }
+}
+@media (hover: none) {
+    .kanban-card-actions { opacity: 1; }
+}
+.card-action-btn {
+    border: none;
+    background: none;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: .75rem;
+    cursor: pointer;
+    line-height: 1;
+    transition: background .15s, color .15s;
+}
+.card-action-archive { color: #198754; }
+.card-action-archive:hover { background: #d1e7dd; }
+.card-action-delete { color: #dc3545; }
+.card-action-delete:hover { background: #f8d7da; }
+
 .kanban-card-desc {
     font-size: .72rem;
     color: #888;
