@@ -21,9 +21,16 @@
     var months = Model
         .Select(p => (p.UpdatedAt ?? p.CreatedAt))
         .Where(d => d != default)
-        .Select(d => new { Key = d.ToString("yyyy-MM"), Label = d.ToString("MMM yyyy") })
+        .Select(d => new { Key = d.ToString("yyyy-MM"), Label = d.ToString("MMM ") + (d.Year + 543) })
         .DistinctBy(x => x.Key)
         .OrderByDescending(x => x.Key)
+        .ToList();
+
+    // Build distinct year list (Buddhist Era)
+    var years = Model
+        .Select(p => (p.UpdatedAt ?? p.CreatedAt).Year + 543)
+        .Distinct()
+        .OrderByDescending(y => y)
         .ToList();
 
     // Build distinct group list
@@ -44,39 +51,26 @@
     </div>
 
     <div class="card mb-3">
-        <div class="card-body py-2">
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-                <i class="fas fa-filter text-muted" style="font-size:.85rem;"></i>
-                <select id="filterPriority" class="form-select form-select-sm" style="width:auto;min-width:130px;">
-                    <option value="">All Priorities</option>
-                    <option value="High">High</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Low">Low</option>
-                    <option value="None">None</option>
-                </select>
-                <select id="filterGroup" class="form-select form-select-sm" style="width:auto;min-width:140px;">
-                    <option value="">All Groups</option>
-                    @foreach (var g in groups)
-                    {
-                        <option value="@g!.Id">
-                            @g!.Name
-                        </option>
-                    }
-                </select>
-                <select id="filterMonth" class="form-select form-select-sm" style="width:auto;min-width:150px;">
-                    <option value="">All Months</option>
-                    @foreach (var m in months)
-                    {
-                        <option value="@m.Key">@m.Label</option>
-                    }
-                </select>
-                <button id="clearFilters" class="btn btn-sm btn-outline-secondary" style="font-size:.8rem;">
-                    <i class="fas fa-times me-1"></i>Clear
+        <div class="card-body py-2 px-3">
+            <div id="filterRows" class="d-flex flex-column gap-2 mb-2"></div>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <button onclick="addFilterRow()" class="btn btn-sm btn-outline-primary" style="font-size:.8rem;">
+                    <i class="fas fa-plus me-1"></i>Add Filter
+                </button>
+                <button onclick="clearAllFilters()" class="btn btn-sm btn-outline-secondary" style="font-size:.8rem;">
+                    <i class="fas fa-times me-1"></i>Clear All
                 </button>
                 <span id="filterCount" class="text-muted ms-auto" style="font-size:.8rem;"></span>
             </div>
         </div>
     </div>
+
+    <script>
+    // Data from server
+    const MONTHS_DATA = [@Html.Raw(string.Join(",", months.Select(m => "{key:'" + m.Key + "',label:'" + m.Label + "'}")))] ;
+    const YEARS_DATA  = [@Html.Raw(string.Join(",", years))];
+    const GROUPS_DATA = [@Html.Raw(string.Join(",", groups.Select(g => "{id:'" + g!.Id + "',name:'" + g!.Name.Replace("'", "\\'") + "'}")))];
+    </script>
 
     @if (!Model.Any())
     {
@@ -94,6 +88,7 @@
                      data-id="@project.Id" data-name="@project.Name" data-status="@project.Status"
                      data-priority="@(project.Priority ?? "None")"
                      data-month="@((project.UpdatedAt ?? project.CreatedAt).ToString("yyyy-MM"))"
+                     data-year="@((project.UpdatedAt ?? project.CreatedAt).Year + 543)"
                      data-group="@string.Join(",", project.Groups.Select(g => g.GroupId))"
                      data-search="@($"{project.Name} {string.Join(' ', project.Owners.Select(o => o.User != null ? o.User.FirstName + " " + o.User.LastName : ""))}".ToLower())"
                      onclick="openDetailModal(this.dataset.id, this.dataset.name, this.dataset.status)">
@@ -253,43 +248,149 @@
 <script>
 const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
 
-function applyArchiveFilters() {
-    const term = document.getElementById('archiveSearch').value.toLowerCase();
-    const priority = document.getElementById('filterPriority').value;
-    const group = document.getElementById('filterGroup').value;
-    const month = document.getElementById('filterMonth').value;
-    let visible = 0;
+// ─── Filter Builder ───────────────────────────────────────────────
+let filterRules = [];
+let ruleSeq = 0;
 
-    document.querySelectorAll('.kanban-card[data-search]').forEach(card => {
-        const matchSearch = !term || card.getAttribute('data-search').includes(term);
-        const matchPriority = !priority || (card.getAttribute('data-priority') || 'None') === priority;
-        const matchGroup = !group || (card.getAttribute('data-group') || '').split(',').includes(group);
-        const matchMonth = !month || card.getAttribute('data-month') === month;
-        const show = matchSearch && matchPriority && matchGroup && matchMonth;
+const FIELD_CONFIG = {
+    name:     { label: 'Name',     ops: ['contains','not_contains'] },
+    priority: { label: 'Priority', ops: ['is','is_not'] },
+    group:    { label: 'Group',    ops: ['is','is_not'] },
+    year:     { label: 'Year',     ops: ['is','is_not','before','after'] },
+    month:    { label: 'Month',    ops: ['is','is_not','before','after'] },
+};
+const OP_LABEL = { is:'is', is_not:'is not', contains:'contains', not_contains:'not contains', before:'before', after:'after' };
+
+function valueOptions(field) {
+    if (field === 'priority') return [['None','None'],['Low','Low'],['Medium','Medium'],['High','High']];
+    if (field === 'group')    return GROUPS_DATA.map(g => [g.id, g.name]);
+    if (field === 'year')     return YEARS_DATA.map(y => [y, y]);
+    if (field === 'month')    return MONTHS_DATA.map(m => [m.key, m.label]);
+    return null; // text input
+}
+
+function renderFilterRows() {
+    const container = document.getElementById('filterRows');
+    container.innerHTML = '';
+    filterRules.forEach(rule => {
+        const row = document.createElement('div');
+        row.className = 'd-flex gap-2 align-items-center flex-wrap';
+        row.dataset.ruleId = rule.id;
+
+        // Field select
+        const fSel = document.createElement('select');
+        fSel.className = 'form-select form-select-sm';
+        fSel.style.cssText = 'width:auto;min-width:110px;';
+        Object.entries(FIELD_CONFIG).forEach(([k,v]) => {
+            const o = document.createElement('option');
+            o.value = k; o.textContent = v.label;
+            if (k === rule.field) o.selected = true;
+            fSel.appendChild(o);
+        });
+        fSel.addEventListener('change', () => { rule.field = fSel.value; rule.op = FIELD_CONFIG[fSel.value].ops[0]; rule.value = ''; renderFilterRows(); applyFilters(); });
+
+        // Operator select
+        const oSel = document.createElement('select');
+        oSel.className = 'form-select form-select-sm';
+        oSel.style.cssText = 'width:auto;min-width:110px;';
+        FIELD_CONFIG[rule.field].ops.forEach(op => {
+            const o = document.createElement('option');
+            o.value = op; o.textContent = OP_LABEL[op];
+            if (op === rule.op) o.selected = true;
+            oSel.appendChild(o);
+        });
+        oSel.addEventListener('change', () => { rule.op = oSel.value; applyFilters(); });
+
+        // Value input or select
+        const opts = valueOptions(rule.field);
+        let vEl;
+        if (opts) {
+            vEl = document.createElement('select');
+            vEl.className = 'form-select form-select-sm';
+            vEl.style.cssText = 'width:auto;min-width:130px;';
+            const blank = document.createElement('option');
+            blank.value = ''; blank.textContent = '— select —';
+            vEl.appendChild(blank);
+            opts.forEach(([val, lbl]) => {
+                const o = document.createElement('option');
+                o.value = val; o.textContent = lbl;
+                if (val == rule.value) o.selected = true;
+                vEl.appendChild(o);
+            });
+            vEl.addEventListener('change', () => { rule.value = vEl.value; applyFilters(); });
+        } else {
+            vEl = document.createElement('input');
+            vEl.type = 'text';
+            vEl.className = 'form-control form-control-sm';
+            vEl.style.cssText = 'width:160px;';
+            vEl.placeholder = 'type here…';
+            vEl.value = rule.value || '';
+            vEl.addEventListener('input', () => { rule.value = vEl.value; applyFilters(); });
+        }
+
+        // Remove button
+        const rmBtn = document.createElement('button');
+        rmBtn.type = 'button';
+        rmBtn.className = 'btn btn-sm btn-outline-danger';
+        rmBtn.style.cssText = 'font-size:.75rem;padding:2px 7px;';
+        rmBtn.innerHTML = '&times;';
+        rmBtn.addEventListener('click', () => { filterRules = filterRules.filter(r => r.id !== rule.id); renderFilterRows(); applyFilters(); });
+
+        row.append(fSel, oSel, vEl, rmBtn);
+        container.appendChild(row);
+    });
+}
+
+function addFilterRow() {
+    const field = 'priority';
+    filterRules.push({ id: ++ruleSeq, field, op: FIELD_CONFIG[field].ops[0], value: '' });
+    renderFilterRows();
+}
+
+function clearAllFilters() {
+    filterRules = [];
+    document.getElementById('archiveSearch').value = '';
+    renderFilterRows();
+    applyFilters();
+}
+
+function matchRule(card, rule) {
+    const { field, op, value } = rule;
+    if (value === '' || value === null || value === undefined) return true;
+
+    let cardVal;
+    if (field === 'name')     cardVal = (card.dataset.search || '');
+    if (field === 'priority') cardVal = card.dataset.priority || 'None';
+    if (field === 'group')    cardVal = (card.dataset.group || '').split(',');
+    if (field === 'year')     cardVal = card.dataset.year || '';
+    if (field === 'month')    cardVal = card.dataset.month || '';
+
+    if (op === 'is')           return Array.isArray(cardVal) ? cardVal.includes(String(value)) : cardVal === String(value);
+    if (op === 'is_not')       return Array.isArray(cardVal) ? !cardVal.includes(String(value)) : cardVal !== String(value);
+    if (op === 'contains')     return cardVal.includes(value.toLowerCase());
+    if (op === 'not_contains') return !cardVal.includes(value.toLowerCase());
+    if (op === 'before')       return cardVal < String(value);
+    if (op === 'after')        return cardVal > String(value);
+    return true;
+}
+
+function applyFilters() {
+    const term = (document.getElementById('archiveSearch').value || '').toLowerCase();
+    const cards = document.querySelectorAll('.kanban-card[data-search]');
+    let visible = 0;
+    cards.forEach(card => {
+        const matchSearch = !term || card.dataset.search.includes(term);
+        const matchRules  = filterRules.every(r => matchRule(card, r));
+        const show = matchSearch && matchRules;
         card.style.display = show ? '' : 'none';
         if (show) visible++;
     });
-
-    const total = document.querySelectorAll('.kanban-card[data-search]').length;
     const countEl = document.getElementById('filterCount');
-    if (priority || group || month || term) {
-        countEl.textContent = visible + ' / ' + total + ' tasks';
-    } else {
-        countEl.textContent = '';
-    }
+    const hasFilter = term || filterRules.some(r => r.value !== '');
+    countEl.textContent = hasFilter ? `${visible} / ${cards.length} tasks` : '';
 }
 
-document.getElementById('archiveSearch').addEventListener('keyup', applyArchiveFilters);
-document.getElementById('filterPriority').addEventListener('change', applyArchiveFilters);
-document.getElementById('filterGroup').addEventListener('change', applyArchiveFilters);
-document.getElementById('filterMonth').addEventListener('change', applyArchiveFilters);
-document.getElementById('clearFilters').addEventListener('click', function () {
-    document.getElementById('archiveSearch').value = '';
-    document.getElementById('filterPriority').value = '';
-    document.getElementById('filterGroup').value = '';
-    document.getElementById('filterMonth').value = '';
-    applyArchiveFilters();
-});
+document.getElementById('archiveSearch').addEventListener('keyup', applyFilters);
 
 let currentDetailId = null;
 let currentDetailProgress = 0;
