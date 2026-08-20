@@ -16,6 +16,23 @@
     string PriorityCls(string? p) => p switch {
         "High" => "priority-high", "Medium" => "priority-medium", "Low" => "priority-low", _ => "priority-none"
     };
+
+    // Build distinct month list from UpdatedAt (closed date)
+    var months = Model
+        .Select(p => (p.UpdatedAt ?? p.CreatedAt))
+        .Where(d => d != default)
+        .Select(d => new { Key = d.ToString("yyyy-MM"), Label = d.ToString("MMM yyyy") })
+        .DistinctBy(x => x.Key)
+        .OrderByDescending(x => x.Key)
+        .ToList();
+
+    // Build distinct group list
+    var groups = Model
+        .SelectMany(p => p.Groups.Select(g => g.Group))
+        .Where(g => g != null)
+        .DistinctBy(g => g!.Id)
+        .OrderBy(g => g!.Name)
+        .ToList();
 }
 
 <div class="container-fluid">
@@ -24,9 +41,44 @@
         <p class="page-subtitle">All archived tasks</p>
     </div>
 
-    <div class="card mb-3">
+    <div class="card mb-2">
         <div class="card-body py-2">
             <input type="text" id="archiveSearch" class="form-control" placeholder="Search by project or owner name..." />
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <i class="fas fa-filter text-muted" style="font-size:.85rem;"></i>
+                <select id="filterPriority" class="form-select form-select-sm" style="width:auto;min-width:130px;">
+                    <option value="">All Priorities</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                    <option value="None">None</option>
+                </select>
+                <select id="filterGroup" class="form-select form-select-sm" style="width:auto;min-width:140px;">
+                    <option value="">All Groups</option>
+                    @foreach (var g in groups)
+                    {
+                        <option value="@g!.Id">
+                            @g!.Name
+                        </option>
+                    }
+                </select>
+                <select id="filterMonth" class="form-select form-select-sm" style="width:auto;min-width:150px;">
+                    <option value="">All Months</option>
+                    @foreach (var m in months)
+                    {
+                        <option value="@m.Key">@m.Label</option>
+                    }
+                </select>
+                <button id="clearFilters" class="btn btn-sm btn-outline-secondary" style="font-size:.8rem;">
+                    <i class="fas fa-times me-1"></i>Clear
+                </button>
+                <span id="filterCount" class="text-muted ms-auto" style="font-size:.8rem;"></span>
+            </div>
         </div>
     </div>
 
@@ -44,6 +96,9 @@
             {
                 <div class="kanban-card" style="cursor:pointer;"
                      data-id="@project.Id" data-name="@project.Name" data-status="@project.Status"
+                     data-priority="@(project.Priority ?? "None")"
+                     data-month="@((project.UpdatedAt ?? project.CreatedAt).ToString("yyyy-MM"))"
+                     data-group="@string.Join(",", project.Groups.Select(g => g.GroupId))"
                      data-search="@($"{project.Name} {string.Join(' ', project.Owners.Select(o => o.User != null ? o.User.FirstName + " " + o.User.LastName : ""))}".ToLower())"
                      onclick="openDetailModal(this.dataset.id, this.dataset.name, this.dataset.status)">
                     <span class="badge bg-secondary mb-1" style="font-size:.65rem;">Archived</span>
@@ -202,11 +257,42 @@
 <script>
 const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
 
-document.getElementById('archiveSearch').addEventListener('keyup', function () {
-    const term = this.value.toLowerCase();
+function applyArchiveFilters() {
+    const term = document.getElementById('archiveSearch').value.toLowerCase();
+    const priority = document.getElementById('filterPriority').value;
+    const group = document.getElementById('filterGroup').value;
+    const month = document.getElementById('filterMonth').value;
+    let visible = 0;
+
     document.querySelectorAll('.kanban-card[data-search]').forEach(card => {
-        card.style.display = card.getAttribute('data-search').includes(term) ? '' : 'none';
+        const matchSearch = !term || card.getAttribute('data-search').includes(term);
+        const matchPriority = !priority || (card.getAttribute('data-priority') || 'None') === priority;
+        const matchGroup = !group || (card.getAttribute('data-group') || '').split(',').includes(group);
+        const matchMonth = !month || card.getAttribute('data-month') === month;
+        const show = matchSearch && matchPriority && matchGroup && matchMonth;
+        card.style.display = show ? '' : 'none';
+        if (show) visible++;
     });
+
+    const total = document.querySelectorAll('.kanban-card[data-search]').length;
+    const countEl = document.getElementById('filterCount');
+    if (priority || group || month || term) {
+        countEl.textContent = visible + ' / ' + total + ' tasks';
+    } else {
+        countEl.textContent = '';
+    }
+}
+
+document.getElementById('archiveSearch').addEventListener('keyup', applyArchiveFilters);
+document.getElementById('filterPriority').addEventListener('change', applyArchiveFilters);
+document.getElementById('filterGroup').addEventListener('change', applyArchiveFilters);
+document.getElementById('filterMonth').addEventListener('change', applyArchiveFilters);
+document.getElementById('clearFilters').addEventListener('click', function () {
+    document.getElementById('archiveSearch').value = '';
+    document.getElementById('filterPriority').value = '';
+    document.getElementById('filterGroup').value = '';
+    document.getElementById('filterMonth').value = '';
+    applyArchiveFilters();
 });
 
 let currentDetailId = null;

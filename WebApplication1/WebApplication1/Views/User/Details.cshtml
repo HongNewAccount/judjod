@@ -141,19 +141,19 @@
     </div>
 
     <div class="row g-3">
-        @foreach (var col in new (string Label, string Cls, string Icon, List<WebApplication1.Models.Project> Items)[]
+        @foreach (var col in new (string Label, string Cls, string Icon, string Color, List<WebApplication1.Models.Project> Items)[]
         {
-            ("To Do",       "secondary", "fa-list-ul",          todoProjects),
-            ("In Progress", "primary",   "fa-spinner",           inProgProjects),
-            ("Late",        "danger",    "fa-exclamation-circle",lateProjects),
-            ("Complete",    "success",   "fa-check-circle",      completedProjects),
+            ("To Do",       "secondary", "fa-list-ul",           "#6c757d", todoProjects),
+            ("In Progress", "primary",   "fa-spinner",           "#0d6efd", inProgProjects),
+            ("Late",        "danger",    "fa-exclamation-circle","#ef4444", lateProjects),
+            ("Complete",    "success",   "fa-check-circle",      "#198754", completedProjects),
         })
         {
             <div class="col-md-6 col-lg-3">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-header py-2 border-0 bg-@col.Cls bg-opacity-10">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="fw-semibold text-@col.Cls" style="font-size:.85rem;">
+                            <span class="fw-semibold" style="font-size:.85rem;color:@col.Color;">
                                 <i class="fas @col.Icon me-1"></i>@col.Label
                             </span>
                             <span class="badge bg-@col.Cls">@col.Items.Count</span>
