@@ -754,14 +754,28 @@ public class ProjectTrackerController : Controller
             .Where(x => x > 0).ToList();
         if (!ids.Any()) return BadRequest();
 
+        var userId = HttpContext.Session.GetInt32("UserId");
         var projects = await _context.Projects.Where(p => ids.Contains(p.Id)).ToListAsync();
 
         if (action == "delete")
+        {
+            foreach (var p in projects)
+            {
+                _context.ActivityLogs.Add(new ActivityLog
+                {
+                    ProjectId = null,
+                    UserId = userId,
+                    ActionType = "Deleted",
+                    Description = $"Project '{p.Name}' was deleted",
+                    OldValue = p.Name,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
             _context.Projects.RemoveRange(projects);
+        }
         else if (action == "archive")
         {
-            var completedOnly = projects.Where(p => p.Status == "Completed").ToList();
-            foreach (var p in completedOnly) p.Status = "Closed";
+            foreach (var p in projects) p.Status = "Closed";
         }
         else
             return BadRequest();

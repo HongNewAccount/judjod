@@ -44,4 +44,6 @@ public class User
     public bool ProjectAccessSuspended { get; set; } = false;
 
     public bool ChatEnabled { get; set; } = true;
+
+    public DateOnly? BirthDate { get; set; }
 }

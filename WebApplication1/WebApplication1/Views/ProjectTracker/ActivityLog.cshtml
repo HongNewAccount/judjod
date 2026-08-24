@@ -58,6 +58,10 @@
                                         {
                                             <span>@log.Project!.Name</span>
                                         }
+                                        else if (!string.IsNullOrEmpty(log.OldValue))
+                                        {
+                                            <span class="text-muted text-decoration-line-through">@log.OldValue</span>
+                                        }
                                         else
                                         {
                                             <span class="text-muted">(Deleted Project)</span>

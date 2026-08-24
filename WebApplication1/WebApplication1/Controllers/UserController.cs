@@ -81,7 +81,8 @@ public class UserController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, User user, IFormFile? profileImage)
+    public async Task<IActionResult> Edit(int id, User user, IFormFile? profileImage,
+        string? currentPassword = null, string? newPassword = null, string? confirmPassword = null)
     {
         var currentUserId = HttpContext.Session.GetInt32("UserId");
         var userRole = HttpContext.Session.GetString("UserRole");
@@ -90,8 +91,37 @@ public class UserController : Controller
             return NotFound();
 
         if (userRole != "Admin" && currentUserId != id)
-        {
             return Forbid();
+
+        var existingUser = await _context.Users.FindAsync(id);
+        if (existingUser == null) return NotFound();
+
+        bool isAdmin = userRole == "Admin";
+        bool isSelf  = currentUserId == id;
+
+        // Validate password change if requested
+        bool changingPassword = !string.IsNullOrWhiteSpace(newPassword);
+        if (changingPassword)
+        {
+            if (isSelf && !isAdmin)
+            {
+                if (string.IsNullOrWhiteSpace(currentPassword) ||
+                    !BCrypt.Net.BCrypt.Verify(currentPassword, existingUser.PasswordHash))
+                {
+                    ViewBag.PasswordError = "รหัสผ่านปัจจุบันไม่ถูกต้อง";
+                    return View(existingUser);
+                }
+            }
+            if (newPassword!.Length < 6)
+            {
+                ViewBag.PasswordError = "รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร";
+                return View(existingUser);
+            }
+            if (newPassword != confirmPassword)
+            {
+                ViewBag.PasswordError = "รหัสผ่านใหม่ไม่ตรงกัน";
+                return View(existingUser);
+            }
         }
 
         ModelState.Remove(nameof(WebApplication1.Models.User.Username));
@@ -102,43 +132,54 @@ public class UserController : Controller
         {
             try
             {
-                var existingUser = await _context.Users.FindAsync(id);
-                if (existingUser != null)
+                existingUser.FirstName = user.FirstName?.Trim() ?? existingUser.FirstName;
+                existingUser.LastName = user.LastName?.Trim() ?? "";
+                existingUser.Email = user.Email?.Trim();
+                existingUser.Phone = user.Phone?.Trim();
+                existingUser.WorkLocation = user.WorkLocation?.Trim();
+                existingUser.BirthDate = user.BirthDate;
+                existingUser.UpdatedAt = DateTime.UtcNow;
+
+                if (profileImage != null && profileImage.Length > 0)
                 {
-                    existingUser.FirstName = user.FirstName?.Trim() ?? existingUser.FirstName;
-                    existingUser.LastName = user.LastName?.Trim() ?? "";
-                    existingUser.Email = user.Email?.Trim();
-                    existingUser.Phone = user.Phone?.Trim();
-                    existingUser.WorkLocation = user.WorkLocation?.Trim();
-                    existingUser.UpdatedAt = DateTime.UtcNow;
+                    var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "profiles");
+                    if (!Directory.Exists(uploadsFolder))
+                        Directory.CreateDirectory(uploadsFolder);
 
-                    if (profileImage != null && profileImage.Length > 0)
-                    {
-                        var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "profiles");
-                        if (!Directory.Exists(uploadsFolder))
-                            Directory.CreateDirectory(uploadsFolder);
+                    var uniqueFileName = $"{id}_{Guid.NewGuid()}{Path.GetExtension(profileImage.FileName)}";
+                    var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
-                        var uniqueFileName = $"{id}_{Guid.NewGuid()}{Path.GetExtension(profileImage.FileName)}";
-                        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                    using var fileStream = new FileStream(filePath, FileMode.Create);
+                    await profileImage.CopyToAsync(fileStream);
 
-                        using var fileStream = new FileStream(filePath, FileMode.Create);
-                        await profileImage.CopyToAsync(fileStream);
+                    existingUser.ProfileImagePath = $"/uploads/profiles/{uniqueFileName}";
+                }
 
-                        existingUser.ProfileImagePath = $"/uploads/profiles/{uniqueFileName}";
-                    }
-
-                    _context.Update(existingUser);
+                if (changingPassword)
+                {
+                    existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword!);
                     _context.ActivityLogs.Add(new ActivityLog
                     {
                         UserId = currentUserId,
-                        ProjectId = null,
-                        ActionType = "ProfileUpdated",
-                        Description = $"{existingUser.FirstName} {existingUser.LastName}'s profile was updated",
+                        ActionType = "PasswordChanged",
+                        Description = isSelf
+                            ? $"{existingUser.FirstName} {existingUser.LastName} เปลี่ยนรหัสผ่านของตัวเอง"
+                            : $"Admin เปลี่ยนรหัสผ่านให้ {existingUser.FirstName} {existingUser.LastName}",
                         CreatedAt = DateTime.UtcNow
                     });
-                    await _context.SaveChangesAsync();
-                    TempData["SuccessMessage"] = "Profile updated successfully.";
                 }
+
+                _context.Update(existingUser);
+                _context.ActivityLogs.Add(new ActivityLog
+                {
+                    UserId = currentUserId,
+                    ProjectId = null,
+                    ActionType = "ProfileUpdated",
+                    Description = $"{existingUser.FirstName} {existingUser.LastName}'s profile was updated",
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = changingPassword ? "อัปเดตโปรไฟล์และเปลี่ยนรหัสผ่านสำเร็จ" : "Profile updated successfully.";
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -148,7 +189,7 @@ public class UserController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        return View(user);
+        return View(existingUser);
     }
 
     public async Task<IActionResult> ChangePassword(int id)
@@ -164,13 +205,28 @@ public class UserController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ChangePassword(int id, string newPassword, string confirmPassword)
+    public async Task<IActionResult> ChangePassword(int id, string? currentPassword, string newPassword, string confirmPassword)
     {
         var currentUserId = HttpContext.Session.GetInt32("UserId");
         var userRole = HttpContext.Session.GetString("UserRole");
         var user = await _context.Users.FindAsync(id);
         if (user == null) return NotFound();
-        if (userRole != "Admin" && currentUserId != id) return Forbid();
+
+        bool isAdmin = userRole == "Admin";
+        bool isSelf  = currentUserId == id;
+        if (!isAdmin && !isSelf) return Forbid();
+
+        // Non-admin changing own password must verify current password
+        if (isSelf && !isAdmin)
+        {
+            if (string.IsNullOrWhiteSpace(currentPassword) ||
+                !BCrypt.Net.BCrypt.Verify(currentPassword, user.PasswordHash))
+            {
+                ViewBag.ErrorMessage = "รหัสผ่านปัจจุบันไม่ถูกต้อง";
+                ViewBag.TargetUser = user;
+                return View();
+            }
+        }
 
         if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
         {
@@ -190,7 +246,7 @@ public class UserController : Controller
         {
             UserId      = currentUserId,
             ActionType  = "PasswordChanged",
-            Description = currentUserId == id
+            Description = isSelf
                 ? $"{user.FirstName} {user.LastName} เปลี่ยนรหัสผ่านของตัวเอง"
                 : $"Admin เปลี่ยนรหัสผ่านให้ {user.FirstName} {user.LastName}",
             CreatedAt   = DateTime.UtcNow

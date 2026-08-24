@@ -539,24 +539,21 @@ async function cardDelete(id, name) {
     if (res.ok) {
         const card = document.querySelector('.kanban-card[data-project-id="' + id + '"]');
         if (card) card.remove();
+        updateColumnCounts();
     }
 }
 
 async function cardArchive(id, name) {
-    if (!confirm('Archive "' + name + '"? Task must be Completed to archive.')) return;
+    if (!confirm('Archive "' + name + '"?')) return;
     const res = await fetch('/ProjectTracker/BulkAction', {
         method: 'POST',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         body: new URLSearchParams({ action: 'archive', projectIds: id, __RequestVerificationToken: token })
     });
     if (res.ok) {
-        const data = await res.json().catch(() => ({}));
-        if (data.count > 0) {
-            const card = document.querySelector('.kanban-card[data-project-id="' + id + '"]');
-            if (card) card.remove();
-        } else {
-            alert('Only Completed tasks can be archived.');
-        }
+        const card = document.querySelector('.kanban-card[data-project-id="' + id + '"]');
+        if (card) card.remove();
+        updateColumnCounts();
     }
 }
 
