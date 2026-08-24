@@ -75,6 +75,10 @@
                         {
                             <span><i class="fas fa-map-marker-alt me-1"></i>@Model.WorkLocation</span>
                         }
+                        @if (Model.BirthDate.HasValue)
+                        {
+                            <span><i class="fas fa-birthday-cake me-1"></i>@Model.BirthDate.Value.ToString("dd MMM yyyy")</span>
+                        }
                     </div>
                 </div>
 
