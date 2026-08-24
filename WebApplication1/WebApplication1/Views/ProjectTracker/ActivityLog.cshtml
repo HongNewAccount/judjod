@@ -18,7 +18,7 @@
         <div class="card-header bg-light">
             <div class="row align-items-center">
                 <div class="col">
-                    <h5 class="mb-0">All Project Changes</h5>
+                    <h5 class="mb-0">Log</h5>
                     <small class="text-muted">Total: @ViewBag.TotalCount entries</small>
                 </div>
             </div>
@@ -58,13 +58,13 @@
                                         {
                                             <span>@log.Project!.Name</span>
                                         }
-                                        else if (!string.IsNullOrEmpty(log.OldValue))
+                                        else if (log.ActionType == "Deleted" && !string.IsNullOrEmpty(log.OldValue))
                                         {
                                             <span class="text-muted text-decoration-line-through">@log.OldValue</span>
                                         }
                                         else
                                         {
-                                            <span class="text-muted">(Deleted Project)</span>
+                                            <span class="text-muted">—</span>
                                         }
                                     </td>
                                     <td>
@@ -346,7 +346,10 @@ document.getElementById('taskDetailProgress').addEventListener('input', function
             "FavoriteAdded" => "text-bg-warning",
             "FavoriteRemoved" => "text-bg-secondary",
             "ProfileUpdated" => "text-bg-info",
+            "PasswordChanged" => "text-bg-secondary",
             "UserCreated" => "text-bg-success",
+            "UserApproved" => "text-bg-success",
+            "UserRejected" => "text-bg-danger",
             _ => "text-bg-secondary"
         };
     }
@@ -367,7 +370,10 @@ document.getElementById('taskDetailProgress').addEventListener('input', function
             "FavoriteAdded" => "Favorite",
             "FavoriteRemoved" => "Favorite",
             "ProfileUpdated" => "Profile",
+            "PasswordChanged" => "Password",
             "UserCreated" => "New User",
+            "UserApproved" => "Approved",
+            "UserRejected" => "Rejected",
             _ => actionType
         };
     }

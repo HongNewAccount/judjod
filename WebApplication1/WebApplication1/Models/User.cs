@@ -46,4 +46,6 @@ public class User
     public bool ChatEnabled { get; set; } = true;
 
     public DateOnly? BirthDate { get; set; }
+
+    public bool PendingApproval { get; set; } = false;
 }

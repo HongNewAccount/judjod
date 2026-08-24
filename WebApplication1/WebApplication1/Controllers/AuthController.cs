@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApplication1.Data;
 using WebApplication1.Models;
@@ -28,7 +28,10 @@ public class AuthController : Controller
 
         if (user != null && !user.IsActive)
         {
-            ModelState.AddModelError("", "This account has been banned. Please contact an administrator.");
+            var msg = user.PendingApproval
+                ? "บัญชีของคุณกำลังรอการอนุมัติจาก admin"
+                : "This account has been banned. Please contact an administrator.";
+            ModelState.AddModelError("", msg);
             return View();
         }
 
@@ -53,68 +56,123 @@ public class AuthController : Controller
         return RedirectToAction(nameof(Login));
     }
 
+    // GET: shown to public (not logged in) for self-registration
+    // Admin goes through User/Index modal instead
+    [HttpGet]
     public IActionResult Register()
     {
-        return RedirectToAction("Index", "User");
+        if (HttpContext.Session.GetInt32("UserId") != null)
+            return RedirectToAction("Index", "ProjectTracker");
+        return View();
     }
 
+    // POST: admin creates user (AJAX from User/Index modal)
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Register(string username, string password, string confirmPassword, bool chatEnabled = true, bool projectAccess = true)
+    [ActionName("Register")]
+    public async Task<IActionResult> RegisterPost(string username, string password, string confirmPassword,
+        string? firstName = null, string? lastName = null,
+        bool chatEnabled = true, bool projectAccess = true)
     {
         var isAjax = Request.Headers.XRequestedWith == "XMLHttpRequest";
         var isSuperAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
-        if (!isSuperAdmin)
-        {
-            if (isAjax) return Json(new { success = false, error = "Unauthorized" });
-            return RedirectToAction(nameof(Login));
-        }
+        var isLoggedIn = HttpContext.Session.GetInt32("UserId") != null;
 
-        string? error = null;
-        if (string.IsNullOrWhiteSpace(username) || username.Length < 3)
-            error = "Username must be at least 3 characters.";
-        else if (string.IsNullOrWhiteSpace(password) || password.Length < 4)
-            error = "Password must be at least 4 characters.";
-        else if (password != confirmPassword)
-            error = "Passwords do not match.";
-        else if (await _context.Users.AnyAsync(u => u.Username == username))
-            error = $"Username '{username}' already exists.";
-
-        if (error != null)
+        // Admin path: create user immediately (existing behavior)
+        if (isSuperAdmin)
         {
-            if (isAjax) return Json(new { success = false, error });
-            TempData["ErrorMessage"] = error;
+            string? error = null;
+            if (string.IsNullOrWhiteSpace(username) || username.Length < 3)
+                error = "Username must be at least 3 characters.";
+            else if (string.IsNullOrWhiteSpace(password) || password.Length < 4)
+                error = "Password must be at least 4 characters.";
+            else if (password != confirmPassword)
+                error = "Passwords do not match.";
+            else if (await _context.Users.AnyAsync(u => u.Username == username))
+                error = $"Username '{username}' already exists.";
+
+            if (error != null)
+            {
+                if (isAjax) return Json(new { success = false, error });
+                TempData["ErrorMessage"] = error;
+                return RedirectToAction("Index", "User");
+            }
+
+            var user = new User
+            {
+                Username = username.Trim(),
+                FirstName = string.IsNullOrWhiteSpace(firstName) ? username.Trim() : firstName.Trim(),
+                LastName = lastName?.Trim() ?? "",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                Role = projectAccess ? "Editor" : "User",
+                IsActive = true,
+                PendingApproval = false,
+                ChatEnabled = chatEnabled,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Add(user);
+            var creatorId = HttpContext.Session.GetInt32("UserId");
+            _context.ActivityLogs.Add(new ActivityLog
+            {
+                UserId = creatorId,
+                ProjectId = null,
+                ActionType = "UserCreated",
+                Description = $"New user '{username}' created as {user.Role}",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            if (isAjax) return Json(new { success = true, message = $"User '{username}' created successfully." });
+            TempData["SuccessMessage"] = $"User '{username}' created successfully.";
             return RedirectToAction("Index", "User");
         }
 
-        var user = new User
+        // Public registration path (not logged in)
+        if (!isLoggedIn)
         {
-            Username = username.Trim(),
-            FirstName = username.Trim(),
-            LastName = "",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-            Role = projectAccess ? "Editor" : "User",
-            IsActive = true,
-            ChatEnabled = chatEnabled,
-            CreatedAt = DateTime.UtcNow
-        };
+            string? error = null;
+            if (string.IsNullOrWhiteSpace(username) || username.Length < 3)
+                error = "Username ต้องมีอย่างน้อย 3 ตัวอักษร";
+            else if (string.IsNullOrWhiteSpace(firstName))
+                error = "กรุณากรอกชื่อ";
+            else if (string.IsNullOrWhiteSpace(password))
+                error = "กรุณากรอก Password";
+            else if (password != confirmPassword)
+                error = "Password ไม่ตรงกัน";
+            else if (await _context.Users.AnyAsync(u => u.Username == username))
+                error = $"Username '{username}' ถูกใช้งานแล้ว";
 
-        _context.Add(user);
+            if (error != null)
+            {
+                ViewBag.Error = error;
+                ViewBag.Username = username;
+                ViewBag.FirstName = firstName;
+                ViewBag.LastName = lastName;
+                return View();
+            }
 
-        var creatorId = HttpContext.Session.GetInt32("UserId");
-        _context.ActivityLogs.Add(new ActivityLog
-        {
-            UserId = creatorId,
-            ProjectId = null,
-            ActionType = "UserCreated",
-            Description = $"New user '{username}' created as {user.Role}",
-            CreatedAt = DateTime.UtcNow
-        });
+            var newUser = new User
+            {
+                Username = username.Trim(),
+                FirstName = firstName!.Trim(),
+                LastName = lastName?.Trim() ?? "",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                Role = "User",
+                IsActive = false,
+                PendingApproval = true,
+                ChatEnabled = true,
+                CreatedAt = DateTime.UtcNow
+            };
 
-        await _context.SaveChangesAsync();
+            _context.Add(newUser);
+            await _context.SaveChangesAsync();
 
-        if (isAjax) return Json(new { success = true, message = $"User '{username}' created successfully." });
-        TempData["SuccessMessage"] = $"User '{username}' created successfully.";
-        return RedirectToAction("Index", "User");
+            TempData["SuccessMessage"] = "ลงทะเบียนสำเร็จ! กรุณารอ admin อนุมัติบัญชีของคุณ";
+            return RedirectToAction(nameof(Login));
+        }
+
+        return Forbid();
     }
 }

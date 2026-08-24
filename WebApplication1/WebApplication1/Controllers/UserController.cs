@@ -17,12 +17,87 @@ public class UserController : Controller
 
     public async Task<IActionResult> Index()
     {
+        var isSuperAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
+
         var users = await _context.Users
+            .Where(u => !u.PendingApproval)
             .OrderBy(u => u.FirstName)
             .ThenBy(u => u.LastName)
             .ToListAsync();
 
+        if (isSuperAdmin)
+        {
+            var pending = await _context.Users
+                .Where(u => u.PendingApproval)
+                .OrderBy(u => u.CreatedAt)
+                .ToListAsync();
+            ViewBag.PendingUsers = pending;
+        }
+
         return View(users);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ApproveRegistration(int id)
+    {
+        var isSuperAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
+        if (!isSuperAdmin) return Forbid();
+
+        var user = await _context.Users.FindAsync(id);
+        if (user == null || !user.PendingApproval) return NotFound();
+
+        user.IsActive = true;
+        user.PendingApproval = false;
+
+        var adminId = HttpContext.Session.GetInt32("UserId");
+        _context.ActivityLogs.Add(new ActivityLog
+        {
+            UserId = adminId,
+            ActionType = "UserApproved",
+            Description = $"อนุมัติการลงทะเบียนของ '{user.Username}' ({user.FirstName} {user.LastName})",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _context.SaveChangesAsync();
+
+        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            return Ok(new { success = true });
+
+        TempData["SuccessMessage"] = $"อนุมัติ '{user.FirstName} {user.LastName}' สำเร็จ";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RejectRegistration(int id)
+    {
+        var isSuperAdmin = HttpContext.Session.GetString("IsSuperAdmin") == "true";
+        if (!isSuperAdmin) return Forbid();
+
+        var user = await _context.Users.FindAsync(id);
+        if (user == null || !user.PendingApproval) return NotFound();
+
+        var adminId = HttpContext.Session.GetInt32("UserId");
+        var uname = user.Username;
+        var fname = $"{user.FirstName} {user.LastName}".Trim();
+
+        _context.ActivityLogs.Add(new ActivityLog
+        {
+            UserId = adminId,
+            ActionType = "UserRejected",
+            Description = $"ปฏิเสธการลงทะเบียนของ '{uname}' ({fname})",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        _context.Users.Remove(user);
+        await _context.SaveChangesAsync();
+
+        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            return Ok(new { success = true });
+
+        TempData["SuccessMessage"] = $"ปฏิเสธการลงทะเบียนของ '{uname}' แล้ว";
+        return RedirectToAction(nameof(Index));
     }
 
     public async Task<IActionResult> Details(int id)
@@ -111,11 +186,6 @@ public class UserController : Controller
                     ViewBag.PasswordError = "รหัสผ่านปัจจุบันไม่ถูกต้อง";
                     return View(existingUser);
                 }
-            }
-            if (newPassword!.Length < 6)
-            {
-                ViewBag.PasswordError = "รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร";
-                return View(existingUser);
             }
             if (newPassword != confirmPassword)
             {
@@ -228,9 +298,9 @@ public class UserController : Controller
             }
         }
 
-        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+        if (string.IsNullOrWhiteSpace(newPassword))
         {
-            ViewBag.ErrorMessage = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
+            ViewBag.ErrorMessage = "กรุณากรอกรหัสผ่านใหม่";
             ViewBag.TargetUser = user;
             return View();
         }
