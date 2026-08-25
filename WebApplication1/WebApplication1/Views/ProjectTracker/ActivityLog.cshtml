@@ -36,7 +36,7 @@
                     <table class="table table-hover mb-0" style="border-collapse:separate;border-spacing:0 3px;">
                         <thead class="table-light">
                             <tr>
-                                <th style="width: 30%">Project</th>
+                                <th style="width: 30%">Name</th>
                                 <th style="width: 15%">Action</th>
                                 <th style="width: 25%">Details</th>
                                 <th style="width: 15%">User</th>
@@ -64,7 +64,15 @@
                                         }
                                         else
                                         {
-                                            <span class="text-muted">—</span>
+                                            var subject = GetSubjectLabel(log);
+                                            @if (subject != null)
+                                            {
+                                                <span class="text-muted">@subject</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">—</span>
+                                            }
                                         }
                                     </td>
                                     <td>
@@ -350,9 +358,51 @@ document.getElementById('taskDetailProgress').addEventListener('input', function
             "UserCreated" => "text-bg-success",
             "UserApproved" => "text-bg-success",
             "UserRejected" => "text-bg-danger",
-            "Restored" => "text-bg-primary",
+            "Restored"    => "text-bg-primary",
+            "NoteCreated" => "text-bg-success",
+            "NoteEdited"  => "text-bg-info",
+            "NoteDeleted" => "text-bg-danger",
             _ => "text-bg-secondary"
         };
+    }
+
+    private string? GetSubjectLabel(WebApplication1.Models.ActivityLog log)
+    {
+        var d = log.Description ?? "";
+        switch (log.ActionType)
+        {
+            // extract text between first pair of single quotes
+            case "NoteCreated":
+            case "NoteEdited":
+            case "NoteDeleted":
+            case "UserCreated":
+            case "UserApproved":
+            case "UserRejected":
+            {
+                var q1 = d.IndexOf('\'');
+                if (q1 < 0) return null;
+                var q2 = d.IndexOf('\'', q1 + 1);
+                return q2 > q1 ? d.Substring(q1 + 1, q2 - q1 - 1) : null;
+            }
+            // "FirstName LastName's profile was updated"
+            case "ProfileUpdated":
+            {
+                var idx = d.IndexOf("'s profile");
+                return idx > 0 ? d.Substring(0, idx) : null;
+            }
+            // self: "Name เปลี่ยนรหัสผ่านของตัวเอง"  admin: "Admin เปลี่ยนรหัสผ่านให้ Name"
+            case "PasswordChanged":
+            {
+                if (d.Contains("ให้ "))
+                {
+                    var idx = d.IndexOf("ให้ ") + 4;
+                    return d.Substring(idx);
+                }
+                var cut = d.IndexOf(" เปลี่ยน");
+                return cut > 0 ? d.Substring(0, cut) : null;
+            }
+            default: return null;
+        }
     }
 
     private string GetActionLabel(string actionType)
@@ -375,7 +425,10 @@ document.getElementById('taskDetailProgress').addEventListener('input', function
             "UserCreated" => "New User",
             "UserApproved" => "Approved",
             "UserRejected" => "Rejected",
-            "Restored" => "Restored",
+            "Restored"    => "Restored",
+            "NoteCreated" => "Note สร้าง",
+            "NoteEdited"  => "Note แก้ไข",
+            "NoteDeleted" => "Note ลบ",
             _ => actionType
         };
     }

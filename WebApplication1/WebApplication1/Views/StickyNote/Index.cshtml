@@ -24,10 +24,10 @@
 
     @* ── Header ── *@
     <div class="d-flex align-items-center justify-content-between mb-3">
-        <small class="text-muted"><span id="noteCount">@Model.Count</span> โน้ต · หมดอายุใน 30 วัน</small>
         <button class="btn btn-action btn-sm" id="addNoteBtn" onclick="startNewNote()">
             <i class="fas fa-plus me-1"></i>เพิ่มโน้ต
         </button>
+        <small class="text-muted"><span id="noteCount">@Model.Count</span> โน้ต · หมดอายุใน 30 วัน</small>
     </div>
 
     @* ── Board ── *@
@@ -45,11 +45,18 @@
                 var daysLeft = Math.Max(0, (int)(note.ExpiresAt.Date - DateTime.UtcNow.Date).TotalDays);
                 var urgency  = daysLeft < 3 ? "urgent" : daysLeft < 7 ? "warn" : "";
                 var canDel   = note.UserId == currentUserId || canManage;
-                <div class="sticky-note" style="background:@note.Color;">
+                var canEdit  = note.UserId == currentUserId || isAdmin;
+                <div class="sticky-note" data-color="@note.Color" style="background:@note.Color;">
                     @if (canDel)
                     {
                         <button class="note-delete" onclick="deleteNote(@note.Id, this)" title="ลบ">
                             <i class="fas fa-times"></i>
+                        </button>
+                    }
+                    @if (canEdit)
+                    {
+                        <button class="note-edit" onclick="startEditNote(@note.Id, this)" title="แก้ไข">
+                            <i class="fas fa-pen"></i>
                         </button>
                     }
                     <div class="note-pin"></div>
@@ -77,9 +84,7 @@
 <style>
 /* ── Board ── */
 .notes-board {
-    background: #f5f0e8;
-    background-image: radial-gradient(circle, rgba(0,0,0,.06) 1px, transparent 1px);
-    background-size: 28px 28px;
+    background: #fff;
     border-radius: 16px;
     padding: 2.5rem 2rem 1.5rem;
     min-height: 380px;
@@ -120,6 +125,10 @@
     transform: none !important;
     box-shadow: 0 0 0 2.5px #1a1a2e, 4px 8px 20px rgba(0,0,0,.18) !important;
     z-index: 20;
+}
+.note-edit-ui {
+    display: flex;
+    flex-direction: column;
 }
 
 /* ── Color bar inside editing card ── */
@@ -242,6 +251,24 @@
     background: rgba(255,255,255,.45);
     border-radius: 50%;
 }
+
+/* ── Edit button ── */
+.note-edit {
+    position: absolute;
+    top: 8px; left: 8px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(0,0,0,.1);
+    border: none;
+    color: rgba(0,0,0,.45);
+    font-size: .6rem;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .15s, background .15s, color .15s;
+}
+.sticky-note:hover .note-edit { opacity: 1; }
+.note-edit:hover { background: #1a1a2e; color: #f7ef05; }
 
 /* ── Delete button ── */
 .note-delete {
@@ -485,9 +512,11 @@ async function saveNewNote() {
 function buildNoteEl(n) {
     var div = document.createElement('div');
     div.className = 'sticky-note';
+    div.dataset.color = n.color;
     div.style.cssText = 'background:' + n.color + ';opacity:0;transform:scale(.88);transition:opacity .28s ease,transform .28s ease;';
     div.innerHTML =
         '<button class="note-delete" onclick="deleteNote(' + n.id + ',this)" title="ลบ"><i class="fas fa-times"></i></button>' +
+        '<button class="note-edit"   onclick="startEditNote(' + n.id + ',this)" title="แก้ไข"><i class="fas fa-pen"></i></button>' +
         '<div class="note-pin"></div>' +
         (n.title ? '<h6 class="note-title">' + esc(n.title) + '</h6>' : '') +
         '<p class="note-content">' + esc(n.content) + '</p>' +
@@ -528,6 +557,159 @@ async function deleteNote(id, btn) {
             }, 220);
         }
     } catch(e) { console.error(e); }
+}
+
+/* ── Edit existing note (hide/show — never replaces innerHTML) ── */
+function startEditNote(id, btn) {
+    var card = btn.closest('.sticky-note');
+    if (card.classList.contains('editing-card')) return;
+
+    var origColor  = card.dataset.color;
+    var titleEl    = card.querySelector('.note-title');
+    var contentEl  = card.querySelector('.note-content');
+    var origTitle   = titleEl   ? titleEl.textContent.trim()   : '';
+    var origContent = contentEl ? contentEl.textContent.trim() : '';
+    var editingColor = origColor;
+
+    /* hide all existing children, keep references */
+    var hiddenKids = Array.from(card.children);
+    hiddenKids.forEach(function(c) { c.style.display = 'none'; });
+    card.classList.add('editing-card');
+
+    /* build edit UI as a separate element */
+    var ui = document.createElement('div');
+    ui.className = 'note-edit-ui';
+
+    var swatches = PALETTE.map(function(hex) {
+        return '<div class="edit-swatch' + (hex === origColor ? ' active' : '') + '" data-color="' + hex + '" style="background:' + hex + ';"></div>';
+    }).join('');
+
+    ui.innerHTML =
+        '<div class="edit-color-bar">' + swatches + '</div>' +
+        '<div class="edit-title" contenteditable="true" data-placeholder="หัวข้อ (ไม่บังคับ)"></div>' +
+        '<div class="edit-content" contenteditable="true" data-placeholder="เขียนอะไรก็ได้..."></div>' +
+        '<div class="edit-char"><span class="ecc">0</span>/500</div>' +
+        '<div class="edit-actions">' +
+            '<button class="edit-cancel-btn">ยกเลิก</button>' +
+            '<button class="edit-save-btn"><i class="fas fa-check"></i> บันทึก</button>' +
+        '</div>';
+
+    card.appendChild(ui);
+
+    var uiTitle   = ui.querySelector('.edit-title');
+    var uiContent = ui.querySelector('.edit-content');
+    var charSpan  = ui.querySelector('.ecc');
+    var saveBtn   = ui.querySelector('.edit-save-btn');
+
+    uiTitle.textContent   = origTitle;
+    uiContent.textContent = origContent;
+    charSpan.textContent  = origContent.length;
+
+    /* color picker */
+    ui.querySelector('.edit-color-bar').addEventListener('click', function(e) {
+        var sw = e.target.closest('.edit-swatch');
+        if (!sw) return;
+        ui.querySelectorAll('.edit-swatch').forEach(function(s) { s.classList.remove('active'); });
+        sw.classList.add('active');
+        editingColor = sw.dataset.color;
+        card.style.background = editingColor;
+    });
+
+    /* char counter */
+    uiContent.addEventListener('input', function() {
+        var len = this.innerText.replace(/\n$/, '').length;
+        if (len > 500) {
+            this.innerText = this.innerText.substring(0, 500);
+            var r = document.createRange(); r.selectNodeContents(this); r.collapse(false);
+            var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        }
+        charSpan.textContent = Math.min(len, 500);
+    });
+
+    /* Enter in title → jump to content */
+    uiTitle.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); uiContent.focus(); }
+    });
+
+    function handleKey(e) {
+        if (e.key === 'Escape')                          doCancel();
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) doSave();
+    }
+    card.addEventListener('keydown', handleKey);
+
+    function doCancel() {
+        ui.remove();
+        card.removeEventListener('keydown', handleKey);
+        card.classList.remove('editing-card');
+        card.style.background = origColor;
+        hiddenKids.forEach(function(c) { c.style.display = ''; });
+    }
+
+    async function doSave() {
+        var t = uiTitle.innerText.trim();
+        var c = uiContent.innerText.trim();
+        if (!c) { showBoardError('กรุณากรอกข้อความ'); uiContent.focus(); return; }
+
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            var body = 'id=' + id
+                     + '&title='   + encodeURIComponent(t)
+                     + '&content=' + encodeURIComponent(c)
+                     + '&color='   + encodeURIComponent(editingColor)
+                     + '&__RequestVerificationToken=' + encodeURIComponent(getToken());
+
+            var res = await fetch('/StickyNote/Edit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+                body: body
+            });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            var data = await res.json();
+            if (!data.success) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+
+            /* update title element in-place (no innerHTML replace) */
+            var nt = card.querySelector('.note-title');
+            if (data.title) {
+                if (!nt) {
+                    nt = document.createElement('h6');
+                    nt.className = 'note-title';
+                    var pin = card.querySelector('.note-pin');
+                    if (pin) pin.insertAdjacentElement('afterend', nt);
+                    else card.prepend(nt);
+                }
+                nt.textContent = data.title;
+            } else {
+                if (nt) nt.remove();
+            }
+            var nc = card.querySelector('.note-content');
+            if (nc) nc.textContent = data.content;
+
+            /* update color */
+            card.style.background = data.color;
+            card.dataset.color = data.color;
+
+            /* remove edit UI, show original children */
+            ui.remove();
+            card.removeEventListener('keydown', handleKey);
+            card.classList.remove('editing-card');
+            hiddenKids.forEach(function(c) { c.style.display = ''; });
+
+        } catch(e) {
+            showBoardError('Error: ' + e.message);
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fas fa-check"></i> บันทึก';
+            console.error(e);
+        }
+    }
+
+    ui.querySelector('.edit-cancel-btn').addEventListener('click', doCancel);
+    saveBtn.addEventListener('click', doSave);
+
+    uiContent.focus();
+    var r = document.createRange(); r.selectNodeContents(uiContent); r.collapse(false);
+    var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
 }
 
 /* ── Helpers ── */
