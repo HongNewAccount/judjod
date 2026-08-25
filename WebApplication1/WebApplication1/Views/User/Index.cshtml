@@ -243,7 +243,6 @@
             e.preventDefault();
             var isApprove = form.classList.contains('approve-form');
             var row = form.closest('.pending-row');
-            if (!isApprove && !confirm('ปฏิเสธการลงทะเบียนนี้?')) return;
 
             var token = form.querySelector('input[name="__RequestVerificationToken"]').value;
 
