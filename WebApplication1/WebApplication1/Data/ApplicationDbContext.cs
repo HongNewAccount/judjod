@@ -22,6 +22,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ChatRoomMember> ChatRoomMembers { get; set; }
     public DbSet<ChatRoomMessage> ChatRoomMessages { get; set; }
     public DbSet<ProjectProgressLog> ProjectProgressLogs { get; set; }
+    public DbSet<StickyNote> StickyNotes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -67,5 +68,8 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<ProjectProgressLog>().HasKey(pl => pl.Id);
         modelBuilder.Entity<ProjectProgressLog>().HasOne(pl => pl.Project).WithMany().HasForeignKey(pl => pl.ProjectId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<ProjectProgressLog>().HasOne(pl => pl.User).WithMany().HasForeignKey(pl => pl.UserId).OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<StickyNote>().HasKey(n => n.Id);
+        modelBuilder.Entity<StickyNote>().HasOne(n => n.User).WithMany().HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Cascade);
     }
 }

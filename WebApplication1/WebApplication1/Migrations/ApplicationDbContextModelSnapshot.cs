@@ -19,6 +19,20 @@ namespace WebApplication1.Migrations
                 .HasAnnotation("ProductVersion", "8.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
+            modelBuilder.Entity("WebApplication1.Models.StickyNote", b =>
+                {
+                    b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("int");
+                    b.Property<string>("Title").IsRequired().HasMaxLength(200).HasColumnType("varchar(200)");
+                    b.Property<string>("Content").IsRequired().HasColumnType("longtext");
+                    b.Property<string>("Color").IsRequired().HasMaxLength(20).HasColumnType("varchar(20)");
+                    b.Property<int>("UserId").HasColumnType("int");
+                    b.Property<DateTime>("CreatedAt").HasColumnType("datetime(6)");
+                    b.Property<DateTime>("ExpiresAt").HasColumnType("datetime(6)");
+                    b.HasKey("Id");
+                    b.HasIndex("UserId");
+                    b.ToTable("StickyNotes");
+                });
+
             modelBuilder.Entity("WebApplication1.Models.ActivityLog", b =>
                 {
                     b.Property<int>("Id")

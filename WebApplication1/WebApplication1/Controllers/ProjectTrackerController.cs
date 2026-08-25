@@ -775,7 +775,22 @@ public class ProjectTrackerController : Controller
         }
         else if (action == "archive")
         {
-            foreach (var p in projects) p.Status = "Closed";
+            foreach (var p in projects)
+            {
+                var oldStatus = p.Status;
+                p.Status = "Closed";
+                p.UpdatedAt = DateTime.UtcNow;
+                _context.ActivityLogs.Add(new ActivityLog
+                {
+                    ProjectId   = p.Id,
+                    UserId      = userId,
+                    ActionType  = "StatusChanged",
+                    Description = $"Project status changed from '{oldStatus}' to 'Closed'",
+                    OldValue    = oldStatus,
+                    NewValue    = "Closed",
+                    CreatedAt   = DateTime.UtcNow
+                });
+            }
         }
         else
             return BadRequest();
@@ -1040,6 +1055,18 @@ public class ProjectTrackerController : Controller
         project.Status = "InProgress";
         project.EndDate = null;
         project.UpdatedAt = DateTime.UtcNow;
+
+        _context.ActivityLogs.Add(new ActivityLog
+        {
+            ProjectId   = project.Id,
+            UserId      = HttpContext.Session.GetInt32("UserId"),
+            ActionType  = "Restored",
+            Description = $"Project '{project.Name}' was restored from archive",
+            OldValue    = "Closed",
+            NewValue    = "InProgress",
+            CreatedAt   = DateTime.UtcNow
+        });
+
         await _context.SaveChangesAsync();
         return Ok(new { success = true });
     }

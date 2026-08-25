@@ -1,0 +1,460 @@
+@model IList<WebApplication1.Models.StickyNote>
+@Html.AntiForgeryToken()
+@{
+    ViewData["Title"] = "Notes";
+    var currentUserId = Context.Session.GetInt32("UserId");
+    var isAdmin = Context.Session.GetString("UserRole") == "Admin";
+
+    var palette = new (string hex, string name)[]
+    {
+        ("#fef08a", "เหลือง"),
+        ("#fecdd3", "ชมพู"),
+        ("#bbf7d0", "เขียว"),
+        ("#bae6fd", "ฟ้า"),
+        ("#e9d5ff", "ม่วง"),
+        ("#fed7aa", "ส้ม"),
+        ("#f1f5f9", "ขาว"),
+    };
+}
+
+<div class="container-fluid">
+
+    @* ── Header ── *@
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <small class="text-muted">@Model.Count โน้ต · หมดอายุใน 30 วัน</small>
+        </div>
+        <button class="btn-add-note" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+            <i class="fas fa-plus me-1"></i>เพิ่มโน้ต
+        </button>
+    </div>
+
+    @* ── Board ── *@
+    <div class="notes-board">
+        @if (!Model.Any())
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-sticky-note" style="font-size:3.5rem;color:rgba(0,0,0,.1);"></i>
+                <p class="mt-3 mb-0" style="color:rgba(0,0,0,.35);font-size:.95rem;">ยังไม่มีโน้ต — เป็นคนแรกที่เพิ่มโน้ต!</p>
+            </div>
+        }
+        else
+        {
+            <div class="notes-grid" id="notesGrid">
+                @foreach (var note in Model)
+                {
+                    var daysLeft = Math.Max(0, (int)(note.ExpiresAt.Date - DateTime.UtcNow.Date).TotalDays);
+                    var urgency  = daysLeft < 3 ? "urgent" : daysLeft < 7 ? "warn" : "";
+                    var canDel   = note.UserId == currentUserId || isAdmin;
+                    <div class="sticky-note" style="background:@note.Color;">
+                        @if (canDel)
+                        {
+                            <button class="note-delete" onclick="deleteNote(@note.Id, this)" title="ลบ">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        }
+                        <div class="note-pin"></div>
+                        @if (!string.IsNullOrEmpty(note.Title))
+                        {
+                            <h6 class="note-title">@note.Title</h6>
+                        }
+                        <p class="note-content">@note.Content</p>
+                        <div class="note-footer">
+                            <div class="note-author">
+                                <div class="note-avatar">@note.User!.FirstName[0]</div>
+                                <span class="note-author-name">@note.User.FirstName</span>
+                            </div>
+                            <span class="note-expiry @urgency">
+                                @if (daysLeft == 0) { <text>หมดวันนี้</text> }
+                                else { <text>@daysLeft วัน</text> }
+                            </span>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@* ── Add Note Modal ── *@
+<div class="modal fade" id="addNoteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius:20px;overflow:hidden;">
+            <div class="modal-header border-0 pb-0 pt-4 px-4">
+                <h6 class="modal-title fw-bold fs-5">
+                    <i class="fas fa-sticky-note me-2" style="color:#f59e0b;"></i>เพิ่มโน้ต
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4 pt-3 pb-4">
+
+                @* Color picker *@
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-muted">เลือกสี</label>
+                    <div class="color-picker d-flex gap-2 flex-wrap" id="colorPicker">
+                        @foreach (var (hex, name) in palette)
+                        {
+                            <div class="color-swatch @(hex == "#fef08a" ? "selected" : "")"
+                                 data-color="@hex" style="background:@hex;" title="@name"></div>
+                        }
+                    </div>
+                </div>
+
+                @* Preview *@
+                <div id="notePreview" class="note-preview mb-3" style="background:#fef08a;">
+                    <div class="note-pin" style="position:relative;top:0;left:0;transform:none;margin-bottom:.5rem;display:inline-block;"></div>
+                    <div id="previewTitle" class="note-title" style="display:none;"></div>
+                    <div id="previewContent" class="note-content" style="color:rgba(0,0,0,.4);">ข้อความของคุณจะปรากฏที่นี่...</div>
+                </div>
+
+                @* Inputs *@
+                <div class="mb-2">
+                    <input type="text" id="noteTitle" maxlength="100" class="form-control form-control-sm border-0 border-bottom rounded-0 px-0 fw-semibold"
+                           placeholder="หัวข้อ (ไม่บังคับ)" style="background:transparent;box-shadow:none;font-size:.95rem;" />
+                </div>
+                <div class="mb-3">
+                    <textarea id="noteContent" maxlength="500" rows="4" class="form-control border-0 border-bottom rounded-0 px-0"
+                              placeholder="เขียนอะไรก็ได้..." style="background:transparent;box-shadow:none;resize:none;font-size:.88rem;"></textarea>
+                    <div class="text-end" style="font-size:.7rem;color:#aaa;margin-top:2px;">
+                        <span id="charCount">0</span>/500
+                    </div>
+                </div>
+
+                <div id="noteError" class="alert alert-danger small py-2 d-none"></div>
+
+                <button type="button" class="btn-add-note w-100" onclick="submitNote()" id="submitBtn">
+                    <i class="fas fa-thumbtack me-1"></i>ปักหมุด
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* ── Board ── */
+.notes-board {
+    background: #f5f0e8;
+    background-image: radial-gradient(circle, rgba(0,0,0,.06) 1px, transparent 1px);
+    background-size: 28px 28px;
+    border-radius: 16px;
+    padding: 2.5rem 2rem 1.5rem;
+    min-height: 380px;
+}
+
+/* ── Grid ── */
+.notes-grid {
+    columns: 4 220px;
+    column-gap: 1.5rem;
+}
+
+/* ── Note card ── */
+.sticky-note {
+    position: relative;
+    border-radius: 4px;
+    padding: 1.75rem 1.25rem 1rem;
+    box-shadow: 3px 5px 14px rgba(0,0,0,.13), 0 1px 3px rgba(0,0,0,.08);
+    break-inside: avoid;
+    margin-bottom: 1.5rem;
+    display: inline-block;
+    width: 100%;
+    transition: transform .22s ease, box-shadow .22s ease;
+    will-change: transform;
+}
+.sticky-note:nth-child(4n+1) { transform: rotate(-1.4deg); }
+.sticky-note:nth-child(4n+2) { transform: rotate(1.1deg); }
+.sticky-note:nth-child(4n+3) { transform: rotate(-0.6deg); }
+.sticky-note:nth-child(4n+4) { transform: rotate(1.8deg); }
+.sticky-note:hover {
+    transform: rotate(0deg) translateY(-5px) scale(1.01) !important;
+    box-shadow: 5px 10px 24px rgba(0,0,0,.18), 0 2px 5px rgba(0,0,0,.1);
+    z-index: 10;
+}
+
+/* ── Pin ── */
+.note-pin {
+    position: absolute;
+    top: -9px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 18px;
+    height: 18px;
+    background: radial-gradient(circle at 35% 30%, #ff8080, #c0392b);
+    border-radius: 50%;
+    box-shadow: 0 3px 7px rgba(0,0,0,.3), inset 0 1px 2px rgba(255,255,255,.35);
+}
+.note-pin::after {
+    content: '';
+    position: absolute;
+    top: 28%;
+    left: 28%;
+    width: 6px;
+    height: 6px;
+    background: rgba(255,255,255,.45);
+    border-radius: 50%;
+}
+
+/* ── Delete button ── */
+.note-delete {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(0,0,0,.1);
+    border: none;
+    color: rgba(0,0,0,.45);
+    font-size: .6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .15s, background .15s, color .15s;
+    line-height: 1;
+}
+.sticky-note:hover .note-delete { opacity: 1; }
+.note-delete:hover { background: #ef4444; color: #fff; }
+
+/* ── Text ── */
+.note-title {
+    font-weight: 700;
+    font-size: .95rem;
+    margin-bottom: .45rem;
+    color: rgba(0,0,0,.72);
+    line-height: 1.3;
+    word-break: break-word;
+}
+.note-content {
+    font-size: .86rem;
+    color: rgba(0,0,0,.62);
+    line-height: 1.65;
+    word-break: break-word;
+    white-space: pre-wrap;
+    margin-bottom: .75rem;
+    min-height: 1.5rem;
+}
+
+/* ── Footer ── */
+.note-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid rgba(0,0,0,.09);
+    padding-top: .55rem;
+}
+.note-author { display:flex;align-items:center;gap:.4rem; }
+.note-avatar {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(0,0,0,.18);
+    color: rgba(0,0,0,.55);
+    font-size: .68rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+}
+.note-author-name { font-size: .73rem; color: rgba(0,0,0,.5); font-weight: 500; }
+.note-expiry { font-size: .7rem; color: rgba(0,0,0,.38); }
+.note-expiry.warn   { color: #d97706; font-weight: 600; }
+.note-expiry.urgent { color: #dc2626; font-weight: 700; }
+
+/* ── Add button ── */
+.btn-add-note {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    padding: .55rem 1.4rem;
+    font-size: .88rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(102,126,234,.4);
+    transition: transform .15s, box-shadow .15s, opacity .15s;
+}
+.btn-add-note:hover { transform: translateY(-2px); box-shadow: 0 7px 18px rgba(102,126,234,.5); }
+.btn-add-note:active { transform: translateY(0); }
+.btn-add-note:disabled { opacity: .6; }
+
+/* ── Color picker ── */
+.color-swatch {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid transparent;
+    box-shadow: 0 1px 5px rgba(0,0,0,.18);
+    transition: transform .15s, border-color .15s;
+    display: block;
+}
+.color-swatch:hover { transform: scale(1.18); }
+.color-swatch.selected {
+    border-color: #1a1a2e;
+    transform: scale(1.18);
+}
+
+/* ── Preview ── */
+.note-preview {
+    border-radius: 6px;
+    padding: 1.25rem 1rem .85rem;
+    box-shadow: 2px 3px 10px rgba(0,0,0,.1);
+    transition: background .2s;
+    min-height: 80px;
+}
+</style>
+
+@section Scripts {
+<script>
+var selectedColor = '#fef08a';
+
+function getToken() {
+    var el = document.querySelector('[name="__RequestVerificationToken"]');
+    return el ? el.value : '';
+}
+
+/* ── Color picker ── */
+document.querySelectorAll('#colorPicker .color-swatch').forEach(function(sw) {
+    sw.addEventListener('click', function() {
+        document.querySelectorAll('#colorPicker .color-swatch').forEach(function(s) { s.classList.remove('selected'); });
+        sw.classList.add('selected');
+        selectedColor = sw.dataset.color;
+        var prev = document.getElementById('notePreview');
+        if (prev) prev.style.background = selectedColor;
+    });
+});
+
+/* ── Live preview ── */
+function updatePreview() {
+    var t  = (document.getElementById('noteTitle')   || {value:''}).value.trim();
+    var c  = (document.getElementById('noteContent') || {value:''}).value;
+    var pt = document.getElementById('previewTitle');
+    var pc = document.getElementById('previewContent');
+    if (pt) { pt.textContent = t; pt.style.display = t ? '' : 'none'; }
+    if (pc) { pc.textContent = c || 'ข้อความของคุณจะปรากฏที่นี่...'; pc.style.color = c ? 'rgba(0,0,0,.62)' : 'rgba(0,0,0,.4)'; }
+}
+var _nt = document.getElementById('noteTitle');
+var _nc = document.getElementById('noteContent');
+if (_nt) _nt.addEventListener('input', updatePreview);
+if (_nc) _nc.addEventListener('input', function() {
+    var cc = document.getElementById('charCount');
+    if (cc) cc.textContent = this.value.length;
+    updatePreview();
+});
+
+/* ── Reset modal on close ── */
+var _modal = document.getElementById('addNoteModal');
+if (_modal) _modal.addEventListener('hidden.bs.modal', function() {
+    if (_nt) _nt.value = '';
+    if (_nc) _nc.value = '';
+    var cc = document.getElementById('charCount');    if (cc) cc.textContent = '0';
+    var pt = document.getElementById('previewTitle'); if (pt) pt.style.display = 'none';
+    var pc = document.getElementById('previewContent');
+    if (pc) { pc.textContent = 'ข้อความของคุณจะปรากฏที่นี่...'; pc.style.color = 'rgba(0,0,0,.4)'; }
+    var pv = document.getElementById('notePreview');  if (pv) pv.style.background = '#fef08a';
+    var er = document.getElementById('noteError');    if (er) er.classList.add('d-none');
+    selectedColor = '#fef08a';
+    document.querySelectorAll('#colorPicker .color-swatch').forEach(function(s) { s.classList.remove('selected'); });
+    var first = document.querySelector('#colorPicker .color-swatch');
+    if (first) first.classList.add('selected');
+});
+
+/* ── Submit ── */
+async function submitNote() {
+    var title   = (_nt || {value:''}).value.trim();
+    var content = (_nc || {value:''}).value.trim();
+    var errEl   = document.getElementById('noteError');
+    var btn     = document.getElementById('submitBtn');
+
+    if (errEl) errEl.classList.add('d-none');
+    if (!content) {
+        if (errEl) { errEl.textContent = 'กรุณากรอกข้อความ'; errEl.classList.remove('d-none'); }
+        return;
+    }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังปักหมุด...'; }
+
+    try {
+        var body = 'title='   + encodeURIComponent(title)
+                 + '&content=' + encodeURIComponent(content)
+                 + '&color='   + encodeURIComponent(selectedColor)
+                 + '&__RequestVerificationToken=' + encodeURIComponent(getToken());
+
+        var res = await fetch('/StickyNote/Create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+            body: body
+        });
+
+        if (!res.ok) { var t2 = await res.text(); throw new Error('HTTP ' + res.status + ' — ' + t2.substring(0,120)); }
+        var data = await res.json();
+
+        if (!data.success) {
+            if (errEl) { errEl.textContent = data.error || 'เกิดข้อผิดพลาด'; errEl.classList.remove('d-none'); }
+            return;
+        }
+
+        var mi = bootstrap.Modal.getInstance(document.getElementById('addNoteModal'));
+        if (mi) mi.hide();
+        prependNote(data);
+
+    } catch(e) {
+        if (errEl) { errEl.textContent = 'Error: ' + e.message; errEl.classList.remove('d-none'); }
+        console.error('submitNote error:', e);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-thumbtack me-1"></i>ปักหมุด'; }
+    }
+}
+
+/* ── Helpers ── */
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function prependNote(n) {
+    var board = document.querySelector('.notes-board');
+    if (!board) return;
+    var empty = board.querySelector('.text-center.py-5');
+    if (empty) empty.remove();
+    var grid = document.getElementById('notesGrid');
+    if (!grid) {
+        grid = document.createElement('div');
+        grid.className = 'notes-grid';
+        grid.id = 'notesGrid';
+        board.appendChild(grid);
+    }
+    var div = document.createElement('div');
+    div.className = 'sticky-note';
+    div.style.background = n.color;
+    div.style.opacity = '0';
+    div.style.transform = 'scale(.85)';
+    div.innerHTML =
+        '<button class="note-delete" onclick="deleteNote(' + n.id + ',this)" title="ลบ"><i class="fas fa-times"></i></button>' +
+        '<div class="note-pin"></div>' +
+        (n.title ? '<h6 class="note-title">' + escHtml(n.title) + '</h6>' : '') +
+        '<p class="note-content">' + escHtml(n.content) + '</p>' +
+        '<div class="note-footer"><div class="note-author"><div class="note-avatar">' + escHtml(n.authorInitial) + '</div>' +
+        '<span class="note-author-name">' + escHtml(n.authorName) + '</span></div>' +
+        '<span class="note-expiry">' + n.daysLeft + ' วัน</span></div>';
+    grid.prepend(div);
+    requestAnimationFrame(function() {
+        div.style.transition = 'opacity .3s, transform .3s';
+        div.style.opacity = '1';
+        div.style.transform = 'rotate(-1deg)';
+    });
+}
+
+/* ── Delete ── */
+async function deleteNote(id, btn) {
+    var note = btn.closest('.sticky-note');
+    try {
+        var res = await fetch('/StickyNote/Delete/' + id, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+            body: '__RequestVerificationToken=' + encodeURIComponent(getToken())
+        });
+        if (res.ok) {
+            note.style.transition = 'opacity .2s, transform .2s';
+            note.style.opacity = '0';
+            note.style.transform = 'scale(.8)';
+            setTimeout(function() { if (note.parentNode) note.remove(); }, 220);
+        }
+    } catch(e) { console.error('deleteNote error:', e); }
+}
+</script>
+}
