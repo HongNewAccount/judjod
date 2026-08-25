@@ -79,7 +79,7 @@ public class StickyNoteController : Controller
 
         var note = await _context.StickyNotes.FindAsync(id);
         if (note == null) return NotFound();
-        if (note.UserId != userId && userRole != "Admin") return Forbid();
+        if (note.UserId != userId && userRole != "Admin" && userRole != "Editor") return Forbid();
 
         _context.StickyNotes.Remove(note);
         await _context.SaveChangesAsync();
