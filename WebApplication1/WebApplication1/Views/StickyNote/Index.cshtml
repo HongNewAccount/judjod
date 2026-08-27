@@ -64,7 +64,7 @@
                     {
                         <h6 class="note-title">@note.Title</h6>
                     }
-                    <p class="note-content">@note.Content</p>
+                    <p class="note-content">@Linkify(note.Content)</p>
                     <div class="note-footer">
                         <div class="note-author">
                             <div class="note-avatar">@note.User!.FirstName[0]</div>
@@ -327,6 +327,15 @@
 .note-expiry.warn   { color: #d97706; font-weight: 600; }
 .note-expiry.urgent { color: #dc2626; font-weight: 700; }
 
+/* ── Links inside notes ── */
+.note-content a.note-link {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: rgba(0,0,0,.35);
+    word-break: break-all;
+}
+.note-content a.note-link:hover { opacity: .7; }
+
 /* ── Error toast inside board ── */
 #boardError {
     position: fixed;
@@ -519,7 +528,7 @@ function buildNoteEl(n) {
         '<button class="note-edit"   onclick="startEditNote(' + n.id + ',this)" title="แก้ไข"><i class="fas fa-pen"></i></button>' +
         '<div class="note-pin"></div>' +
         (n.title ? '<h6 class="note-title">' + esc(n.title) + '</h6>' : '') +
-        '<p class="note-content">' + esc(n.content) + '</p>' +
+        '<p class="note-content">' + linkify(n.content) + '</p>' +
         '<div class="note-footer"><div class="note-author"><div class="note-avatar">' + esc(n.authorInitial) + '</div>' +
         '<span class="note-author-name">' + esc(n.authorName) + '</span></div>' +
         '<span class="note-expiry">' + n.daysLeft + ' วัน</span></div>';
@@ -684,7 +693,7 @@ function startEditNote(id, btn) {
                 if (nt) nt.remove();
             }
             var nc = card.querySelector('.note-content');
-            if (nc) nc.textContent = data.content;
+            if (nc) nc.innerHTML = linkify(data.content);
 
             /* update color */
             card.style.background = data.color;
@@ -728,6 +737,12 @@ function esc(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function linkify(s) {
+    return esc(s).replace(/(https?:\/\/[^\s<>&"']+)/g, function(url) {
+        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="note-link" onclick="event.stopPropagation()">' + url + '</a>';
+    });
+}
+
 var _errTimer;
 function showBoardError(msg) {
     var el = document.getElementById('boardError');
@@ -739,4 +754,18 @@ function showBoardError(msg) {
 }
 
 </script>
+}
+
+@functions {
+    private Microsoft.AspNetCore.Html.IHtmlContent Linkify(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return Microsoft.AspNetCore.Html.HtmlString.Empty;
+        var escaped = System.Text.Encodings.Web.HtmlEncoder.Default.Encode(text);
+        var linked  = System.Text.RegularExpressions.Regex.Replace(
+            escaped,
+            @"https?://[^\s<>&""']+",
+            m => $"<a href=\"{m.Value}\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"note-link\" onclick=\"event.stopPropagation()\">{m.Value}</a>"
+        );
+        return new Microsoft.AspNetCore.Html.HtmlString(linked);
+    }
 }
