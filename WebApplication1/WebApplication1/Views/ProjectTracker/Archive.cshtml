@@ -1,5 +1,13 @@
 @model IEnumerable<WebApplication1.Models.Project>
 @Html.AntiForgeryToken()
+@section Styles {
+<style>
+.sort-field-btn { padding: 2px 10px; border-radius: 6px; border: 1.5px solid #dee2e6; background: #fff; font-size: .78rem; cursor: pointer; transition: all .15s; white-space: nowrap; line-height: 1.9; }
+.sort-field-btn:hover { border-color: #6c757d; background: #f8f9fa; }
+.sort-field-btn.sort-active { background: #374151; color: #fff; border-color: #374151; }
+.sort-arrow { font-size: .9em; }
+</style>
+}
 @{
     ViewData["Title"] = "Archive";
     var userRole = Context.Session.GetString("UserRole") ?? "User";
@@ -62,6 +70,13 @@
                 </button>
                 <span id="filterCount" class="text-muted ms-auto" style="font-size:.8rem;"></span>
             </div>
+            <div class="d-flex gap-1 align-items-center flex-wrap mt-2 pt-2 border-top">
+                <span class="text-muted small me-1">Sort:</span>
+                <button class="sort-field-btn" data-field="name">Name <span class="sort-arrow">↕</span></button>
+                <button class="sort-field-btn" data-field="priority">Priority <span class="sort-arrow">↕</span></button>
+                <button class="sort-field-btn" data-field="date">Due Date <span class="sort-arrow">↕</span></button>
+                <button class="sort-field-btn" data-field="progress">Progress <span class="sort-arrow">↕</span></button>
+            </div>
         </div>
     </div>
 
@@ -81,7 +96,7 @@
     }
     else
     {
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.75rem;">
+        <div id="archiveGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.75rem;">
             @foreach (var project in Model)
             {
                 <div class="kanban-card" style="cursor:pointer;"
@@ -91,6 +106,8 @@
                      data-year="@((project.UpdatedAt ?? project.CreatedAt).Year + 543)"
                      data-group="@string.Join(",", project.Groups.Select(g => g.GroupId))"
                      data-search="@($"{project.Name} {string.Join(' ', project.Owners.Select(o => o.User != null ? o.User.FirstName + " " + o.User.LastName : ""))}".ToLower())"
+                     data-due-date="@(project.EndDate?.ToString("yyyy-MM-dd") ?? "")"
+                     data-progress="@project.Progress"
                      onclick="openDetailModal(this.dataset.id, this.dataset.name, this.dataset.status)">
                     <span class="badge bg-secondary mb-1" style="font-size:.65rem;">Archived</span>
 
@@ -248,6 +265,10 @@
 <script>
 const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
 
+// ─── Sort state ───────────────────────────────────────────────────
+var activeSortField = null;
+var activeSortDir   = null;
+
 // ─── Filter Builder ───────────────────────────────────────────────
 let filterRules = [];
 let ruleSeq = 0;
@@ -349,6 +370,12 @@ function addFilterRow() {
 
 function clearAllFilters() {
     filterRules = [];
+    activeSortField = null;
+    activeSortDir   = null;
+    document.querySelectorAll('.sort-field-btn').forEach(b => {
+        b.classList.remove('sort-active');
+        b.querySelector('.sort-arrow').textContent = '↕';
+    });
     document.getElementById('archiveSearch').value = '';
     renderFilterRows();
     applyFilters();
@@ -376,7 +403,34 @@ function matchRule(card, rule) {
 
 function applyFilters() {
     const term = (document.getElementById('archiveSearch').value || '').toLowerCase();
-    const cards = document.querySelectorAll('.kanban-card[data-search]');
+    const grid = document.getElementById('archiveGrid');
+    const cards = Array.from(document.querySelectorAll('#archiveGrid .kanban-card[data-search]'));
+
+    // Sort DOM order first
+    if (activeSortField && grid) {
+        cards.sort((a, b) => {
+            let av, bv;
+            if (activeSortField === 'name') {
+                av = (a.dataset.name || '').toLowerCase();
+                bv = (b.dataset.name || '').toLowerCase();
+            } else if (activeSortField === 'priority') {
+                const order = { 'High': 0, 'Medium': 1, 'Low': 2, 'None': 3 };
+                av = order[a.dataset.priority] ?? 3;
+                bv = order[b.dataset.priority] ?? 3;
+            } else if (activeSortField === 'date') {
+                av = a.dataset.dueDate || '9999';
+                bv = b.dataset.dueDate || '9999';
+            } else if (activeSortField === 'progress') {
+                av = Number(a.dataset.progress) || 0;
+                bv = Number(b.dataset.progress) || 0;
+            }
+            if (av < bv) return activeSortDir === 'asc' ? -1 : 1;
+            if (av > bv) return activeSortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+        cards.forEach(c => grid.appendChild(c));
+    }
+
     let visible = 0;
     cards.forEach(card => {
         const matchSearch = !term || card.dataset.search.includes(term);
@@ -386,9 +440,37 @@ function applyFilters() {
         if (show) visible++;
     });
     const countEl = document.getElementById('filterCount');
-    const hasFilter = term || filterRules.some(r => r.value !== '');
+    const hasFilter = term || filterRules.some(r => r.value !== '') || activeSortField;
     countEl.textContent = hasFilter ? `${visible} / ${cards.length} tasks` : '';
 }
+
+document.querySelectorAll('.sort-field-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const field = this.dataset.field;
+        const arrow = this.querySelector('.sort-arrow');
+        if (activeSortField !== field) {
+            // New field — reset others, start asc
+            document.querySelectorAll('.sort-field-btn').forEach(b => {
+                b.classList.remove('sort-active');
+                b.querySelector('.sort-arrow').textContent = '↕';
+            });
+            activeSortField = field;
+            activeSortDir = 'asc';
+            this.classList.add('sort-active');
+            arrow.textContent = '↑';
+        } else if (activeSortDir === 'asc') {
+            activeSortDir = 'desc';
+            arrow.textContent = '↓';
+        } else {
+            // Reset
+            activeSortField = null;
+            activeSortDir = null;
+            this.classList.remove('sort-active');
+            arrow.textContent = '↕';
+        }
+        applyFilters();
+    });
+});
 
 document.getElementById('archiveSearch').addEventListener('keyup', applyFilters);
 

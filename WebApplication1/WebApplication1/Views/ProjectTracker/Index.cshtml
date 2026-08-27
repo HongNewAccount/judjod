@@ -1,5 +1,13 @@
 ﻿@model IEnumerable<WebApplication1.Models.Project>
 @inject WebApplication1.Data.ApplicationDbContext DbContext
+@section Styles {
+<style>
+.sort-field-btn { padding: 2px 10px; border-radius: 6px; border: 1.5px solid #dee2e6; background: #fff; font-size: .78rem; cursor: pointer; transition: all .15s; white-space: nowrap; line-height: 1.9; }
+.sort-field-btn:hover { border-color: #6c757d; background: #f8f9fa; }
+.sort-field-btn.sort-active { background: #374151; color: #fff; border-color: #374151; }
+.sort-arrow { font-size: .9em; }
+</style>
+}
 @{
     ViewData["Title"] = "Board";
     var userRole = Context.Session.GetString("UserRole") ?? "User";
@@ -527,20 +535,6 @@
 .kanban-card-progress {
     margin-top: .35rem;
 }
-.sort-field-btn {
-    padding: 2px 10px;
-    border-radius: 6px;
-    border: 1.5px solid #dee2e6;
-    background: #fff;
-    font-size: .78rem;
-    cursor: pointer;
-    transition: all .15s;
-    white-space: nowrap;
-    line-height: 1.9;
-}
-.sort-field-btn:hover { border-color: #6c757d; background: #f8f9fa; }
-.sort-field-btn.sort-active { background: #374151; color: #fff; border-color: #374151; }
-.sort-arrow { font-size: .9em; }
 .task-log-entry {
     padding: .45rem .5rem;
     border-radius: .45rem;
