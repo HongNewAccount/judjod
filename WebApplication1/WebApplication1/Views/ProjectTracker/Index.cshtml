@@ -65,9 +65,35 @@
 
 <div class="container-fluid">
 
-    <div class="card mb-3">
+    <script>
+    const GROUPS_DATA_BOARD = [@Html.Raw(string.Join(",", groups.Select(g => "{id:'" + g.Id + "',name:'" + g.Name.Replace("'", "\\'") + "'}")))] ;
+    </script>
+
+    <div class="card mb-2">
         <div class="card-body py-2">
             <input type="text" id="boardSearch" class="form-control" placeholder="Search by project or owner name..." />
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body py-2 px-3">
+            <div id="filterRows" class="d-flex flex-column gap-2 mb-2"></div>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <button onclick="addFilterRow()" class="btn btn-sm btn-outline-primary" style="font-size:.8rem;">
+                    <i class="fas fa-plus me-1"></i>Add Filter
+                </button>
+                <button onclick="clearAllFilters()" class="btn btn-sm btn-outline-secondary" style="font-size:.8rem;">
+                    <i class="fas fa-times me-1"></i>Clear All
+                </button>
+                <span id="filterCount" class="text-muted ms-auto" style="font-size:.8rem;"></span>
+            </div>
+            <div class="d-flex gap-1 align-items-center flex-wrap mt-2 pt-2 border-top">
+                <span class="text-muted small me-1">Sort:</span>
+                <button class="sort-field-btn" data-field="name">Name <span class="sort-arrow">↕</span></button>
+                <button class="sort-field-btn" data-field="priority">Priority <span class="sort-arrow">↕</span></button>
+                <button class="sort-field-btn" data-field="date">Due Date <span class="sort-arrow">↕</span></button>
+                <button class="sort-field-btn" data-field="progress">Progress <span class="sort-arrow">↕</span></button>
+            </div>
         </div>
     </div>
 
@@ -155,8 +181,12 @@
                         <div class="kanban-card"
                              data-project-id="@project.Id"
                              data-status="@project.Status"
-                             data-sort-order="@project.SortOrder" data-group-ids="@string.Join(",", project.Groups.Select(g => g.GroupId))"
+                             data-sort-order="@project.SortOrder"
+                             data-group-ids="@string.Join(",", project.Groups.Select(g => g.GroupId))"
                              data-search="@($"{project.Name} {string.Join(' ', project.Owners.Select(o => o.User != null ? o.User.FirstName + ' ' + o.User.LastName : ""))}".ToLower())"
+                             data-priority="@(string.IsNullOrEmpty(project.Priority) || project.Priority == "None" ? "None" : project.Priority)"
+                             data-due-date="@(project.EndDate?.ToString("yyyy-MM-dd") ?? "")"
+                             data-progress="@project.Progress"
                              draggable="@(isAdmin ? "true" : "false")"
                              onclick="cardClicked(event, @project.Id, '@project.Name.Replace("'","\\'")')">
 
@@ -497,6 +527,20 @@
 .kanban-card-progress {
     margin-top: .35rem;
 }
+.sort-field-btn {
+    padding: 2px 10px;
+    border-radius: 6px;
+    border: 1.5px solid #dee2e6;
+    background: #fff;
+    font-size: .78rem;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+    line-height: 1.9;
+}
+.sort-field-btn:hover { border-color: #6c757d; background: #f8f9fa; }
+.sort-field-btn.sort-active { background: #374151; color: #fff; border-color: #374151; }
+.sort-arrow { font-size: .9em; }
 .task-log-entry {
     padding: .45rem .5rem;
     border-radius: .45rem;
@@ -557,22 +601,241 @@ async function cardArchive(id, name) {
     }
 }
 
+// ─── Filter & Sort ────────────────────────────────────────────────────────────
+var activeGroupId = null;
+var activeSortField = null; // 'name' | 'priority' | 'date' | 'progress'
+var activeSortDir   = null; // 'asc' | 'desc'
+let filterRules = [];
+let ruleSeq = 0;
+
+const FIELD_CONFIG_BOARD = {
+    name:     { label: 'Name',      ops: ['contains', 'not_contains'] },
+    priority: { label: 'Priority',  ops: ['is', 'is_not'] },
+    group:    { label: 'Group',     ops: ['is', 'is_not'] },
+    due:      { label: 'Due Date',  ops: ['is', 'before', 'after'] },
+    progress: { label: 'Progress',  ops: ['above', 'below'] },
+};
+const OP_LABEL_BOARD = { is:'is', is_not:'is not', contains:'contains', not_contains:'not contains', before:'before', after:'after', above:'above', below:'below' };
+
+function valueOptions(field, op) {
+    if (field === 'priority') return [['None','—'],['Low','Low'],['Medium','Medium'],['High','High']];
+    if (field === 'group')    return GROUPS_DATA_BOARD.map(g => [g.id, g.name]);
+    if (field === 'due' && op === 'is') return [['overdue','Overdue'],['today','Due Today'],['week','Due This Week'],['none','No Due Date']];
+    return null;
+}
+
+function renderFilterRows() {
+    const container = document.getElementById('filterRows');
+    container.innerHTML = '';
+    filterRules.forEach(rule => {
+        const row = document.createElement('div');
+        row.className = 'd-flex gap-2 align-items-center flex-wrap';
+
+        const fSel = document.createElement('select');
+        fSel.className = 'form-select form-select-sm';
+        fSel.style.cssText = 'width:auto;min-width:110px;';
+        Object.entries(FIELD_CONFIG_BOARD).forEach(([k, v]) => {
+            const o = document.createElement('option');
+            o.value = k; o.textContent = v.label;
+            if (k === rule.field) o.selected = true;
+            fSel.appendChild(o);
+        });
+        fSel.addEventListener('change', () => { rule.field = fSel.value; rule.op = FIELD_CONFIG_BOARD[fSel.value].ops[0]; rule.value = ''; renderFilterRows(); applyBoardFilters(); });
+
+        const oSel = document.createElement('select');
+        oSel.className = 'form-select form-select-sm';
+        oSel.style.cssText = 'width:auto;min-width:110px;';
+        FIELD_CONFIG_BOARD[rule.field].ops.forEach(op => {
+            const o = document.createElement('option');
+            o.value = op; o.textContent = OP_LABEL_BOARD[op];
+            if (op === rule.op) o.selected = true;
+            oSel.appendChild(o);
+        });
+        oSel.addEventListener('change', () => { rule.op = oSel.value; rule.value = ''; renderFilterRows(); applyBoardFilters(); });
+
+        const opts = valueOptions(rule.field, rule.op);
+        let vEl;
+        if (opts) {
+            vEl = document.createElement('select');
+            vEl.className = 'form-select form-select-sm';
+            vEl.style.cssText = 'width:auto;min-width:130px;';
+            const blank = document.createElement('option');
+            blank.value = ''; blank.textContent = '— select —';
+            vEl.appendChild(blank);
+            opts.forEach(([val, lbl]) => {
+                const o = document.createElement('option');
+                o.value = val; o.textContent = lbl;
+                if (val == rule.value) o.selected = true;
+                vEl.appendChild(o);
+            });
+            vEl.addEventListener('change', () => { rule.value = vEl.value; applyBoardFilters(); });
+        } else {
+            vEl = document.createElement('input');
+            vEl.className = 'form-control form-control-sm';
+            vEl.value = rule.value || '';
+            if (rule.field === 'due') { vEl.type = 'date'; vEl.style.cssText = 'width:150px;'; }
+            else if (rule.field === 'progress') { vEl.type = 'number'; vEl.min = 0; vEl.max = 100; vEl.placeholder = '0–100'; vEl.style.cssText = 'width:90px;'; }
+            else { vEl.type = 'text'; vEl.placeholder = 'type here…'; vEl.style.cssText = 'width:160px;'; }
+            vEl.addEventListener('input', () => { rule.value = vEl.value; applyBoardFilters(); });
+        }
+
+        const rmBtn = document.createElement('button');
+        rmBtn.type = 'button';
+        rmBtn.className = 'btn btn-sm btn-outline-danger';
+        rmBtn.style.cssText = 'font-size:.75rem;padding:2px 7px;';
+        rmBtn.innerHTML = '&times;';
+        rmBtn.addEventListener('click', () => { filterRules = filterRules.filter(r => r.id !== rule.id); renderFilterRows(); applyBoardFilters(); });
+
+        row.append(fSel, oSel, vEl, rmBtn);
+        container.appendChild(row);
+    });
+}
+
+function addFilterRow() {
+    filterRules.push({ id: ++ruleSeq, field: 'name', op: 'contains', value: '' });
+    renderFilterRows();
+}
+
+function clearAllFilters() {
+    filterRules = [];
+    activeGroupId = null;
+    activeSortField = null;
+    activeSortDir = null;
+    document.getElementById('boardSearch').value = '';
+    document.querySelectorAll('.group-tab').forEach(t => t.classList.remove('group-tab-active'));
+    document.getElementById('filterAll')?.classList.add('group-tab-active');
+    document.querySelectorAll('.sort-field-btn').forEach(b => {
+        b.classList.remove('sort-active');
+        b.querySelector('.sort-arrow').textContent = '↕';
+    });
+    renderFilterRows();
+    applyBoardFilters();
+}
+
+function matchBoardRule(card, rule) {
+    const { field, op, value } = rule;
+    if (value === '' || value === null || value === undefined) return true;
+
+    if (field === 'name') {
+        const v = (card.dataset.search || '');
+        if (op === 'contains')     return v.includes(value.toLowerCase());
+        if (op === 'not_contains') return !v.includes(value.toLowerCase());
+    }
+    if (field === 'priority') {
+        const v = card.dataset.priority || 'None';
+        if (op === 'is')     return v === value;
+        if (op === 'is_not') return v !== value;
+    }
+    if (field === 'group') {
+        const gids = (card.dataset.groupIds || '').split(',').filter(Boolean);
+        if (op === 'is')     return gids.includes(String(value));
+        if (op === 'is_not') return !gids.includes(String(value));
+    }
+    if (field === 'due') {
+        const ds = card.dataset.dueDate;
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        if (op === 'is') {
+            if (value === 'none') return !ds;
+            if (!ds) return false;
+            const d = new Date(ds + 'T00:00:00');
+            if (value === 'overdue') return d < today;
+            if (value === 'today')   return d.getTime() === today.getTime();
+            if (value === 'week')    { const wEnd = new Date(today.getTime() + 7 * 86400000); return d >= today && d <= wEnd; }
+        }
+        if (!ds) return true;
+        const d = new Date(ds + 'T00:00:00');
+        const vd = new Date(value + 'T00:00:00');
+        if (op === 'before') return d < vd;
+        if (op === 'after')  return d > vd;
+    }
+    if (field === 'progress') {
+        const pv = parseInt(card.dataset.progress || '0');
+        const vv = parseInt(value);
+        if (isNaN(vv)) return true;
+        if (op === 'above') return pv > vv;
+        if (op === 'below') return pv < vv;
+    }
+    return true;
+}
+
+function applyBoardFilters() {
+    const term = (document.getElementById('boardSearch').value || '').toLowerCase();
+    const PRIO = { High: 3, Medium: 2, Low: 1, None: 0, '': 0 };
+    let totalAll = 0, totalVisible = 0;
+
+    document.querySelectorAll('.kanban-column-body').forEach(body => {
+        const cards = [...body.querySelectorAll('.kanban-card[data-project-id]')];
+        totalAll += cards.length;
+
+        // Sort DOM first
+        if (activeSortField) {
+            const asc = activeSortDir === 'asc';
+            cards.sort((a, b) => {
+                let cmp = 0;
+                if (activeSortField === 'name') {
+                    cmp = (a.querySelector('.kanban-card-title')?.textContent.trim()||'').localeCompare(b.querySelector('.kanban-card-title')?.textContent.trim()||'');
+                } else if (activeSortField === 'priority') {
+                    cmp = (PRIO[a.dataset.priority]||0) - (PRIO[b.dataset.priority]||0);
+                } else if (activeSortField === 'date') {
+                    const da = a.dataset.dueDate||'9999', db = b.dataset.dueDate||'9999';
+                    cmp = da < db ? -1 : da > db ? 1 : 0;
+                } else if (activeSortField === 'progress') {
+                    cmp = (+a.dataset.progress||0) - (+b.dataset.progress||0);
+                }
+                return asc ? cmp : -cmp;
+            });
+            cards.forEach(c => body.appendChild(c));
+        }
+
+        // Filter visibility
+        cards.forEach(card => {
+            const matchGroup  = activeGroupId === null || (card.dataset.groupIds||'').split(',').filter(Boolean).includes(String(activeGroupId));
+            const matchSearch = !term || (card.dataset.search||'').includes(term);
+            const matchRules  = filterRules.every(r => matchBoardRule(card, r));
+            const show = matchGroup && matchSearch && matchRules;
+            card.style.display = show ? '' : 'none';
+            if (show) totalVisible++;
+        });
+    });
+
+    updateColumnCounts();
+    const hasFilter = term || filterRules.some(r => r.value !== '') || activeGroupId !== null;
+    document.getElementById('filterCount').textContent = hasFilter ? `${totalVisible} / ${totalAll} tasks` : '';
+}
+
 function filterByGroup(groupId, tabEl) {
     document.querySelectorAll('.group-tab').forEach(t => t.classList.remove('group-tab-active'));
     if (tabEl) tabEl.classList.add('group-tab-active');
-    document.querySelectorAll('.kanban-card[data-project-id]').forEach(card => {
-        if (!groupId) {
-            card.style.display = '';
-        } else {
-            const ids = (card.getAttribute('data-group-ids') || '').split(',').filter(Boolean);
-            card.style.display = ids.includes(String(groupId)) ? '' : 'none';
-        }
-    });
+    activeGroupId = groupId || null;
+    applyBoardFilters();
 }
-document.getElementById('boardSearch').addEventListener('keyup', function () {
-    const term = this.value.toLowerCase();
-    document.querySelectorAll('.kanban-card[data-search]').forEach(card => {
-        card.style.display = card.getAttribute('data-search').includes(term) ? '' : 'none';
+
+document.getElementById('boardSearch').addEventListener('input', applyBoardFilters);
+
+document.querySelectorAll('.sort-field-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+        const field = this.dataset.field;
+        if (activeSortField === field) {
+            if (activeSortDir === 'asc') {
+                activeSortDir = 'desc';
+                this.querySelector('.sort-arrow').textContent = '↓';
+            } else {
+                activeSortField = null;
+                activeSortDir = null;
+                this.classList.remove('sort-active');
+                this.querySelector('.sort-arrow').textContent = '↕';
+            }
+        } else {
+            document.querySelectorAll('.sort-field-btn').forEach(b => {
+                b.classList.remove('sort-active');
+                b.querySelector('.sort-arrow').textContent = '↕';
+            });
+            activeSortField = field;
+            activeSortDir = 'asc';
+            this.classList.add('sort-active');
+            this.querySelector('.sort-arrow').textContent = '↑';
+        }
+        applyBoardFilters();
     });
 });
 
@@ -1271,13 +1534,15 @@ function getDragAfterCard(container, y) {
 })();
 
 function updateColumnCounts() {
+    const filtering = !!(document.getElementById('boardSearch')?.value || filterRules.some(r => r.value !== '') || activeGroupId !== null || activeSortField);
     document.querySelectorAll('.kanban-column').forEach(col => {
         const body = col.querySelector('.kanban-column-body');
         const header = col.querySelector('.kanban-column-count');
-        if (body && header) {
-            const count = body.querySelectorAll('.kanban-card').length;
-            header.textContent = count;
-        }
+        if (!body || !header) return;
+        const allCards = [...body.querySelectorAll('.kanban-card')];
+        const total = allCards.length;
+        const visible = allCards.filter(c => c.style.display !== 'none').length;
+        header.textContent = (filtering && visible !== total) ? `${visible}/${total}` : total;
     });
 }
 </script>
