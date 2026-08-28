@@ -29,6 +29,10 @@ public class StickyNoteController : Controller
             .OrderByDescending(n => n.CreatedAt)
             .ToListAsync();
 
+        await _context.Users
+            .Where(u => u.Id == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.LastViewedNotesAt, DateTime.UtcNow));
+
         return View(notes);
     }
 

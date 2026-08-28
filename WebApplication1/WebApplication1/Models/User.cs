@@ -48,4 +48,6 @@ public class User
     public DateOnly? BirthDate { get; set; }
 
     public bool PendingApproval { get; set; } = false;
+
+    public DateTime? LastViewedNotesAt { get; set; }
 }

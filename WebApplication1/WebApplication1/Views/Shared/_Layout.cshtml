@@ -25,6 +25,14 @@
         ? DbContext.Users.Count(u => u.PendingApproval)
         : 0;
 
+    var noteBadge = 0;
+    if (userId != null)
+    {
+        var lastViewed = DbContext.Users.Where(u => u.Id == userId).Select(u => u.LastViewedNotesAt).FirstOrDefault();
+        var cutoff = lastViewed ?? DateTime.MinValue;
+        noteBadge = DbContext.StickyNotes.Count(n => n.UserId != userId && n.CreatedAt > cutoff);
+    }
+
     string NavClass(string controller, string? action = null) =>
         "sidebar-link" + (currentController == controller && (action == null || currentAction == action) ? " active" : "");
 }
@@ -79,7 +87,7 @@
                 <li class="sidebar-item">
                     <a class="@NavClass("StickyNote")" asp-controller="StickyNote" asp-action="Index" title="Notes">
                         <i class="fas fa-thumbtack"></i>
-                        <span>Notes</span>
+                        <span>Notes @if (noteBadge > 0) { <span class="badge rounded-pill ms-1" style="background:#ef4444;font-size:.6rem;padding:2px 5px;vertical-align:middle;">@noteBadge</span> }</span>
                     </a>
                 </li>
                 <li class="sidebar-item">

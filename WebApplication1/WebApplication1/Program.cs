@@ -218,6 +218,12 @@ WHERE table_schema = DATABASE()
 
     try
     {
+        EnsureColumn(context, "Users", "LastViewedNotesAt", "datetime(6) NULL");
+    }
+    catch { }
+
+    try
+    {
         context.Database.ExecuteSqlRaw(@"
             CREATE TABLE IF NOT EXISTS `ChatRooms` (
                 `Id` int NOT NULL AUTO_INCREMENT,
