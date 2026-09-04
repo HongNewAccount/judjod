@@ -75,6 +75,16 @@
                                 </div>
 
                                 <div class="mb-3">
+                                    <label class="form-label fw-semibold small">Username <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" asp-for="Username" required
+                                           placeholder="username" autocomplete="username" />
+                                    @if (ViewData.ModelState["Username"]?.Errors.Count > 0)
+                                    {
+                                        <div class="text-danger small mt-1">@ViewData.ModelState["Username"]!.Errors[0].ErrorMessage</div>
+                                    }
+                                </div>
+
+                                <div class="mb-3">
                                     <label class="form-label fw-semibold small">วันเกิด</label>
                                     <input type="date" class="form-control" asp-for="BirthDate"
                                            value="@(Model.BirthDate.HasValue ? Model.BirthDate.Value.ToString("yyyy-MM-dd") : "")" />

@@ -194,21 +194,47 @@ public class UserController : Controller
             }
         }
 
-        ModelState.Remove(nameof(WebApplication1.Models.User.Username));
         ModelState.Remove(nameof(WebApplication1.Models.User.PasswordHash));
         ModelState.Remove(nameof(WebApplication1.Models.User.LastName));
+
+        // Validate username uniqueness
+        var newUsername = user.Username?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(newUsername))
+        {
+            ModelState.AddModelError("Username", "กรุณากรอก Username");
+        }
+        else if (await _context.Users.AnyAsync(u => u.Username == newUsername && u.Id != id))
+        {
+            ModelState.AddModelError("Username", $"Username '{newUsername}' ถูกใช้งานแล้ว");
+        }
 
         if (ModelState.IsValid)
         {
             try
             {
+                var oldUsername = existingUser.Username;
                 existingUser.FirstName = user.FirstName?.Trim() ?? existingUser.FirstName;
                 existingUser.LastName = user.LastName?.Trim() ?? "";
+                existingUser.Username = newUsername;
                 existingUser.Email = user.Email?.Trim();
                 existingUser.Phone = user.Phone?.Trim();
                 existingUser.WorkLocation = user.WorkLocation?.Trim();
                 existingUser.BirthDate = user.BirthDate;
                 existingUser.UpdatedAt = DateTime.UtcNow;
+
+                if (oldUsername != newUsername)
+                {
+                    if (isSelf) HttpContext.Session.SetString("Username", newUsername);
+                    _context.ActivityLogs.Add(new ActivityLog
+                    {
+                        UserId = currentUserId,
+                        ActionType = "UsernameChanged",
+                        Description = isAdmin && !isSelf
+                            ? $"Admin เปลี่ยน Username '{oldUsername}' → '{newUsername}' ให้ {existingUser.FirstName} {existingUser.LastName}"
+                            : $"{existingUser.FirstName} {existingUser.LastName} เปลี่ยน Username '{oldUsername}' → '{newUsername}'",
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
 
                 if (profileImage != null && profileImage.Length > 0)
                 {
