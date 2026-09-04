@@ -9,7 +9,7 @@
 </style>
 }
 @{
-    ViewData["Title"] = "Board";
+    ViewData["Title"] = "Tasks";
     var userRole = Context.Session.GetString("UserRole") ?? "User";
     var allUsers = DbContext.Users.Where(u => u.IsActive).ToList();
     var currentUserId = Context.Session.GetInt32("UserId") ?? 1;
